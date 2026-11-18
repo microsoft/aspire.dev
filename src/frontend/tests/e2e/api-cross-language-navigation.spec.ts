@@ -14,7 +14,7 @@ test.beforeEach(async ({ page, isMobile }) => {
   }
 });
 
-type Language = 'csharp' | 'typescript';
+type Language = 'csharp' | 'typescript' | 'go';
 const packagePath = (language: Language) => `/reference/api/${language}/aspire.hosting.redis/`;
 const typePath = (language: Language) => `${packagePath(language)}redisresource/`;
 const rootSelector = '[data-api-search-language][data-api-search-kind]';
@@ -80,7 +80,7 @@ async function expectLanguageResults(page: Page, prefix: string, language: Langu
   return results;
 }
 
-for (const firstLanguage of ['csharp', 'typescript'] as const) {
+for (const firstLanguage of ['csharp', 'typescript', 'go'] as const) {
   test(`API package, type and member links survive ${firstLanguage}-first cross-language navigation`, async ({ page }) => {
     test.setTimeout(120_000);
     const errors = trackPageErrors(page);
@@ -115,7 +115,7 @@ for (const firstLanguage of ['csharp', 'typescript'] as const) {
       await clickClientLink(page, detailLink);
       await expect(page.locator(rootSelector)).toHaveCount(0);
       await navigateClient(page, packagePath(language));
-      const query = language === 'csharp' ? 'WithHostPort' : 'withModule';
+      const query = language === 'csharp' ? 'WithHostPort' : language === 'go' ? 'WithModule' : 'withModule';
       await page.locator('#pkg-search-input').fill(query);
       const members = await expectLanguageResults(page, 'pkg', language);
       await expect(members.first()).toHaveAttribute('href', language === 'csharp'
@@ -138,16 +138,18 @@ test('API landing searches and query filters survive language changes and histor
   await dismissCookieConsentIfVisible(page);
   await markClientSession(page);
 
-  for (const language of ['csharp', 'typescript', 'csharp'] as const) {
+  for (const language of ['csharp', 'typescript', 'go', 'csharp'] as const) {
     const landing = `/reference/api/${language}/${query}`;
     if (new URL(page.url()).pathname !== `/reference/api/${language}/`) {
       await navigateClient(page, landing);
     }
-    const prefix = language === 'csharp' ? 'api' : 'ts-api';
+    const prefix = language === 'csharp' ? 'api' : language === 'go' ? 'go-api' : 'ts-api';
     await expect(page.locator(`#${prefix}-search-input`)).toHaveValue('RedisResource');
     const results = await expectLanguageResults(page, prefix, language);
     await clickClientLink(page, results.first());
-    await expect(page.locator('#type-search-input')).toBeVisible();
+    // Go lists referenced-only handles (no capabilities) in their own modules, so the first same-name hit
+    // can be a member-less page that has no in-page search.
+    await expect(language === 'go' ? page.locator('main h1') : page.locator('#type-search-input')).toBeVisible();
     await page.goBack();
     await expect(page.locator(`#${prefix}-search-input`)).toHaveValue('RedisResource');
     await expect(page.locator('html[data-astro-transition]')).toHaveCount(0);
@@ -171,7 +173,7 @@ test('API landing searches and query filters survive language changes and histor
   expect(errors).toEqual([]);
 });
 
-test('all six API search surfaces cancel pending input when leaving, including non-API destinations', async ({ page }) => {
+test('all nine API search surfaces cancel pending input when leaving, including non-API destinations', async ({ page }) => {
   test.setTimeout(120_000);
   const errors = trackPageErrors(page);
   const surfaces = [
@@ -181,6 +183,9 @@ test('all six API search surfaces cancel pending input when leaving, including n
     { path: typePath('typescript'), prefix: 'type' },
     { path: packagePath('typescript'), prefix: 'pkg' },
     { path: '/reference/api/typescript/', prefix: 'ts-api' },
+    { path: '/reference/api/go/', prefix: 'go-api' },
+    { path: packagePath('go'), prefix: 'pkg' },
+    { path: typePath('go'), prefix: 'type' },
   ];
   await page.goto(surfaces[0].path);
   await dismissCookieConsentIfVisible(page);

@@ -1,0 +1,86 @@
+---
+title: Compiler Error ASPIREAZURE007
+seoTitle: "ASPIREAZURE007: Tenant-scoped annotation is experimental"
+description: Learn what causes the Aspire compiler error ASPIREAZURE007 and how to suppress it when you use the experimental TenantScopedResourceAnnotation type.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> 'Aspire.Hosting.Azure.TenantScopedResourceAnnotation' is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+The `TenantScopedResourceAnnotation` annotation identifies an Azure resource whose Bicep module creates tenant-scoped resources outside Azure Resource Manager (ARM), such as Microsoft Graph objects. Its constructor takes a dictionary that maps each resource type to the name of the Bicep output that identifies the created resource. Include only outputs that identify resources, never secrets.
+
+Annotated resources participate in tenant resource suffix configuration, provisioning, deployment cancellation, and local state management. Aspire skips ARM inspection, relocation, deletion, and drift probes for them. When you delete the resource group, Aspire leaves tenant-scoped resources in place and reports them so that you can clean them up with the provider's own tools.
+
+This annotation is experimental and might change in future releases. The C# compiler reports `ASPIREAZURE007` when your code uses it.
+
+## Example
+
+The following code generates `ASPIREAZURE007`:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddAzureInfrastructure("graph-app", infrastructure =>
+{
+    // Define the Microsoft Graph resources and outputs here.
+});
+
+// Using TenantScopedResourceAnnotation generates ASPIREAZURE007
+app.WithAnnotation(new TenantScopedResourceAnnotation(new Dictionary<string, string>
+{
+    ["Microsoft.Graph/applications"] = "objectId",
+    ["Microsoft.Graph/servicePrincipals"] = "servicePrincipalId"
+}));
+
+builder.Build().Run();
+```
+
+TypeScript AppHosts can't use this annotation, so they don't report this diagnostic.
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREAZURE007.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREAZURE007</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Add the following property directive to a file-based AppHost:
+
+  ```csharp title="AppHost.cs"
+  #:property NoWarn=ASPIREAZURE007
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREAZURE007` directive:
+
+  ```csharp title="Suppressing the error"
+  #pragma warning disable ASPIREAZURE007
+  app.WithAnnotation(new TenantScopedResourceAnnotation(new Dictionary<string, string>
+  {
+      ["Microsoft.Graph/applications"] = "objectId"
+  }));
+  #pragma warning restore ASPIREAZURE007
+  ```

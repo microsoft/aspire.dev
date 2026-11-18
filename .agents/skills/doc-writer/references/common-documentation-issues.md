@@ -19,7 +19,7 @@ The following rules are derived from common feedback patterns in documentation P
    ✅ Correct:
 
    ```csharp
-   builder.AddProject<Projects.Api>("api")
+   builder.AddDotnetProject("api", "../Api/Api.csproj")
        .WithReference(redis)
        .WithExternalHttpEndpoints();
    ```
@@ -27,7 +27,7 @@ The following rules are derived from common feedback patterns in documentation P
    ❌ Incorrect (aligned indentation):
 
    ```csharp
-   builder.AddProject<Projects.Api>("api")
+   builder.AddDotnetProject("api", "../Api/Api.csproj")
           .WithReference(redis)
           .WithExternalHttpEndpoints();
    ```

@@ -48,6 +48,7 @@ const TOPIC_PILL_BG = 'rgba(116, 85, 221, 0.96)';
 const CTA_CHIP_BG = 'rgba(116, 85, 221, 0.96)';
 const TITLE_COLOR = '#ffffff';
 const DESCRIPTION_COLOR = 'rgb(220, 213, 246)';
+const DETAIL_LABEL_COLOR = 'rgb(176, 160, 240)';
 const TOPIC_TEXT_COLOR = '#ffffff';
 const CTA_TEXT_COLOR = '#ffffff';
 
@@ -66,10 +67,17 @@ interface RawImage {
   info: { width: number; height: number; channels: 3 };
 }
 
+export interface OgImageDetail {
+  label: string;
+  value: string;
+}
+
 export interface RenderOgImageInput {
   title: string;
   description?: string;
   topic: TopicMetadata;
+  /** Label/value facts rendered as a fact sheet between the title and the description. */
+  details?: OgImageDetail[];
 }
 
 export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffer> {
@@ -80,6 +88,7 @@ export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffe
         title: input.title,
         description: input.description?.trim() ? input.description.trim() : undefined,
         topic: input.topic,
+        details: input.details,
       })
     ),
   ]);
@@ -230,6 +239,7 @@ interface OverlayTreeInput {
   title: string;
   description?: string;
   topic: TopicMetadata;
+  details?: OgImageDetail[];
 }
 
 function rootNode(children: unknown[]) {
@@ -285,7 +295,7 @@ function buildBaseTree(backgroundDataUri: string) {
   ]);
 }
 
-function buildOverlayTree({ title, description, topic }: OverlayTreeInput) {
+function buildOverlayTree({ title, description, topic, details }: OverlayTreeInput) {
   return rootNode([
     {
       type: 'div',
@@ -302,6 +312,7 @@ function buildOverlayTree({ title, description, topic }: OverlayTreeInput) {
         children: [
           topicPill(topic),
           titleBubble(title),
+          details?.length ? detailsBubble(details) : null,
           description ? descriptionBubble(description) : null,
         ].filter(Boolean),
       },
@@ -432,6 +443,68 @@ function descriptionBubble(description: string) {
           children: description,
         },
       },
+    },
+  };
+}
+
+function detailsBubble(details: OgImageDetail[]) {
+  return {
+    type: 'div',
+    props: {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        backgroundColor: DESCRIPTION_BG,
+        borderRadius: 22,
+        padding: '22px 32px',
+      },
+      children: details.map(detailRow),
+    },
+  };
+}
+
+function detailRow({ label, value }: OgImageDetail) {
+  return {
+    type: 'div',
+    props: {
+      style: { display: 'flex', alignItems: 'center', gap: 20 },
+      children: [
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              width: 244,
+              flexShrink: 0,
+              color: DETAIL_LABEL_COLOR,
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+            },
+            children: label,
+          },
+        },
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: '-webkit-box',
+              color: TITLE_COLOR,
+              fontSize: 32,
+              fontWeight: 700,
+              lineHeight: 1.2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 1,
+              lineClamp: 1,
+            },
+            children: value,
+          },
+        },
+      ],
     },
   };
 }

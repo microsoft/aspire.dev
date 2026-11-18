@@ -20,7 +20,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Redis Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Redis resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Redis Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model a Redis resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Redis integration, start with the [Get started with Redis integrations](/integrations/caching/redis/redis-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Redis](../redis-connect/).
 
@@ -71,6 +71,27 @@ This updates your `aspire.config.json` with the Redis hosting integration packag
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add redis
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Redis hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Redis": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Redis resource
@@ -84,7 +105,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -100,6 +121,21 @@ const cache = await builder.addRedis("cache");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache")
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -134,7 +170,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
     .WithDataVolume(isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -151,6 +187,22 @@ await cache.withDataVolume({ isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -173,7 +225,7 @@ var cache = builder.AddRedis("cache")
         source: @"C:\Redis\Data",
         isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -190,6 +242,22 @@ await cache.withDataBindMount("C:\\Redis\\Data", { isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").
+	WithDataBindMount("C:\\Redis\\Data", aspire.DataBindMountIsReadOnly(false))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -217,7 +285,7 @@ var cache = builder.AddRedis("cache")
         interval: TimeSpan.FromMinutes(5),
         keysChangedThreshold: 100);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -242,9 +310,27 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").
+	WithDataVolume().
+	WithPersistence(aspire.PersistenceInterval(5*60*1000),
+		aspire.PersistenceKeysChangedThreshold(100))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
-The preceding code adds explicit persistence to the Redis resource by snapshotting data at the configured interval whenever the configured number of keys changes. The C# AppHost accepts a `TimeSpan` for `interval`; the TypeScript AppHost accepts the same value as milliseconds.
+The preceding code adds explicit persistence to the Redis resource by snapshotting data at the configured interval whenever the configured number of keys changes. The C# AppHost accepts a `TimeSpan` for `interval`; the TypeScript and Go AppHosts accept the same value as milliseconds.
 
 ## Add Redis resource with parameters
 
@@ -259,7 +345,7 @@ var password = builder.AddParameter("password", secret: true);
 
 var cache = builder.AddRedis("cache", port: 6379, password: password);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -281,6 +367,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
+
+cache := builder.AddRedis("cache", aspire.AddRedisPort(6379),
+	aspire.AddRedisPassword(password))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method.
@@ -297,7 +401,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
     .WithRedisInsight();
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -314,6 +418,22 @@ await cache.withRedisInsight();
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").
+	WithRedisInsight()
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -336,7 +456,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
     .WithRedisInsight(redisInsight => redisInsight.WithHostPort(8001));
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -361,6 +481,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").
+	WithRedisInsight(aspire.RedisInsightConfigureContainer(func(redisInsight aspire.RedisInsightResource) {
+		redisInsight.WithHostPort(aspire.IntPtr(8001))
+	}))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding code adds and configures the host port for the Redis Insight container. The host port is otherwise randomly assigned.
@@ -377,7 +515,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
     .WithRedisCommander();
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -394,6 +532,22 @@ await cache.withRedisCommander();
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").
+	WithRedisCommander()
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -416,7 +570,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
     .WithRedisCommander(redisCommander => redisCommander.WithHostPort(8081));
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -441,6 +595,24 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").
+	WithRedisCommander(aspire.RedisCommanderConfigureContainer(func(redisCommander aspire.RedisCommanderResource) {
+		redisCommander.WithHostPort(aspire.IntPtr(8081))
+	}))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 The preceding code adds and configures the host port for the Redis Commander container. The host port is otherwise randomly assigned.
@@ -455,14 +627,14 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache")
     .WithClearCommand();
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
 ```
 
 <Aside type="note">
-    The TypeScript AppHost doesn't currently expose a `withClearCommand()` API for Redis. This feature is only available in the C# AppHost.
+    The TypeScript and Go AppHosts don't currently expose a `withClearCommand()` / `WithClearCommand()` API for Redis. This feature is only available in the C# AppHost.
 </Aside>
 
 ## Pass custom environment variables
@@ -508,6 +680,34 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache")
+cacheEndpoint := cache.PrimaryEndpoint()
+cacheHost := cacheEndpoint.Property(aspire.EndpointPropertyHost)
+cachePort := cacheEndpoint.Property(aspire.EndpointPropertyPort)
+
+app := builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(cache).
+	WithEnvironment("REDIS_HOST", cacheHost).
+	WithEnvironment("REDIS_PORT", cachePort).
+	WithEnvironment("REDIS_PASSWORD", cache.PasswordParameter())
+
+
+application, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := application.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ## Connect to an existing Redis instance
@@ -521,7 +721,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddConnectionString("cache");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -540,6 +740,28 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddConnectionString("cache")
+
+app := builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+application, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := application.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -573,6 +795,26 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddRedis("cache").WithRepl();
 
 builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddRedis("cache").WithRepl()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

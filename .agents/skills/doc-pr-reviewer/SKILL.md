@@ -94,7 +94,7 @@ The docs site provides placeholders for current-version values:
 Flag hard-coded Aspire versions as a review finding when they appear in current
 copy/paste guidance that should track the active release, including:
 
-- `Aspire.AppHost.Sdk` declarations in project files or file-based apps.
+- `Aspire.Hosting.*` package references in AppHost project files.
 - `#:package Aspire.*@...` file-based app package directives.
 - Aspire CLI or AppHost sample output that reports the current CLI/AppHost
   version.
@@ -116,6 +116,16 @@ Do **not** require placeholders for intentionally fixed versions, including:
 
 If the intent is ambiguous, leave a `COMMENT` asking whether the version should
 track the current release instead of requesting changes outright.
+
+## Legacy .NET project API review
+
+Flag new or edited evergreen AppHost samples that use the obsolete
+`AddProject`/`addProject`, `AddCSharpApp`/`addCSharpApp`, `Projects.*` types,
+`Aspire.AppHost.Sdk`, or `#:sdk` directives. Current samples use
+`AddDotnetProject("name", "path")` from `Aspire.Hosting.Dotnet`, and C# AppHosts
+use `Microsoft.NET.Sdk` with package references. Don't flag historical
+what's-new pages, the [migration guide](/integrations/dotnet/migrate-dotnet-project-resource/),
+or diagnostics that describe the legacy APIs.
 
 ## Phase A artifact
 

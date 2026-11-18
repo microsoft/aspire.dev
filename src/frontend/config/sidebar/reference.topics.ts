@@ -23,11 +23,11 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
   icon: 'seti:json',
   items: [
     {
-      label: 'Aspire Reference',
+      label: 'Aspire reference',
       translations: {
         da: 'Aspire-reference',
         de: 'Aspire-Referenz',
-        en: 'Aspire Reference',
+        en: 'Aspire reference',
         es: 'Referencia de Aspire',
         fr: 'Référence Aspire',
         hi: 'Aspire संदर्भ',
@@ -169,6 +169,27 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             'zh-CN': '搜索 TypeScript API',
           },
           link: '/reference/api/typescript/',
+        },
+        {
+          label: 'Search Go APIs',
+          translations: {
+            da: "Søg i Go API'er",
+            de: 'Go APIs durchsuchen',
+            en: 'Search Go APIs',
+            es: 'Buscar API de Go',
+            fr: 'Rechercher les API Go',
+            hi: 'Go एपीआई खोजें',
+            id: 'Cari API Go',
+            it: 'Cerca API Go',
+            ja: 'Go APIを検索する',
+            ko: 'Go API 검색',
+            'pt-BR': 'Pesquisar APIs Go',
+            ru: 'Поиск Go API',
+            tr: "Go API'leri Arayın",
+            uk: 'Пошук Go API',
+            'zh-CN': '搜索 Go API',
+          },
+          link: '/reference/api/go/',
         },
       ],
     },
@@ -578,6 +599,32 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
+              label: 'aspire template',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire template',
+                  slug: 'reference/cli/commands/aspire-template',
+                },
+                {
+                  label: 'aspire template source',
+                  slug: 'reference/cli/commands/aspire-template-source',
+                },
+                {
+                  label: 'aspire template source add',
+                  slug: 'reference/cli/commands/aspire-template-source-add',
+                },
+                {
+                  label: 'aspire template source list',
+                  slug: 'reference/cli/commands/aspire-template-source-list',
+                },
+                {
+                  label: 'aspire template source remove',
+                  slug: 'reference/cli/commands/aspire-template-source-remove',
+                },
+              ],
+            },
+            {
               label: 'aspire terminal',
               collapsed: true,
               items: [
@@ -600,6 +647,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                 {
                   label: 'aspire terminal tape play',
                   slug: 'reference/cli/commands/aspire-terminal-tape-play',
+                },
+              ],
+            },
+            {
+              label: 'aspire tray',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire tray',
+                  slug: 'reference/cli/commands/aspire-tray',
+                },
+                {
+                  label: 'aspire tray start',
+                  slug: 'reference/cli/commands/aspire-tray-start',
+                },
+                {
+                  label: 'aspire tray stop',
+                  slug: 'reference/cli/commands/aspire-tray-stop',
                 },
               ],
             },
@@ -646,6 +711,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
             { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
             { label: 'ASPIRE010', link: '/diagnostics/aspire010' },
+            { label: 'ASPIRE012', link: '/diagnostics/aspire012' },
             {
               label: 'ASPIREEXPORT005',
               link: '/diagnostics/aspireexport005',
@@ -681,6 +747,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREACANAMING001',
               link: '/diagnostics/aspireacanaming001',
+            },
+            {
+              label: 'ASPIREAZUREFUNCTIONS001',
+              link: '/diagnostics/aspireazurefunctions001',
             },
             {
               label: 'ASPIREBLAZOR001',
@@ -805,6 +875,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
             { label: 'ASPIRE009', link: '/diagnostics/aspire009' },
             { label: 'ASPIRE011', link: '/diagnostics/aspire011' },
+            { label: 'ASPIRE013', link: '/diagnostics/aspire013' },
             {
               label: 'ASPIREACADOMAIN001',
               link: '/diagnostics/aspireacadomains001',
@@ -867,6 +938,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspirepipelines003',
             },
             {
+              label: 'ASPIREPIPELINES005',
+              link: '/diagnostics/aspirepipelines005',
+            },
+            {
               label: 'ASPIREPROXYENDPOINTS001',
               link: '/diagnostics/aspireproxyendpoints001',
             },
@@ -877,6 +952,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
             { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
             { label: 'ASPIREAZURE003', link: '/diagnostics/aspireazure003' },
+            { label: 'ASPIREAZURE004', link: '/diagnostics/aspireazure004' },
+            { label: 'ASPIREAZURE005', link: '/diagnostics/aspireazure005' },
+            { label: 'ASPIREAZURE006', link: '/diagnostics/aspireazure006' },
+            { label: 'ASPIREAZURE007', link: '/diagnostics/aspireazure007' },
             {
               label: 'ASPIREBROWSERLOGS001',
               link: '/diagnostics/aspirebrowserlogs001',

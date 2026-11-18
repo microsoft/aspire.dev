@@ -1,0 +1,269 @@
+---
+title: Configure the API Management service
+description: Configure the managed identity, Application Insights diagnostics, custom domains, and existing-service adoption for Azure API Management in Aspire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+This page covers settings that apply to the Azure API Management (APIM) service as a whole: the managed identity that it uses, Application Insights diagnostics, custom domains, and adopting an existing service. It assumes the `apim` and `catalog` resources from [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/#add-a-service-and-route-a-workload).
+
+## Managed identity
+
+APIM uses a user-assigned managed identity to authenticate to backends and to read secrets and certificates from Azure Key Vault. For a new service, Aspire creates the identity, attaches it to the service, and grants it the roles that your configuration requires through the standard Azure role-assignment pipeline:
+
+| Configuration | Role granted to the identity |
+| ------------- | ---------------------------- |
+| `AddAzureOpenAIBackend` | Cognitive Services OpenAI User on the account |
+| `AddFoundryBackend` | Cognitive Services User on the account |
+| `AddBlobStorageBackend` | Storage Blob Data Reader on the storage account |
+| `AddKeyVaultNamedValue` | Key Vault Secrets User on the vault |
+| `WithCustomDomain` | Key Vault Certificate User on the vault |
+
+Role-assignment modules deploy at the target resource's scope, including a different resource group or subscription. The principal that runs `aspire deploy` needs `Microsoft.Authorization/roleAssignments/write` on each target scope.
+
+To use an identity that you manage, add it as a user-assigned identity resource and pass it to `WithAzureUserAssignedIdentity`. A new service attaches the supplied identity automatically instead of creating its own. The inferred role assignments follow the selected identity, so you can call the method before or after you add backends and named values.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const identity = await builder.addAzureUserAssignedIdentity("shared-identity");
+
+await apim.withAzureUserAssignedIdentity(identity);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var identity = builder.AddAzureUserAssignedIdentity("shared-identity");
+
+apim.WithAzureUserAssignedIdentity(identity);
+```
+
+</TabItem>
+</Tabs>
+
+In C#, the identity that APIM uses is available as `apim.Resource.Identity`. For more information about identities, see [Azure user-assigned managed identity](/integrations/cloud/azure/user-assigned-identity/).
+
+## Send diagnostics to Application Insights
+
+Call `WithApplicationInsights` on the service to log every API to an Azure Application Insights resource, or on an API to configure its diagnostics separately.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementDiagnosticVerbosity } from './.aspire/modules/aspire.mjs';
+
+const insights = await builder.addAzureApplicationInsights("insights");
+
+await apim.withApplicationInsights(insights, { samplingPercentage: 25 });
+
+const catalogApi = await apim.addApi("catalog-api", catalog, "catalog");
+await catalogApi.withApplicationInsights(insights, {
+    samplingPercentage: 100,
+    verbosity: AzureApiManagementDiagnosticVerbosity.Error,
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var insights = builder.AddAzureApplicationInsights("insights");
+
+apim.WithApplicationInsights(insights, new()
+{
+    SamplingPercentage = 25,
+});
+
+var catalogApi = apim.AddApi("catalog-api", catalog, path: "catalog");
+catalogApi.WithApplicationInsights(insights, new()
+{
+    SamplingPercentage = 100,
+    Verbosity = AzureApiManagementDiagnosticVerbosity.Error,
+});
+```
+
+</TabItem>
+</Tabs>
+
+Aspire creates an APIM logger for each Application Insights resource that you use, and a diagnostic named `applicationinsights` at each scope that you configure. The diagnostic uses W3C correlation, always logs errors, emits metrics, and doesn't capture request or response bodies.
+
+The diagnostic options have these properties:
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `SamplingPercentage` | `100` | The percentage of requests to sample, from 0 to 100. |
+| `Verbosity` | `Information` | `Error`, `Information`, or `Verbose`. |
+| `LogClientIp` | `false` | Whether telemetry includes the client IP address. |
+
+You can configure diagnostics once for the service and once for each API. A second call at the same scope throws an `InvalidOperationException`. For more information about the Application Insights resource, see [Azure Application Insights integration](/integrations/cloud/azure/azure-application-insights/).
+
+## Add a custom domain
+
+Call `WithCustomDomain` to bind a host name to a PFX certificate that's stored as a secret in Azure Key Vault.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const certificateVault = await builder.addAzureKeyVault("certificates")
+    .publishAsExisting("contoso-certificates");
+
+await apim.withCustomDomain("api.contoso.com", certificateVault, "gateway-certificate", {
+    defaultSslBinding: true,
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var certificateVault = builder.AddAzureKeyVault("certificates")
+    .PublishAsExisting("contoso-certificates", resourceGroup: null);
+
+apim.WithCustomDomain(
+    "api.contoso.com",
+    certificateVault.GetSecret("gateway-certificate"),
+    AzureApiManagementHostnameType.Proxy,
+    defaultSslBinding: true);
+```
+
+</TabItem>
+</Tabs>
+
+In TypeScript, `withCustomDomain` takes the Key Vault resource and the certificate secret name as separate arguments. In C#, you pass the Key Vault secret reference that `GetSecret` returns.
+
+The method has the following parameters:
+
+| Parameter | Default | Description |
+| --------- | ------- | ----------- |
+| `hostname` | None | A fully qualified, multi-label DNS name, such as `api.contoso.com`. Single-label host names and IP addresses are rejected. |
+| `certificate` | None | The Key Vault secret that contains the PFX certificate. |
+| `type` | `Proxy` | The endpoint: `Proxy` for the gateway, `ConfigurationApi`, `DeveloperPortal`, `Portal`, `Management`, or `Scm`. |
+| `defaultSslBinding` | `false` | Whether the certificate is the default SNI fallback. Valid only for gateway host names. |
+| `negotiateClientCertificate` | `false` | Whether the endpoint negotiates client certificates. |
+
+The certificate URI is versionless, so APIM refreshes a renewed certificate automatically. Aspire grants the APIM identity the Key Vault Certificate User role and configures the host name to use that identity. Key vaults that require APIM's system-assigned identity through the trusted-services firewall exception aren't supported. Aspire doesn't create DNS records for the host name.
+
+Aspire validates the combination of host names and tiers:
+
+- Only one host name can be the default SSL binding.
+- The Consumption tier supports one custom domain, for the gateway endpoint only.
+- The v2 tiers (`BasicV2`, `StandardV2`, and `PremiumV2`) don't support custom domains for the `Management` and `Scm` endpoints.
+- Only the Developer, Premium, and Premium v2 tiers support more than one gateway custom domain.
+- Each non-gateway endpoint type supports one host name, and a host name can't be repeated for the same endpoint type.
+
+## Use an existing service
+
+Call `PublishAsExisting` to adopt an APIM service that already exists. Aspire treats the service itself as read-only and manages the resources that you declare beneath it: APIs, operations, backends, pools, policies, fragments, products, subscriptions, named values, and diagnostics.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementSku, createBuilder, refExpr } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const apim = await builder.addAzureApiManagement("apim", {
+    publisherEmail: "api-owners@example.com",
+    publisherName: "Contoso APIs",
+    sku: AzureApiManagementSku.Premium,
+}).publishAsExisting("shared-apim", {
+    resourceGroup: "shared-infrastructure",
+});
+
+const backend = await apim.addBackend("catalog-backend", refExpr`https://catalog.example.com`);
+
+const catalogApi = await apim.addApiWithoutTarget("catalog-api", "catalog");
+await catalogApi.withApiBackend(backend);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apim = builder.AddAzureApiManagement("apim", new()
+{
+    PublisherEmail = "api-owners@example.com",
+    PublisherName = "Contoso APIs",
+    Sku = AzureApiManagementSku.Premium,
+}).PublishAsExisting("shared-apim", resourceGroup: "shared-infrastructure");
+
+var backend = apim.AddBackend(
+    "catalog-backend",
+    ReferenceExpression.Create($"https://catalog.example.com"));
+
+apim.AddApi("catalog-api", path: "catalog")
+    .WithBackend(backend);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+Adopting a service has these requirements and limits:
+
+- Set `Sku` to the adopted service's actual pricing tier, even when it's Developer. Aspire doesn't query or change the service's tier. It uses the value to validate children that depend on the tier, such as circuit breakers and OpenAI backends. The Developer default applies only to new services, and a missing `Sku` throws an `InvalidOperationException` when you publish.
+- Aspire rejects service-level virtual network configuration and custom domains for an existing service, and it doesn't change the service's managed identities.
+- Private endpoints work with existing services without modifying them. For more information, see [Virtual networking](/integrations/cloud/azure/azure-api-management/azure-api-management-networking/#add-a-private-endpoint).
+- Diagnostics aren't supported when you adopt a service from another resource group or subscription. For a service in the deployment resource group, the service and the Application Insights resource must both be in that group.
+
+### Supply an existing identity
+
+APIM uses a user-assigned identity for managed-identity backends and Key Vault-backed named values. Aspire can't attach an identity to an existing service, so you must supply one that's already attached. Configure it as an existing resource and pass it to `WithAzureUserAssignedIdentity`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const identity = await builder.addAzureUserAssignedIdentity("existing-apim-identity")
+    .publishAsExisting("shared-apim-identity", {
+        resourceGroup: "shared-infrastructure",
+    });
+
+await apim.withAzureUserAssignedIdentity(identity);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+var identity = builder.AddAzureUserAssignedIdentity("existing-apim-identity")
+    .PublishAsExisting("shared-apim-identity", resourceGroup: "shared-infrastructure");
+
+apim.WithAzureUserAssignedIdentity(identity);
+```
+
+</TabItem>
+</Tabs>
+
+If an existing service uses a managed-identity backend or a Key Vault-backed named value and the identity isn't configured as an existing resource, publishing throws an `InvalidOperationException`. Aspire doesn't query Azure to verify that the identity is attached, so attaching it remains your responsibility. An existing service that uses only anonymous backends and literal named values doesn't need an existing identity.
+
+## See also
+
+- [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/)
+- [Policies and named values](/integrations/cloud/azure/azure-api-management/azure-api-management-policies/)
+- [Azure user-assigned managed identity](/integrations/cloud/azure/user-assigned-identity/)
+- [Azure role assignments](/integrations/cloud/azure/role-assignments/)
+- [Azure Application Insights integration](/integrations/cloud/azure/azure-application-insights/)
+- [Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/)
+- [Configure a custom domain name for Azure API Management](https://learn.microsoft.com/azure/api-management/configure-custom-domain)

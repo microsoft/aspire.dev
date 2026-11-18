@@ -66,7 +66,7 @@ test('contributor guide renders common Markdown as semantic HTML', async ({ page
   );
   await expect(main.locator('p code').filter({ hasText: 'Inline code' })).toBeVisible();
   await expect(
-    main.locator('pre code').filter({ hasText: 'builder.AddProject<Projects.ApiService>' }).first()
+    main.locator('pre code').filter({ hasText: 'builder.AddDotnetProject("apiservice"' }).first()
   ).toBeVisible();
   await expect(
     main.locator('blockquote').filter({ hasText: 'This is a note or important callout.' })

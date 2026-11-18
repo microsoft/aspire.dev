@@ -1,13 +1,13 @@
 ---
 title: Multi-language architecture
-seoTitle: 'Aspire multi-language architecture: C# and TypeScript'
-description: Understand how Aspire uses a guest/host architecture, ATS, SDK generation, and local token-based auth to support TypeScript AppHosts.
+seoTitle: 'Aspire multi-language architecture: C#, TypeScript, and Go'
+description: Understand how Aspire uses a guest/host architecture, ATS, SDK generation, and local token-based auth to support TypeScript and Go AppHosts.
 ---
 
 import LearnMore from '@components/LearnMore.astro';
 import ApiReference from '@components/ApiReference.astro';
 
-Aspire supports writing AppHosts in multiple languages. While the orchestration engine is built on .NET, a guest/host architecture allows AppHosts written in TypeScript today, and additional languages in the future, to access Aspire integrations, service discovery, and the dashboard.
+Aspire supports writing AppHosts in multiple languages. While the orchestration engine is built on .NET, a guest/host architecture allows AppHosts written in TypeScript and Go, and additional languages in the future, to access Aspire integrations, service discovery, and the dashboard.
 
 ## Why a shared backend
 
@@ -23,6 +23,8 @@ When you run a TypeScript AppHost, the Aspire CLI orchestrates two processes:
 - **Host**: the Aspire orchestration server, running on .NET
 
 The guest communicates with the host via JSON-RPC over a local transport: Unix sockets on macOS and Linux, and named pipes on Windows. Your code calls methods such as `addRedis()` or `withReference()`, and the generated SDK translates those calls into RPC requests.
+
+A Go AppHost works the same way. The guest is your `apphost.go` program, which the CLI starts with `go run .`, and it calls methods such as `AddRedis()` and `WithReference()` from the generated `aspire` package.
 
 ```mermaid
 flowchart TB
@@ -53,7 +55,7 @@ flowchart TB
 ## Startup sequence
 
 1. The CLI prepares the host process with the required hosting packages.
-2. The ATS scanner inspects assemblies for exports and generates the TypeScript SDK into `.aspire/modules/`.
+2. The ATS scanner inspects assemblies for exports and generates the SDK for your AppHost language into `.aspire/modules/`.
 3. The CLI starts the host process and creates the local socket or pipe endpoint.
 4. The CLI starts the guest process and passes connection details through environment variables.
 5. The guest connects and invokes capabilities such as <ApiReference name="Aspire.Hosting.DistributedApplication.CreateBuilder" />, `addRedis`, `build`, and <ApiReference name="Aspire.Hosting.DistributedApplication.RunAsync" />.
@@ -92,6 +94,19 @@ The Aspire Type System, or ATS, is the contract that bridges .NET and guest lang
 
 Resource types are passed by handle. The actual instance remains in the host process, while the TypeScript SDK keeps a reference and dispatches method calls as JSON-RPC requests.
 
+### How ATS maps to Go
+
+| .NET type | Go representation |
+|----------|-------------------|
+| Primitives | `string`, `bool`, and `float64` for numbers |
+| Enums | String types with typed constants, such as `aspire.ContainerLifetimePersistent` |
+| Resource types | Interfaces with chainable methods that return the same handle type |
+| DTOs | Structs serialized as JSON |
+| Collections | Slices such as `[]string` and maps such as `map[string]string` |
+| Delegates | Go functions |
+
+The Go SDK passes resource types by handle in the same way. Each resource interface wraps a handle to the host-side object, and calling a method sends a JSON-RPC request.
+
 ## Polymorphism flattening
 
 .NET APIs rely on inheritance, interfaces, and generics. Guest SDKs do not need to expose that full shape directly. During scanning, ATS flattens the exported type system so the generated guest API is easier to consume:
@@ -113,6 +128,8 @@ The TypeScript SDK is generated from hosting integration assemblies. When you ad
 
 This keeps the SDK in sync with the .NET implementation. Integration authors do not hand-write TypeScript bindings; they export their .NET APIs and the CLI generates the guest surface automatically.
 
+For a Go AppHost, the CLI emits a Go package into `.aspire/modules/`. See [Generated SDK](/app-host/go-apphost/#generated-sdk).
+
 <LearnMore>
   If you're building a hosting integration and want it to work with TypeScript
   AppHosts, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/).
@@ -120,20 +137,21 @@ This keeps the SDK in sync with the .NET implementation. Integration authors do 
 
 ## Same model, different syntax
 
-The AppHost model is the same regardless of language. A TypeScript AppHost defines the same resources, references, and dependency graph as a C# AppHost. The difference is the authoring syntax.
+The AppHost model is the same regardless of language. A TypeScript or Go AppHost defines the same resources, references, and dependency graph as a C# AppHost. The difference is the authoring syntax.
 
-| Concept | C# | TypeScript |
-|---------|----|------------|
-| Create builder | `DistributedApplication.CreateBuilder(args)` | `await createBuilder()` |
-| Add resource | `builder.AddRedis("cache")` | `await builder.addRedis("cache")` |
-| Reference | `.WithReference(db)` | `.withReference(db)` |
-| Wait for | `.WaitFor(api)` | `.waitFor(api)` |
-| Build and run | `builder.Build().Run()` | `await builder.build().run()` |
+| Concept | C# | TypeScript | Go |
+|---------|----|------------|----|
+| Create builder | `DistributedApplication.CreateBuilder(args)` | `await createBuilder()` | `aspire.CreateBuilder()` |
+| Add resource | `builder.AddRedis("cache")` | `await builder.addRedis("cache")` | `builder.AddRedis("cache")` |
+| Reference | `.WithReference(db)` | `.withReference(db)` | `.WithReference(db)` |
+| Wait for | `.WaitFor(api)` | `.waitFor(api)` | `.WaitFor(api)` |
+| Build and run | `builder.Build().Run()` | `await builder.build().run()` | `builder.Build()` then `app.Run()` |
 
 The resulting dashboard, service discovery behavior, health checks, and deployment artifacts come from the same host-side orchestration engine.
 
 ## See also
 
 - [Build your first app](/get-started/first-app/?lang=typescript) — get started with a TypeScript AppHost
+- [Get started with the Go AppHost](/app-host/go-apphost/)
 - [Resource model](/architecture/resource-model/) — understand how Aspire models resources and relationships
 - [Multi-language integrations](/extensibility/multi-language-integration-authoring/) — make your integration work with TypeScript AppHosts

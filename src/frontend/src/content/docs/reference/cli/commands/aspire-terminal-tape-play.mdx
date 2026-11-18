@@ -1,7 +1,7 @@
 ---
 title: aspire terminal tape play command
 seoTitle: aspire terminal tape play command reference for Aspire CLI
-description: Play a tape against a running Aspire resource terminal, select a replica, configure a timeout, and capture final or per-command text screens.
+description: Play a tape against a running Aspire resource terminal, select an exact resource instance, configure a timeout, and capture final or per-command text screens.
 sidebar:
   badge: Preview
 ---
@@ -36,17 +36,13 @@ See [Tape file syntax](/dashboard/terminal-tape-playback/#tape-file-syntax) for 
 
 - **`<resource>`**
 
-  The name of the terminal-enabled resource to automate.
+  The resource display name for a singleton, or the exact resource instance ID for a replica. Run [`aspire describe`](/reference/cli/commands/aspire-describe/) and use the desired replica's value in the **Name** column.
 
 ## Options
 
 - **`--tape-file <path>`** (required)
 
   Path to the tape on the CLI machine. Relative paths resolve from the CLI's working directory.
-
-- **`-r, --replica <index>`**
-
-  The zero-based terminal replica index. A single replica is selected automatically. With multiple replicas, the CLI prompts for a choice unless you supply this option; non-interactive playback requires an explicit selection.
 
 - **`--apphost <path>`**
 
@@ -62,6 +58,10 @@ See [Tape file syntax](/dashboard/terminal-tape-playback/#tape-file-syntax) for 
 - <Include relativePath="reference/cli/includes/option-nologo.md" />
 - <Include relativePath="reference/cli/includes/option-banner.md" />
 - <Include relativePath="reference/cli/includes/option-wait.md" />
+
+:::note
+Scripts using the legacy `-r, --replica <index>` option still work, but the option is hidden from help. Use instance IDs for new scripts.
+:::
 
 ## Output and exit codes
 
@@ -87,10 +87,10 @@ Use the [complete shell smoke test and resource setup](/dashboard/terminal-tape-
 aspire terminal tape play shell --tape-file shell-smoke.tape
 ```
 
-To select an AppHost explicitly and bound playback to 30 seconds, use your AppHost's path:
+To select a replica, replace `shell-abc123` with its instance ID from `aspire describe`. This example also selects an AppHost explicitly and limits playback to 30 seconds:
 
-```bash title="Select a replica and AppHost"
-aspire terminal tape play shell --replica 0 --tape-file shell-smoke.tape --apphost ./apphost.cs --timeout 30
+```bash title="Select an AppHost explicitly"
+aspire terminal tape play shell-abc123 --tape-file shell-smoke.tape --apphost ./apphost.cs --timeout 30
 ```
 
 Save the final screen and diagnostics separately:

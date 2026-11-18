@@ -41,6 +41,12 @@ Before you begin, make sure you have:
 - A [supported AppHost-root package manager](/app-host/typescript-apphost/#package-managers): npm, pnpm, Yarn 4+, or Bun
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+- [Go 1.26 or later](https://go.dev/dl/) with `go` on your `PATH`
+- A supported container runtime if your AppHost uses container resources, as described in the [prerequisites](/get-started/prerequisites/)
+
+</TabItem>
 </Tabs>
 
 ## Recommended: Use an AI coding agent with the "aspireify" skill
@@ -55,10 +61,10 @@ The fastest way to add Aspire to an existing app is to let `aspire init` scaffol
    aspire init
    ```
 
-   Choose your AppHost language (C# or TypeScript) when prompted, or pass `--language csharp` / `--language typescript`. The command creates a minimal AppHost, an `aspire.config.json`, and installs the `aspireify` skill into your agent's skill directory. For existing JavaScript or TypeScript apps with a root `package.json`, the TypeScript AppHost is created in an `aspire-apphost/` subfolder so Aspire doesn't change the existing app package's module settings.
+   Choose your AppHost language (C#, TypeScript, or Go) when prompted, or pass `--language csharp` / `--language typescript` / `--language go`. The command creates a minimal AppHost, an `aspire.config.json`, and installs the `aspireify` skill into your agent's skill directory. For existing JavaScript or TypeScript apps with a root `package.json`, the TypeScript AppHost is created in an `aspire-apphost/` subfolder so Aspire doesn't change the existing app package's module settings.
 
     :::note[The AppHost language doesn't limit what you can orchestrate]
-    Whether you choose a C# or TypeScript AppHost, Aspire can orchestrate services written in any language — C#, JavaScript, Python, Go, Rust, Java, containers, and more. The AppHost language is just how you express the orchestration, not a constraint on the workloads.
+    Whether you choose a C#, TypeScript, or Go AppHost, Aspire can orchestrate services written in any language — C#, JavaScript, Python, Go, Rust, Java, containers, and more. The AppHost language is just how you express the orchestration, not a constraint on the workloads.
     :::
 
 2. Ask your AI coding agent to run the `aspireify` skill. The agent will:
@@ -97,11 +103,11 @@ The AppHost is the orchestration layer. Your choice here changes how you express
 
 Aspire offers two C# AppHost styles:
 
-**File-based AppHost** — a single `apphost.cs` file that uses `#:sdk` and `#:package` directives. No `.csproj`, no solution integration required. Best for repos with [polyglot](/get-started/glossary/#polyglot) code or quick setups.
+**File-based AppHost** — a single `apphost.cs` file that uses `#:package` directives. No `.csproj`, no solution integration required. Best for repos with [polyglot](/get-started/glossary/#polyglot) code or quick setups.
 
-**Project-based AppHost** — a traditional `AppHost.csproj` that lives inside a `.sln` alongside your other C# projects. Uses `ProjectReference` items and the generated `Projects` namespace for strongly-typed <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> calls. Best when your repo is already a .NET solution and you want IDE-integrated orchestration.
+**Project-based AppHost** — a traditional `AppHost.csproj` that lives inside a `.sln` alongside your other C# projects. Best when your repo is already a .NET solution and you want IDE-integrated orchestration.
 
-Both styles use the same `Aspire.AppHost.Sdk` and the same hosting APIs.
+Both styles use the same [AppHost packages](/get-started/aspire-sdk/) and hosting APIs, and both add .NET projects by path with `AddDotnetProject`.
 
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
@@ -113,10 +119,23 @@ Use a TypeScript AppHost when your repo already centers on a Node.js workspace o
 - Fits naturally into existing package-manager and monorepo workflows
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+Use a Go AppHost when your team works in Go or when you want the AppHost to be a regular, compiled Go program.
+
+- Lives in `apphost.go` with its own `go.mod`; when your repo already has a root `go.mod`, `aspire init` creates the AppHost under `aspire-apphost/` and leaves your module untouched
+- Uses the generated Go SDK in `.aspire/modules`, imported as `apphost/modules/aspire`
+- Starts through `aspire run` or `aspire start`, which build and launch the AppHost for you
+
+<LearnMore>
+For the project layout and conventions, see [Go AppHost project structure](/app-host/go-apphost/).
+</LearnMore>
+
+</TabItem>
 </Tabs>
 
 :::tip[No runtime lock-in]
-Both AppHost styles can orchestrate multi-language systems. You can mix C#, Node.js, Python, Go, Rust, Java, containers, and supported integrations in the same application model. Pick the AppHost that best fits your repo and team, not the one that matches a single workload.
+Every AppHost language can orchestrate multi-language systems. You can mix C#, Node.js, Python, Go, Rust, Java, containers, and supported integrations in the same application model. Pick the AppHost that best fits your repo and team, not the one that matches a single workload.
 :::
 
 ### Set up your AppHost
@@ -140,25 +159,25 @@ Use a file-based AppHost when you want a lightweight single-file orchestrator wi
 
    ```bash title="Add hosting integrations"
    aspire add redis
+   aspire add Aspire.Hosting.Dotnet
    ```
 
 3. Wire the resources in `apphost.cs`:
 
    ```csharp title="apphost.cs"
-   #:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+   #:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
    #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
-
-   #pragma warning disable ASPIRECSHARPAPPS001
+   #:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
 
    var builder = DistributedApplication.CreateBuilder(args);
 
    var cache = builder.AddRedis("cache");
 
-   var api = builder.AddCSharpApp("api", "./src/Api/MyApp.Api.csproj")
+   var api = builder.AddDotnetProject("api", "./src/Api/MyApp.Api.csproj")
        .WithReference(cache)
        .WithHttpHealthCheck("/health");
 
-   var worker = builder.AddCSharpApp("worker", "./src/Worker/MyApp.Worker.csproj")
+   var worker = builder.AddDotnetProject("worker", "./src/Worker/MyApp.Worker.csproj")
        .WithReference(cache);
 
    builder.Build().Run();
@@ -178,13 +197,9 @@ After setup, a typical repo layout looks like this:
             - MyApp.Worker.csproj
 </FileTree>
 
-:::caution[AddCSharpApp is experimental]
-<ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddCSharpApp" /> is currently experimental. If you want details on limitations or diagnostic suppression, see [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/).
-:::
-
 #### Project-based AppHost (with a .sln)
 
-Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) with multiple projects. The project-based AppHost uses `ProjectReference` items and the generated `Projects` namespace for strongly-typed `AddProject<T>()` calls, giving you full IDE support including IntelliSense, refactoring, and build-order awareness.
+Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) with multiple projects. The project-based AppHost joins your solution, so you get full IDE support including IntelliSense, debugging, and refactoring.
 
 <Steps>
 
@@ -194,24 +209,17 @@ Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) 
    aspire init
    ```
 
-2. Add project references from the AppHost to each service you want to orchestrate:
-
-   ```bash title="Add project references"
-   dotnet add MyApp.AppHost reference src/Api/MyApp.Api.csproj
-   dotnet add MyApp.AppHost reference src/Web/MyApp.Web.csproj
-   dotnet add MyApp.AppHost reference src/Worker/MyApp.Worker.csproj
-   ```
-
-3. Add hosting integrations:
+2. Add hosting integrations:
 
    ```bash title="Add hosting integrations"
    aspire add redis
    aspire add postgres
+   aspire add Aspire.Hosting.Dotnet
    ```
 
-4. Wire the resources in the AppHost's `Program.cs`:
+3. Wire the resources in the AppHost's `AppHost.cs`, referencing each service by its project path:
 
-   ```csharp title="MyApp.AppHost/Program.cs"
+   ```csharp title="MyApp.AppHost/AppHost.cs"
    var builder = DistributedApplication.CreateBuilder(args);
 
    var cache = builder.AddRedis("cache")
@@ -221,16 +229,16 @@ Use this approach when your repo is already a .NET solution (`.sln` or `.slnx`) 
        .WithLifetime(ContainerLifetime.Persistent)
        .AddDatabase("mydb");
 
-   var api = builder.AddProject<Projects.MyApp_Api>("api")
+   var api = builder.AddDotnetProject("api", "../src/Api/MyApp.Api.csproj")
        .WithReference(db)
        .WithReference(cache)
        .WaitFor(db);
 
-   builder.AddProject<Projects.MyApp_Web>("web")
+   builder.AddDotnetProject("web", "../src/Web/MyApp.Web.csproj")
        .WithReference(api)
        .WaitFor(api);
 
-   builder.AddProject<Projects.MyApp_Worker>("worker")
+   builder.AddDotnetProject("worker", "../src/Worker/MyApp.Worker.csproj")
        .WithReference(cache)
        .WithReference(db);
 
@@ -255,12 +263,12 @@ After setup, a typical solution layout looks like this:
             - MyApp.Worker.csproj
 </FileTree>
 
-:::note[ProjectReference wiring]
-Each `ProjectReference` in the AppHost triggers a source generator that creates a class in the `Projects` namespace. When you call `AddProject<Projects.MyApp_Api>("api")`, Aspire knows the project path and how to build and launch it. See [Aspire SDK](/get-started/aspire-sdk/) for details on how project references and metadata generation work.
+:::note[Project paths]
+`AddDotnetProject` paths are relative to the AppHost directory. The AppHost doesn't need a `ProjectReference` to each service, so keep the services in your solution so that IDE and CI builds include them.
 :::
 
 <LearnMore>
-For the full `AddProject` workflow including custom type names, multi-project solutions, and launch profiles, see [Project resources](/integrations/dotnet/project-resources/).
+For launch profiles, file-based apps, and IDE behavior, see [.NET hosting](/integrations/frameworks/dotnet/dotnet-host/).
 </LearnMore>
 
 </TabItem>
@@ -293,7 +301,7 @@ For the full `AddProject` workflow including custom type names, multi-project so
    const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
    const api = await builder
-       .addProject('api', '../src/Api/MyApp.Api.csproj')
+       .addDotnetProject('api', '../src/Api/MyApp.Api.csproj')
        .withReference(db)
        .withReference(cache)
        .waitFor(db);
@@ -387,6 +395,103 @@ If your root `package.json` already contains any `aspire:`-prefixed scripts (for
 The AppHost package and your guest apps can use different package managers. The AppHost directory takes precedence for running AppHost scripts — if the AppHost's `package.json` declares `"packageManager": "pnpm@..."` or contains a `pnpm-lock.yaml`, pnpm is used for AppHost operations regardless of the toolchain in the parent workspace.
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+<Steps>
+
+1. Run `aspire init` from your workspace root with the Go language option:
+
+   ```bash title="Initialize Aspire with a Go AppHost"
+   aspire init --language go
+   ```
+
+2. Add hosting integrations:
+
+   ```bash title="Add hosting integrations"
+   aspire add redis
+   aspire add postgres
+   aspire add Aspire.Hosting.Dotnet
+   ```
+
+3. Wire the resources in `aspire-apphost/apphost.go`:
+
+   ```go title="apphost.go"
+   package main
+
+   import (
+   	"log"
+
+   	"apphost/modules/aspire"
+   )
+
+   func main() {
+   	builder, err := aspire.CreateBuilder()
+   	if err != nil {
+   		log.Fatal(aspire.FormatError(err))
+   	}
+
+   	cache := builder.AddRedis("cache")
+
+   	db := builder.AddPostgres("postgres").
+   		AddDatabase("mydb")
+
+   	api := builder.AddDotnetProject("api", "../src/Api/MyApp.Api.csproj").
+   		WithReference(db).
+   		WithReference(cache).
+   		WaitFor(db)
+
+   	builder.AddViteApp("web", "../services/web").
+   		WithReference(api).
+   		WaitFor(api)
+
+   	app, err := builder.Build()
+   	if err != nil {
+   		log.Fatal(aspire.FormatError(err))
+   	}
+   	if err := app.Run(); err != nil {
+   		log.Fatal(aspire.FormatError(err))
+   	}
+   }
+   ```
+
+</Steps>
+
+After setup, a typical workspace layout looks like this:
+
+<FileTree>
+    - aspire.config.json (new)
+    - aspire-apphost/ (new)
+        - apphost.go
+        - go.mod
+        - .aspire/modules/
+    - services/
+        - web/
+            - package.json
+            - src/
+    - src/
+        - Api/
+            - MyApp.Api.csproj
+</FileTree>
+
+:::note[The .aspire folder is generated]
+Let the Aspire CLI manage `aspire-apphost/.aspire/` rather than editing generated SDK files manually. Run `aspire restore` to regenerate the Go SDK after switching branches or changing AppHost packages.
+:::
+
+#### Existing Go module
+
+When your repo already has a root `go.mod`, `aspire init --language go` keeps it unchanged and places the AppHost in `aspire-apphost/`, with its own `go.mod` and generated SDK. The AppHost module is separate from your application module, so the AppHost's dependencies don't change your app's dependencies. A Go service is added to the AppHost with `AddGoApp`, which takes the directory that contains the service:
+
+```go title="apphost.go — Add an existing Go service"
+builder.AddGoApp("api", "../cmd/api").
+	WithHttpEndpoint(aspire.HttpEndpointEnv("PORT")).
+	WithExternalHttpEndpoints()
+```
+
+<LearnMore>
+For the `AddGoApp` options and publishing behavior, see [Go hosting integration](/integrations/frameworks/go/go-host/).
+</LearnMore>
+
+</TabItem>
 </Tabs>
 
 ### Scenario: Existing services with hosting integrations
@@ -401,7 +506,7 @@ The following example registers a Python API with <ApiReference name="Aspire.Hos
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="apphost.cs — Existing services with hosting integrations"
-#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Python@%ASPIRE_VERSION%
 #:package Aspire.Hosting.JavaScript@%ASPIRE_VERSION%
@@ -454,6 +559,48 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go — Existing services with hosting integrations"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddRedis("cache")
+
+	api := builder.AddUvicornApp("api", "../services/api", "main:app").
+		WithUv().
+		WithReference(cache).
+		WithExternalHttpEndpoints()
+
+	builder.AddPythonApp("worker", "../workers/inventory-sync", "worker.py").
+		WithReference(cache)
+
+	builder.AddViteApp("web", "../services/web").
+		WithReference(api).
+		WaitFor(api)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 If a workload does not have a dedicated hosting API yet, model it as an executable resource with <ApiReference name="Aspire.Hosting.ExecutableResourceBuilderExtensions.AddExecutable" /> so it can still participate in the same application model.
@@ -483,7 +630,7 @@ Use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddCon
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="apphost.cs — Existing containers and shared infrastructure"
-#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
 #:package Aspire.Hosting.PostgreSQL@%ASPIRE_VERSION%
 #:package Aspire.Hosting.Redis@%ASPIRE_VERSION%
 
@@ -533,6 +680,52 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go — Existing containers and shared infrastructure"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	db := builder.AddPostgres("postgres").
+		AddDatabase("orders")
+
+	cache := builder.AddRedis("cache")
+
+	api := builder.AddContainer("api", "ghcr.io/contoso/orders-api:latest").
+		WithReference(db).
+		WithReference(cache).
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080),
+			aspire.HttpEndpointTargetPort(8080),
+			aspire.HttpEndpointName("http"))
+
+	builder.AddContainer("web", "ghcr.io/contoso/orders-web:latest").
+		WithReference(api).
+		WithHttpEndpoint(aspire.HttpEndpointPort(3000),
+			aspire.HttpEndpointTargetPort(3000),
+			aspire.HttpEndpointName("http"))
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 
@@ -574,7 +767,7 @@ services:
 <TabItem label='C#'>
 
 ```csharp title="apphost.cs" showLineNumbers
-#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
 #:package Aspire.Hosting.PostgreSQL@%ASPIRE_VERSION%
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -617,12 +810,55 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem label='Go'>
+
+```go title="apphost.go" showLineNumbers
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	db := builder.AddPostgres("postgres").
+		AddDatabase("mydb")
+
+	api := builder.AddDockerfile("api", "./api").
+		WithReference(db).
+		WithHttpEndpoint(aspire.HttpEndpointPort(8080),
+			aspire.HttpEndpointTargetPort(8080),
+			aspire.HttpEndpointName("http"))
+
+	builder.AddDockerfile("web", "./web").
+		WithReference(api).
+		WithHttpEndpoint(aspire.HttpEndpointPort(3000),
+			aspire.HttpEndpointTargetPort(3000),
+			aspire.HttpEndpointName("http"))
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 These scenarios are starting points, not mutually exclusive modes. Most real apps mix workload-specific resources, containers, shared infrastructure, project-path references, and occasional custom commands in a single application model. The key is that dependencies, endpoints, configuration, and startup behavior become explicit.
 
 <LearnMore>
-For more examples, see [Project resources](/integrations/dotnet/project-resources/), [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/), [Executable resources](/app-host/executable-resources/), and [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/).
+For more examples, see [.NET / C# apps in the AppHost](/integrations/frameworks/dotnet/dotnet-host/), [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/), [Executable resources](/app-host/executable-resources/), and [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/).
 </LearnMore>
 
 ## Add telemetry configuration (optional)
@@ -700,6 +936,63 @@ If your app includes Node.js or TypeScript services, configure OpenTelemetry ins
    import express from 'express';
 
    const app = express();
+   ```
+
+</Steps>
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+If your app includes Go services, configure OpenTelemetry inside the service and point it at the Aspire <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint. When you add a Go service with `AddGoApp`, call `WithOtlpExporter` so Aspire passes the OTLP environment variables to it.
+
+<Steps>
+
+1. Install the OpenTelemetry packages:
+
+   ```bash title="Install OpenTelemetry packages"
+   go get go.opentelemetry.io/otel \
+       go.opentelemetry.io/otel/sdk \
+       go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc \
+       go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+   ```
+
+2. Create a telemetry bootstrap function:
+
+   ```go title="telemetry.go"
+   package main
+
+   import (
+   	"context"
+
+   	"go.opentelemetry.io/otel"
+   	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+   	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+   )
+
+   func setupTelemetry(ctx context.Context) (func(context.Context) error, error) {
+   	// The exporter reads OTEL_EXPORTER_OTLP_ENDPOINT, which Aspire sets for the service.
+   	exporter, err := otlptracegrpc.New(ctx)
+   	if err != nil {
+   		return nil, err
+   	}
+
+   	provider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+   	otel.SetTracerProvider(provider)
+
+   	return provider.Shutdown, nil
+   }
+   ```
+
+3. Call it at startup and wrap your HTTP handler with `otelhttp`:
+
+   ```go title="main.go"
+   shutdown, err := setupTelemetry(context.Background())
+   if err != nil {
+   	log.Fatal(err)
+   }
+   defer shutdown(context.Background())
+
+   http.ListenAndServe(":"+os.Getenv("PORT"), otelhttp.NewHandler(mux, "app"))
    ```
 
 </Steps>
