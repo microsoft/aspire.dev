@@ -66,12 +66,12 @@ Recapturing is not enough: the UX may have gained surfaces the docs never showed
 
 Scripted checks (`verify()`) are not enough. Look at every image and judge it:
 
-1. Build contact sheets (`bun scripts/sheet.ts <out.png> <paths>`) and view each shot next to its original (`git show origin/release/17.0:<path>`).
+1. Build contact sheets (`bun scripts/sheet.ts <out.png> <paths>`) and view each shot next to its original (`git show origin/release/X.Y:<path>`).
 2. For each, answer: Does it show the same UI the docs' alt text and surrounding prose describe (right page, dialog, menu, state)? Is it the right theme for its filename? Are all message bars dismissed? Is it framed well (no big blank areas, not squashed, similar size to the original)? Should the sidebar be collapsed to give the content room (for example traces and landing console)?
 3. Adjust the manifest (steps, route, callouts, `autoCrop`, collapse step) and recapture only the failing ids with `--attach --keep --only`.
 4. Repeat until every image passes. Record anything you could not make right in the report.
 
-Review checklist per image: same subject as the original and the docs' alt text (compare against `git show origin/release/17.0:<path>`); sidebar collapsed (`"collapseSidebar": true` or an explicit collapse step) unless the sidebar is the subject; no message bars or toasts; filters, menus and selections visible when the doc describes them; content rich enough (no trivial one-span traces or empty tables); no large blank areas; correct theme; `landing/*` exactly 2560x1600.
+Review checklist per image: same subject as the original and the docs' alt text (compare against `git show origin/release/X.Y:<path>`); sidebar collapsed (`"collapseSidebar": true` or an explicit collapse step) unless the sidebar is the subject; no message bars or toasts; filters, menus and selections visible when the doc describes them; content rich enough (no trivial one-span traces or empty tables); no large blank areas; correct theme; `landing/*` exactly 2560x1600.
 
 ## Rich demo telemetry
 
@@ -134,6 +134,6 @@ Never set a small per-shot `height` (under ~700): the dashboard footer and layou
 - **Audit the whole site, not just `assets/dashboard`.** Grep all of `src/frontend/src/assets` for dashboard captures (get-started, fundamentals, integrations, whats-new) and the landing carousel; see the manual section above.
 - **Add new UI to docs and carousel in the same pass.** New dashboard features (density, overview panels, metrics filters, show-empty-panels toggle) need doc prose plus shots; landing images are 2560x1600 so never `autoCrop` them.
 - **Keep PRs split:** skill and manifest on one branch, generated images and MDX on another; push manifest changes first, then move the PNGs.
-- **Match the product version.** Record which dashboard build was used (demo AppHost on release/17.0 vs. the installed CLI's bundled dashboard) in the PR body.
+- **Match the product version.** Record which dashboard build was used (demo AppHost on release/X.Y vs. the installed CLI's bundled dashboard) in the PR body.
 - **CI quirks:** frontend build ~9 min, E2E 10-20 min; rerun only failed jobs for flakes. Never run a local site build.
 - **Tooling quirks:** `aspire run` blocks (start it hidden/background); `run-code` screenshot paths must be inline forward-slash absolute paths; the `view` tool needs a copy to a fresh temp name; the playwright session can die, so re-running `--only` reopens it.
