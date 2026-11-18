@@ -3,25 +3,28 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { expect, test, vi } from 'vitest';
-import type { TsApiDocument, TsFunction, TsHandleType } from '@utils/ts-modules';
+import type { TsApiDocument, TsFunction, TsHandleType, TsItem } from '@utils/ts-modules';
 import { formatTsSignature, getTsModules } from '@utils/ts-modules';
 import { getTsHandleMethod, getTsItemSlug, getTsMethods, getTsMethodSlug, getTsRouteItem, getTsTopLevelRouteItems, prepareTsApiRoutes, tsSlugify } from '@utils/ts-api-routes';
-import type { TsTopLevelRouteItemLike } from '@utils/ts-api-routes';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import { getStaticPaths as itemPaths } from '../../src/pages/reference/api/typescript/[module]/[item].md';
 import { getStaticPaths as memberPaths } from '../../src/pages/reference/api/typescript/[module]/[item]/[member].md';
 import { referenceSlug } from './ts-api-routes-reference';
 
-vi.mock('astro:content', () => ({
-  getCollection: () => {
-    const directory = fileURLToPath(new URL('../../src/data/ts-modules/', import.meta.url));
-    return Promise.resolve(readdirSync(directory).filter((name) => name.endsWith('.json')).sort().map((file) => {
-      const data = JSON.parse(readFileSync(join(directory, file), 'utf8')) as TsApiDocument;
-      prepareTsApiRoutes(data);
-      return { id: file, data };
-    }));
-  },
-}));
+vi.mock('astro:content', () => {
+  let entries: Array<{ id: string; data: TsApiDocument }>;
+  return {
+    getCollection: () => {
+      const directory = fileURLToPath(new URL('../../src/data/ts-modules/', import.meta.url));
+      entries ??= readdirSync(directory).filter((name) => name.endsWith('.json')).sort().map((file) => {
+        const data = JSON.parse(readFileSync(join(directory, file), 'utf8')) as TsApiDocument;
+        prepareTsApiRoutes(data);
+        return { id: file, data };
+      });
+      return Promise.resolve(entries);
+    },
+  };
+});
 
 test('every catalog HTML item/member path has a Markdown peer and legacy exports remain available', async () => {
   const items = await itemPaths();
@@ -29,10 +32,9 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
   const itemUrls = new Set(items.map(({ params }) => `${params.module}/${params.item}`));
   const memberUrls = new Set(members.map(({ params }) => `${params.module}/${params.item}/${params.member}`));
   const docs = new Map((await getTsModules()).map(({ data }) => [data.package.name, data]));
-  const memberDocs = docs;
   const itemProps = new Map(items.map(({ params, props }) => [
     `${params.module}/${params.item}`,
-    getTsRouteItem<TsTopLevelRouteItemLike>(docs.get(props.packageName)!, props.itemKind, props.itemIndex),
+    getTsRouteItem<TsItem>(docs.get(props.packageName)!, props.itemKind, props.itemIndex),
   ]));
   const memberProps = new Map(members.map(({ params, props }) => [
     `${params.module}/${params.item}/${params.member}`,
@@ -60,7 +62,7 @@ test('every catalog HTML item/member path has a Markdown peer and legacy exports
         legacyCount++;
       }
     }
-    const memberDoc = memberDocs.get(moduleName);
+    const memberDoc = doc;
     const memberItems = memberDoc ? getTsTopLevelRouteItems(memberDoc) : [];
     for (const handle of memberDoc?.handleTypes ?? []) {
       const item = getTsItemSlug(handle, memberItems);

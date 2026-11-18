@@ -1,0 +1,75 @@
+---
+title: Compiler Error ASPIREAZURE004
+seoTitle: "ASPIREAZURE004: Bicep extension declarations are experimental"
+description: Learn what causes the Aspire compiler error ASPIREAZURE004 and how to suppress it when you declare Bicep extensions on Azure resource infrastructure.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 17.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> 'Aspire.Hosting.Azure.AzureResourceInfrastructure.BicepExtensions' is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+The `AzureResourceInfrastructure.BicepExtensions` property declares Bicep extensions for the module that Aspire generates for an Azure resource. Each entry maps a namespace alias to an extension reference, such as `br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0`. Aspire writes the references inline, so the generated module doesn't depend on a _bicepconfig.json_ file.
+
+This property is experimental and might change in future releases. The C# compiler reports `ASPIREAZURE004` when your AppHost uses it.
+
+## Example
+
+The following code generates `ASPIREAZURE004`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureInfrastructure("graph", infrastructure =>
+{
+    // Using BicepExtensions generates ASPIREAZURE004
+    infrastructure.BicepExtensions["microsoftGraphV1"] =
+        "br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0";
+});
+
+builder.Build().Run();
+```
+
+TypeScript AppHosts can't use this property, so they don't report this diagnostic.
+
+## To correct this error
+
+Suppress the error with one of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREAZURE004.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREAZURE004</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Add the following property directive to a file-based AppHost:
+
+  ```csharp title="AppHost.cs"
+  #:property NoWarn=ASPIREAZURE004
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREAZURE004` directive:
+
+  ```csharp title="Suppressing the error"
+  #pragma warning disable ASPIREAZURE004
+  infrastructure.BicepExtensions["microsoftGraphV1"] =
+      "br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0";
+  #pragma warning restore ASPIREAZURE004
+  ```

@@ -80,6 +80,22 @@ export interface TsApiDocument {
   enumTypes?: TsEnumType[];
 }
 
+export type TsItemKind = 'handle' | 'dto' | 'enum' | 'function';
+export type TsItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
+
+// Keep HTML and Markdown discovery props primitive and independent of document size.
+export interface TsItemRouteProps {
+  packageName: string;
+  itemKind: TsItemKind;
+  itemIndex: number;
+}
+
+export interface TsMemberRouteProps {
+  packageName: string;
+  handleIndex: number;
+  methodIndex: number;
+}
+
 export type TsModuleCollectionEntry = Omit<CollectionEntry<'tsModules'>, 'data'> & {
   data: TsApiDocument;
 };
@@ -110,9 +126,7 @@ export function getTsModules(): Promise<TsModuleCollectionEntry[]> {
  */
 export async function getTsModuleDocument(packageName: string): Promise<TsApiDocument> {
   const entry = (await getTsModules()).find(({ data }) => data.package.name === packageName);
-  if (!entry) {
-    throw new Error(`TypeScript module "${packageName}" was not found in the tsModules collection.`);
-  }
+  if (!entry) throw new Error(`Unknown TypeScript API package: ${packageName}`);
   return entry.data;
 }
 

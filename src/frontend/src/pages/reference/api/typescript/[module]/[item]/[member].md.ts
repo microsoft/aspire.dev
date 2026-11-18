@@ -3,17 +3,13 @@ import type { APIRoute } from 'astro';
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { withApiCacheKeys } from '@utils/api-cache-key';
 import { renderTypeScriptMemberMarkdownPage } from '@utils/typescript-api-markdown';
-import type { TsFunction, TsHandleType } from '@utils/ts-modules';
+import type { TsFunction, TsHandleType, TsMemberRouteProps } from '@utils/ts-modules';
 import { getTsModuleDocument, getTsModules, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
 import { getTsHandleMethod, getTsItemSlug, getTsMethods, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 
 export const prerender = true;
 
-type RouteProps = {
-  handleIndex: number;
-  methodIndex: number;
-  packageName: string;
-};
+type RouteProps = TsMemberRouteProps;
 
 type StaticPath = {
   params: { item: string; member: string; module: string };
@@ -23,7 +19,7 @@ type StaticPath = {
 export async function getStaticPaths(): Promise<Array<StaticPath & { cacheKey: string }>> {
   const packages = await getTsModules();
   const paths: StaticPath[] = [];
-  const names = new Map<StaticPath, { member: string; item: string }>();
+  const names = new Map<StaticPath, { item: string; member: string }>();
 
   for (const entry of packages) {
     const pkg = entry.data;
@@ -50,8 +46,8 @@ export async function getStaticPaths(): Promise<Array<StaticPath & { cacheKey: s
             module: pkgSlug,
           },
           props: {
-            handleIndex,
             methodIndex,
+            handleIndex,
             packageName: pkg.package.name,
           },
         };
@@ -78,9 +74,7 @@ export const GET: APIRoute = async ({ props }) => {
   const routeProps = props as RouteProps;
   const pkg = await getTsModuleDocument(routeProps.packageName);
   const { parentType, method } = getTsHandleMethod<TsFunction, TsHandleType>(
-    pkg.handleTypes,
-    routeProps.handleIndex,
-    routeProps.methodIndex
+    pkg.handleTypes, routeProps.handleIndex, routeProps.methodIndex
   );
 
   return markdownResponse(

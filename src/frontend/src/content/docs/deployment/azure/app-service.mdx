@@ -181,7 +181,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureAppServiceEnvironment("app-service-env");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishAsAzureAppServiceWebsite((infrastructure, website) =>
     {
         website.AppSettings.Add("ASPNETCORE_ENVIRONMENT", new AppServiceConfigurationSetting
@@ -206,7 +206,7 @@ const builder = await createBuilder();
 await builder.addAzureAppServiceEnvironment("app-service-env");
 
 await builder
-    .addProject("api", "../Api/Api.csproj")
+    .addDotnetProject("api", "../Api/Api.csproj")
     .publishAsAzureAppServiceWebsite({
         configure: async (_infrastructure, _website) => {
             // Customize the generated production website here.
@@ -231,7 +231,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddAzureAppServiceEnvironment("app-service-env")
     .WithDeploymentSlot("staging");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishAsAzureAppServiceWebsite(
         configure: (infrastructure, website) =>
         {
@@ -256,7 +256,7 @@ await builder.addAzureAppServiceEnvironment("app-service-env")
     .withDeploymentSlot("staging");
 
 await builder
-    .addProject("api", "../Api/Api.csproj")
+    .addDotnetProject("api", "../Api/Api.csproj")
     .publishAsAzureAppServiceWebsite({
         configureSlot: async (_infrastructure, _slot) => {
             // Customize the generated deployment slot here.
@@ -276,7 +276,7 @@ Azure App Service application settings accept only letters, numbers, and undersc
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .PublishAsAzureAppServiceWebsite()
     .SkipEnvironmentVariableNameChecks();
 ```
@@ -284,7 +284,7 @@ builder.AddProject<Projects.Api>("api")
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
 await builder
-    .addProject("api", "../Api/Api.csproj", "https")
+    .addDotnetProject("api", "../Api/Api.csproj", { launchProfileName: "https" })
     .publishAsAzureAppServiceWebsite()
     .skipEnvironmentVariableNameChecks();
 ```
@@ -406,6 +406,15 @@ await appServiceEnv.withDeploymentSlot("staging");
   For existing plans, advanced customization, and deployment slot behavior, see
   [Azure App Service Hosting
   integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/).
+</LearnMore>
+
+## Restrict access with Azure Front Door
+
+To make the websites reachable only through Azure Front Door, connect the environment with `WithAzureFrontDoorPrivateLink` (`withAzureFrontDoorPrivateLink` in TypeScript). Aspire disables public network access on every app website in the environment and connects each Front Door origin to its own website over Private Link. You approve each website's connection request after deployment.
+
+<LearnMore>
+  For examples, deployment slot behavior, and approval steps, see [Private Link
+  origins](/integrations/cloud/azure/azure-front-door/#private-link-origins).
 </LearnMore>
 
 ## Deployment considerations

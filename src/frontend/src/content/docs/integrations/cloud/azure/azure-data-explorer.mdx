@@ -19,7 +19,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Data Explorer (Kusto) hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Data Explorer clusters and databases in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Data Explorer (Kusto) hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model Azure Data Explorer clusters and databases in your [`AppHost`](/get-started/app-host/) project.
 
 [Azure Data Explorer](https://azure.microsoft.com/services/data-explorer/) (also known as Kusto) is a fast and highly scalable data exploration service for log and telemetry data. The hosting integration models the following types:
 
@@ -74,6 +74,27 @@ This updates your `aspire.config.json` with the Azure Data Explorer hosting inte
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-kusto
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Data Explorer hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Kusto": "%ASPIRE_VERSION_PREVIEW%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add an Azure Data Explorer cluster resource
@@ -88,7 +109,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var kusto = builder.AddAzureKustoCluster("kusto");
 var database = kusto.AddReadWriteDatabase("analytics");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(database)
     .WaitFor(database);
 
@@ -107,6 +128,23 @@ const database = await kusto.addReadWriteDatabase("analytics");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(database)
     .waitFor(database);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+kusto := builder.AddAzureKustoCluster("kusto")
+database := kusto.AddReadWriteDatabase("analytics")
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(database).
+	WaitFor(database)
 
 // After adding all resources, run the app...
 ```
@@ -136,7 +174,7 @@ var kusto = builder.AddAzureKustoCluster("kusto")
 
 var database = kusto.AddReadWriteDatabase("analytics");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(database)
     .WaitFor(database);
 
@@ -157,6 +195,25 @@ const database = await kusto.addReadWriteDatabase("analytics");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(database)
     .waitFor(database);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+kusto := builder.AddAzureKustoCluster("kusto").
+	RunAsEmulator()
+
+database := kusto.AddReadWriteDatabase("analytics")
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(database).
+	WaitFor(database)
 
 // After adding all resources, run the app...
 ```
@@ -201,6 +258,21 @@ const kusto = await builder.addAzureKustoCluster("kusto")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+kusto := builder.AddAzureKustoCluster("kusto").
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(emulator aspire.AzureKustoEmulatorResource) {
+		emulator.WithHostPort(8080)
+	}))
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
 ### Add a database creation script
@@ -224,7 +296,7 @@ var database = kusto.AddReadWriteDatabase("analytics")
         )
         """);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(database)
     .WaitFor(database);
 
@@ -249,10 +321,34 @@ const database = await kusto.addReadWriteDatabase("analytics")
         )
         `);
 
-const exampleProject = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+const exampleProject = await builder.addDotnetProject("example", "../ExampleProject/ExampleProject.csproj");
 await exampleProject
     .withReference(database)
     .waitFor(database);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+kusto := builder.AddAzureKustoCluster("kusto").
+	RunAsEmulator()
+
+database := kusto.AddReadWriteDatabase("analytics").
+	WithCreationScript(`.create table Events (
+    Timestamp: datetime,
+    EventType: string,
+    Message: string
+)`)
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(database).
+	WaitFor(database)
 
 // After adding all resources, run the app...
 ```

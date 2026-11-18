@@ -33,20 +33,6 @@ ConnectionStrings__<resourceName>
 For example, if you define a Redis resource named `cache`:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-
-var api = builder.AddProject<Projects.MyApi>("api")
-    .WithReference(cache);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
@@ -56,9 +42,23 @@ const builder = await createBuilder();
 
 const cache = await builder.addRedis('cache');
 
-await builder.addProject('api', '../MyApi/MyApi.csproj').withReference(cache);
+await builder.addDotnetProject('api', '../MyApi/MyApi.csproj').withReference(cache);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var api = builder.AddDotnetProject("api", "../MyApi/MyApi.csproj")
+    .WithReference(cache);
+
+builder.Build().Run();
 ```
 
 </TabItem>
@@ -98,22 +98,6 @@ Aspire preserves the original resource name in connection string and service dis
 The following AppHost defines resources whose names contain dashes:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var db = builder.AddPostgres("postgres").AddDatabase("app-db");
-var catalog = builder.AddProject<Projects.CatalogApi>("catalog-api");
-
-builder.AddProject<Projects.Worker>("worker")
-    .WithReference(db)
-    .WithReference(catalog);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
@@ -123,16 +107,32 @@ const builder = await createBuilder();
 
 const postgres = await builder.addPostgres('postgres');
 const db = await postgres.addDatabase('app-db');
-const catalog = await builder.addProject(
+const catalog = await builder.addDotnetProject(
   'catalog-api',
   '../CatalogApi/CatalogApi.csproj'
 );
 
-const worker = await builder.addProject('worker', '../Worker/Worker.csproj');
+const worker = await builder.addDotnetProject('worker', '../Worker/Worker.csproj');
 await worker.withReference(db);
 await worker.withReference(catalog);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres").AddDatabase("app-db");
+var catalog = builder.AddDotnetProject("catalog-api", "../CatalogApi/CatalogApi.csproj");
+
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
+    .WithReference(db)
+    .WithReference(catalog);
+
+builder.Build().Run();
 ```
 
 </TabItem>
@@ -191,25 +191,6 @@ Follow these recommendations when naming resources in your AppHost:
 The following example shows a set of clear, conventional resource names:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var postgres = builder.AddPostgres("postgres");
-var appDb = postgres.AddDatabase("app-db");
-var cache = builder.AddRedis("cache");
-var messageBus = builder.AddRabbitMQ("message-bus");
-
-var api = builder.AddProject<Projects.Api>("api")
-    .WithReference(appDb)
-    .WithReference(cache)
-    .WithReference(messageBus);
-
-builder.Build().Run();
-```
-
-</TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.mts"
@@ -222,12 +203,31 @@ const appDb = await postgres.addDatabase('app-db');
 const cache = await builder.addRedis('cache');
 const messageBus = await builder.addRabbitMQ('message-bus');
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(appDb);
 await api.withReference(cache);
 await api.withReference(messageBus);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var appDb = postgres.AddDatabase("app-db");
+var cache = builder.AddRedis("cache");
+var messageBus = builder.AddRabbitMQ("message-bus");
+
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithReference(appDb)
+    .WithReference(cache)
+    .WithReference(messageBus);
+
+builder.Build().Run();
 ```
 
 </TabItem>

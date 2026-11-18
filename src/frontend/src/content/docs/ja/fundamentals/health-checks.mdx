@@ -440,7 +440,7 @@ var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
                         .WithHttpEndpoint(targetPort: 8080)
                         .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.WebApp>("webapp")
+builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
        .WithReference(catalogApi)
        .WaitFor(catalogApi); // /health が HTTP 200 を返すまで待機
 ```
@@ -459,7 +459,7 @@ const catalogApi = await builder
   .withHttpHealthCheck('/health');
 
 await builder
-  .addProject('webapp', './WebApp/WebApp.csproj')
+  .addDotnetProject('webapp', './WebApp/WebApp.csproj')
   .withReference(catalogApi)
   .waitFor(catalogApi);
 
@@ -475,10 +475,10 @@ await builder.build().run();
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-var backend = builder.AddProject<Projects.Backend>("backend")
+var backend = builder.AddDotnetProject("backend", "../Backend/Backend.csproj")
                      .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.Frontend>("frontend")
+builder.AddDotnetProject("frontend", "../Frontend/Frontend.csproj")
        .WithReference(backend)
        .WaitFor(backend);
 ```
@@ -492,11 +492,11 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const backend = await builder
-  .addProject('backend', './Backend/Backend.csproj')
+  .addDotnetProject('backend', './Backend/Backend.csproj')
   .withHttpHealthCheck('/health');
 
 await builder
-  .addProject('frontend', './Frontend/Frontend.csproj')
+  .addDotnetProject('frontend', './Frontend/Frontend.csproj')
   .withReference(backend)
   .waitFor(backend);
 
@@ -528,7 +528,7 @@ builder.Services.AddHealthChecks().AddCheck("mycheck", () =>
 var pg = builder.AddPostgres("pg")
     .WithHealthCheck("mycheck");
 
-builder.AddProject<Projects.MyApp>("myapp")
+builder.AddDotnetProject("myapp", "../MyApp/MyApp.csproj")
     .WithReference(pg)
     .WaitFor(pg); // Postgres コンテナーが実行中になるのを待ち
                   // かつカスタム "mycheck" が healthy になるのを待機
@@ -551,7 +551,7 @@ const pg = await builder
   .withHttpHealthCheck('/health');
 
 await builder
-  .addProject('myapp', './MyApp/MyApp.csproj')
+  .addDotnetProject('myapp', './MyApp/MyApp.csproj')
   .withReference(pg)
   .waitFor(pg);
 

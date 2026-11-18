@@ -125,7 +125,7 @@ For example, the following code subscribes to the `ResourceStoppedEvent` on a re
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder
-    .AddProject<Projects.Api>("api")
+    .AddDotnetProject("api", "../Api/Api.csproj")
     .OnResourceStopped(async (resource, stoppedEvent, cancellationToken) =>
     {
         if (stoppedEvent.ResourceEvent.Snapshot.ExitCode is not (null or 0))
@@ -154,6 +154,10 @@ builder
 
 For CLI specific contexts, the interaction service is retrieved from either the `PublishingContext` or `PipelineStepContext` depending on the operation being performed.
 
+</Aside>
+
+<Aside type="caution">
+  Don't prompt from before-start logic, such as `BeforeStartEvent` subscribers, `IDistributedApplicationLifecycleHook.BeforeStartAsync` implementations, or the `before-start` pipeline step. The dashboard and CLI that respond to interactions haven't started yet, so `IsAvailable` returns `false` from the time the AppHost is built until before-start completes. Calling a prompt method during that window throws an `InvalidOperationException` instead of waiting for a response. Prompt from a later event or from a resource command instead.
 </Aside>
 
 ## Display messages
