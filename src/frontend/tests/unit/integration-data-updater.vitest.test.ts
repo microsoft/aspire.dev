@@ -89,7 +89,7 @@ function fixture(mode: string) {
   for (const directory of [
     scripts,
     tool,
-    ...['pkgs', 'ts-modules', 'twoslash'].map((name) => path.join(data, name)),
+    ...['pkgs', 'ts-modules', 'go-modules', 'twoslash'].map((name) => path.join(data, name)),
   ]) {
     fs.mkdirSync(directory, { recursive: true });
   }
@@ -214,6 +214,10 @@ function global:bun {
             if ($env:FIXTURE_MODE -in @('bundle-failure', 'clean-bundle-failure')) { $global:LASTEXITCODE = 1 }
         }
         'twoslash-types' { Set-Content $env:ASPIRE_API_TWOSLASH_FILE '' }
+        'update:go-api' {
+            New-Item -ItemType Directory -Path $env:ASPIRE_API_GO_MODULES_DIR -Force | Out-Null
+            Write-Output 'Complete: 0 succeeded, 0 failed, 0 skipped'
+        }
         'normalize:api-data' {
             if ($env:FIXTURE_MODE -eq 'normalize-failure') { $global:LASTEXITCODE = 1 }
         }

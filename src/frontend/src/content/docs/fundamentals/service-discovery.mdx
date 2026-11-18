@@ -37,10 +37,10 @@ Configuration for service discovery is only added for services that are referenc
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var catalog = builder.AddProject<Projects.CatalogService>("catalog");
-var basket = builder.AddProject<Projects.BasketService>("basket");
+var catalog = builder.AddDotnetProject("catalog", "../CatalogService/CatalogService.csproj");
+var basket = builder.AddDotnetProject("basket", "../BasketService/BasketService.csproj");
 
-var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
+var frontend = builder.AddDotnetProject("frontend", "../MyFrontend/MyFrontend.csproj")
                        .WithReference(basket)
                        .WithReference(catalog);
 ```
@@ -53,16 +53,16 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const catalog = await builder.addProject(
+const catalog = await builder.addDotnetProject(
   'catalog',
   '../CatalogService/CatalogService.csproj'
 );
-const basket = await builder.addProject(
+const basket = await builder.addDotnetProject(
   'basket',
   '../BasketService/BasketService.csproj'
 );
 
-const frontend = await builder.addProject(
+const frontend = await builder.addDotnetProject(
   'frontend',
   '../MyFrontend/MyFrontend.csproj'
 );
@@ -198,7 +198,7 @@ Named endpoints can also be exposed by code in the AppHost. For instance, the pr
 <TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
-var basket = builder.AddProject<Projects.BasketService>("basket")
+var basket = builder.AddDotnetProject("basket", "../BasketService/BasketService.csproj")
     .WithHttpsEndpoint(port: 9999, name: "dashboard");
 ```
 
@@ -206,7 +206,7 @@ var basket = builder.AddProject<Projects.BasketService>("basket")
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-const basket = await builder.addProject(
+const basket = await builder.addDotnetProject(
   'basket',
   '../BasketService/BasketService.csproj'
 );
@@ -366,7 +366,7 @@ const response = await fetch(`${dashboardUrl}/api/stats`);
 **Common causes**:
 
 1. **Missing `WithReference()`** - The calling service wasn't connected to the target service in AppHost
-2. **Wrong service name** - The name in your URI doesn't match the name in <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" /> or <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" />
+2. **Wrong service name** - The name in your URI doesn't match the name in <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" /> or <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddContainer" />
 3. **Service not started** - The target service failed to start or is still starting
 
 **Solution**: Verify your AppHost connects the services:
@@ -375,8 +375,8 @@ const response = await fetch(`${dashboardUrl}/api/stats`);
 <TabItem id="csharp" label="C#">
 
 ```csharp
-var api = builder.AddProject<Projects.Api>("api");
-var frontend = builder.AddProject<Projects.Frontend>("frontend")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
+var frontend = builder.AddDotnetProject("frontend", "../Frontend/Frontend.csproj")
     .WithReference(api);  // This is required!
 ```
 
@@ -384,8 +384,8 @@ var frontend = builder.AddProject<Projects.Frontend>("frontend")
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-const api = await builder.addProject('api', '../Api/Api.csproj');
-const frontend = await builder.addProject(
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
+const frontend = await builder.addDotnetProject(
   'frontend',
   '../Frontend/Frontend.csproj'
 );
@@ -405,7 +405,7 @@ await frontend.withReference(api); // This is required!
 <TabItem id="csharp" label="C#">
 
 ```csharp
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpEndpoint(port: 9999, name: "dashboard");  // Name must match
 ```
 
@@ -413,7 +413,7 @@ var api = builder.AddProject<Projects.Api>("api")
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.mts"
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withHttpEndpoint({ port: 9999, name: 'dashboard' }); // Name must match
 ```
 

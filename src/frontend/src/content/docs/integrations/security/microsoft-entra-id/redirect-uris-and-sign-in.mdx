@@ -1,0 +1,225 @@
+---
+title: Entra ID redirect URIs and sign-in
+seoTitle: Configure Entra ID redirect URIs and sign-in in Aspire
+description: Register Microsoft Entra ID redirect URIs from endpoints, parameters, or literals, enable ID-token issuance, and choose sign-in audiences in your AppHost.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Web apps that sign users in need redirect URIs, also called callback URIs, registered on their Microsoft Entra ID registration. Aspire registers redirect URIs on registrations that it creates. For an [existing registration](/integrations/security/microsoft-entra-id/existing-registrations/), the redirect URI methods throw, so add the URIs in the **Authentication** settings of the [Microsoft Entra admin center](https://entra.microsoft.com) instead.
+
+Aspire doesn't discover redirect URIs on its own. The callback path is configured by the app that signs users in, so you supply it in the AppHost and it must match the app's configuration.
+
+## Derive redirect URIs from an endpoint
+
+Pass an endpoint and one or more callback paths so the redirect URIs follow the resource's endpoint instead of hard-coded values.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const entraWeb = await builder.addEntraIdApplication("entra-web");
+
+const web = await builder.addDotnetProject("web", "../Web/Web.csproj");
+await web.withExternalHttpEndpoints();
+await web.withReference(entraWeb);
+
+await entraWeb.withRedirectUris(await web.getEndpoint("https"), {
+    callbackPaths: ["/signin-oidc", "/signout-callback-oidc"],
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var entraWeb = builder.AddEntraIdApplication("entra-web");
+
+var web = builder.AddDotnetProject("web", "../Web/Web.csproj")
+    .WithExternalHttpEndpoints()
+    .WithReference(entraWeb);
+
+entraWeb.WithRedirectUris(web.GetEndpoint("https"), "/signin-oidc", "/signout-callback-oidc");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The scheme, host, and port come from the endpoint, and the behavior depends on the mode:
+
+- When you run the AppHost, Aspire waits for the endpoint to be allocated and then uses the endpoint's finalized browser URL. This includes friendly `*.dev.localhost` names and URL customizations. The registration receives the real URL even when ports are assigned randomly.
+- When you publish or deploy, the URI is `https://` plus the host of the resource's compute environment, plus the callback path. The deployed endpoint must have TLS enabled. If it doesn't, generating the infrastructure fails with an error that asks you to use an HTTPS endpoint or an explicit redirect URI. In Azure Container Apps, the endpoint must also be an external HTTP or HTTPS endpoint, for example by calling `WithExternalHttpEndpoints`.
+- Each callback path must start with `/`, and at least one path is required.
+
+If the registered URI doesn't match the URL that the browser uses, supply explicit redirect URIs.
+
+## Use a host parameter
+
+When only the host name varies per environment, such as a custom domain supplied at deployment time, pass a parameter for the host and the fixed callback paths. Each URI is `https://{host}{path}`, so don't include a scheme or path in the parameter value. This and the remaining examples on this page continue the previous example and use its `builder` and `entraWeb` variables.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const webHost = await builder.addParameter("web-host");
+
+await entraWeb.withRedirectUris(webHost, {
+    callbackPaths: ["/signin-oidc", "/signout-callback-oidc"],
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var webHost = builder.AddParameter("web-host");
+
+entraWeb.WithRedirectUris(webHost, "/signin-oidc", "/signout-callback-oidc");
+```
+
+</TabItem>
+</Tabs>
+
+## Use literal or parameter URIs
+
+When the externally visible URL differs from the endpoint, such as behind a gateway, reverse proxy, or custom domain, supply the full URIs. A parameter without callback paths holds comma-separated full URIs.
+
+Aspire passes literal and parameter URIs to Microsoft Entra ID as they are, and Microsoft Entra ID enforces its [redirect URI restrictions](https://learn.microsoft.com/entra/identity-platform/reply-url). Register only exact `https://` URIs of hosts that you control, except `http://localhost` for local development, and don't use wildcards. Values that you supply for a host parameter are trusted the same way, so restrict who can set them.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const redirectUris = await builder.addParameter("web-redirect-uris");
+
+await entraWeb.withRedirectUris("https://localhost:7123/signin-oidc");
+await entraWeb.withRedirectUris(redirectUris);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var redirectUris = builder.AddParameter("web-redirect-uris");
+
+entraWeb
+    .WithRedirectUris("https://localhost:7123/signin-oidc")
+    .WithRedirectUris(redirectUris);
+```
+
+</TabItem>
+</Tabs>
+
+Literal and parameter-backed URIs can be mixed and are registered in call order. In a parameter value, separate URIs with commas, without spaces. A URI can't contain a comma. In TypeScript, call `withRedirectUris` repeatedly to add more than one value.
+
+## Keep browser origins consistent
+
+Ordinary endpoint references resolve to the allocated address, which can differ from the `*.dev.localhost` URL that the browser shows. For settings that must match the browser URL, such as a CORS allow list, read the endpoint's `PrimaryBrowserOrigin` or `BrowserOrigins` property instead. Redirect URIs use the same primary browser origin.
+
+## Enable ID-token issuance
+
+ID-token issuance through implicit and hybrid flows is disabled by default. Enable it when your app's OpenID Connect sign-in flow requests an ID token directly from the authorization endpoint.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await entraWeb.withIdTokenIssuance();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+entraWeb.WithIdTokenIssuance();
+```
+
+</TabItem>
+</Tabs>
+
+`WithIdTokenIssuance` enables only ID-token issuance, not implicit access-token issuance. It isn't needed for authorization-code-only flows. For an [existing registration](/integrations/security/microsoft-entra-id/existing-registrations/), the method throws, so select **ID tokens (used for implicit and hybrid flows)** in the registration's **Authentication** settings instead.
+
+For new production apps, prefer the authorization code flow with PKCE, and configure a [client credential](/integrations/security/microsoft-entra-id/client-credentials/) when the app redeems codes.
+
+## Choose a sign-in audience
+
+By default, only accounts in the app's home tenant can sign in. When the registration's **Supported account types** setting allows other accounts, call `WithSignInAudience` with the matching value.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { EntraIdSignInAudience } from './.aspire/modules/aspire.mjs';
+
+await entraWeb.withSignInAudience(EntraIdSignInAudience.AzureADMultipleOrgs);
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+entraWeb.WithSignInAudience(EntraIdSignInAudience.AzureADMultipleOrgs);
+```
+
+</TabItem>
+</Tabs>
+
+| Sign-in audience | Who can sign in | `TenantId` value that apps receive |
+| ---------------- | --------------- | --------------------------------------- |
+| `AzureADMyOrg` (default) | Accounts in the home tenant | The home tenant ID |
+| `AzureADMultipleOrgs` | Accounts in any Microsoft Entra tenant | `organizations` |
+| `AzureADandPersonalMicrosoftAccount` | Accounts in any Microsoft Entra tenant and personal Microsoft accounts | `common` |
+| `PersonalMicrosoftAccount` | Personal Microsoft accounts only | `consumers` |
+
+For the audiences other than `AzureADMyOrg`, apps also receive the home tenant ID as `AppHomeTenantId`. Microsoft.Identity.Web needs it when the app acquires tokens as itself. Always pass the home tenant ID, not `organizations`, `common`, or `consumers`, when you [reference an existing registration](/integrations/security/microsoft-entra-id/existing-registrations/).
+
+For registrations that Aspire creates, `WithSignInAudience` also sets the registration's supported account types. For existing registrations, it configures only the apps that reference the registration, so set the matching account types in the Microsoft Entra admin center.
+
+:::caution
+When an audience allows other tenants, users from any of those tenants can sign in. Check the tenant ID (`tid`) claim of incoming tokens before you give access to tenant-specific data. For more information, see [Secure applications and APIs by validating claims](https://learn.microsoft.com/entra/identity-platform/claims-validation).
+:::
+
+## Target a sovereign cloud
+
+Use `WithInstance` to point referencing apps at a sovereign cloud such as Azure Government. The instance must be an absolute HTTPS URL without a query string or fragment.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+await entraWeb.withInstance("https://login.microsoftonline.us/");
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+entraWeb.WithInstance("https://login.microsoftonline.us/");
+```
+
+</TabItem>
+</Tabs>
+
+The built-in Microsoft Graph, Azure Resource Manager, and Azure Storage APIs use their global-cloud URLs. In a sovereign cloud, define the API yourself with the cloud's resource URI and base URL, and request its permissions by ID. For an example, see [Call Microsoft Graph and other first-party APIs](/integrations/security/microsoft-entra-id/expose-and-call-apis/#call-microsoft-graph-and-other-first-party-apis).
+
+:::note
+Managed identity federation recognizes the Azure public, US Government, and China clouds. Other clouds fail with an error.
+:::
+
+## See also
+
+- [Client credentials](/integrations/security/microsoft-entra-id/client-credentials/)
+- [Existing registrations](/integrations/security/microsoft-entra-id/existing-registrations/)
+- [Redirect URI restrictions](https://learn.microsoft.com/entra/identity-platform/reply-url)
+- [Authorization code flow with PKCE](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow)

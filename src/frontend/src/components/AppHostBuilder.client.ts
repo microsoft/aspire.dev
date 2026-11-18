@@ -1,4 +1,4 @@
-type AppHostLanguage = 'csharp' | 'typescript';
+type AppHostLanguage = 'csharp' | 'typescript' | 'go';
 type EditorState = 'idle' | 'navigating' | 'selecting' | 'typing' | 'switching';
 
 interface DiffHunk {
@@ -11,7 +11,7 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const LINE_SELECTOR = 'pre > code > .ec-line';
 
 function isAppHostLanguage(value: string | undefined): value is AppHostLanguage {
-  return value === 'csharp' || value === 'typescript';
+  return value === 'csharp' || value === 'typescript' || value === 'go';
 }
 
 function wait(duration: number): Promise<void> {
@@ -553,7 +553,8 @@ function initializeAppHostBuilder(root: HTMLElement): void {
         parsed.innerHTML = content;
         if (
           !parsed.content.querySelector('[data-code-lang="csharp"] .code-variant') ||
-          !parsed.content.querySelector('[data-code-lang="typescript"] .code-variant')
+          !parsed.content.querySelector('[data-code-lang="typescript"] .code-variant') ||
+          !parsed.content.querySelector('[data-code-lang="go"] .code-variant')
         ) {
           throw new Error('AppHost examples response does not contain both languages.');
         }

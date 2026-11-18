@@ -35,7 +35,7 @@ To get started with the Aspire Community Toolkit SQL Server hosting extensions, 
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.SqlServer.Extensions" />
 
-For TypeScript AppHosts, add the Community Toolkit SQL Server extensions package to `aspire.config.json`:
+For TypeScript and Go AppHosts, add the Community Toolkit SQL Server extensions package to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -60,7 +60,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var sqlserver = builder.AddSqlServer("sqlserver")
     .WithDbGate();
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(sqlserver);
 
 builder.Build().Run();
@@ -77,10 +77,34 @@ const builder = await createBuilder();
 const sqlserver = await builder.addSqlServer('sqlserver');
 await sqlserver.withDbGate();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(sqlserver);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sqlserver := builder.AddSqlServer("sqlserver").
+	WithDbGate()
+
+builder.AddGoApp("api", "./api").
+	WithReference(sqlserver)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -101,7 +125,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var sqlserver = builder.AddSqlServer("sqlserver")
     .WithAdminer();
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(sqlserver);
 
 builder.Build().Run();
@@ -118,10 +142,34 @@ const builder = await createBuilder();
 const sqlserver = await builder.addSqlServer('sqlserver');
 await sqlserver.withAdminer();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(sqlserver);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sqlserver := builder.AddSqlServer("sqlserver").
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(sqlserver)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -143,7 +191,7 @@ var sqlserver = builder.AddSqlServer("sqlserver")
     .WithDbGate()
     .WithAdminer();
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(sqlserver);
 
 builder.Build().Run();
@@ -161,10 +209,35 @@ const sqlserver = await builder.addSqlServer('sqlserver');
 await sqlserver.withDbGate();
 await sqlserver.withAdminer();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(sqlserver);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+sqlserver := builder.AddSqlServer("sqlserver").
+	WithDbGate().
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(sqlserver)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -204,9 +277,31 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddSqlServer("sqlserver").
+	WithDbx(aspire.DbxContainerName("sqlserver-dbx"),
+		aspire.DbxImageTag("0.5.33"))
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript and Go bindings accept optional `containerName` and `imageTag` values.
 
 ## See also
 

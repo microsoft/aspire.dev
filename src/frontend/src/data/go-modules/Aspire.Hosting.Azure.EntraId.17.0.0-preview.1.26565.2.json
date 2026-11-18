@@ -1,0 +1,2531 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.Azure.EntraId",
+    "version": "17.0.0-preview.1.26565.2",
+    "language": "go",
+    "importPath": "apphost/modules/aspire",
+    "sourceRepository": "https://github.com/microsoft/aspire",
+    "sourceCommit": "bcfa151cdca6d0a573f22d5d9c23f9c727cb3b2f"
+  },
+  "functions": [
+    {
+      "name": "AddEntraIdApplication",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/addEntraIdApplication",
+      "qualifiedName": "addEntraIdApplication",
+      "description": "Adds a Microsoft Entra ID application registration resource to the application model.",
+      "remarks": "Provisions an application and service principal through Microsoft Graph Bicep. Requires Azure provisioning\nconfiguration and permission to create registrations in the subscription's tenant.\nReference the registration from a workload to inject authentication configuration as environment variables.\nTo reference an existing registration without Azure or Graph access, use addExistingEntraIdApplication.\nWorkloads must configure their own authentication library.",
+      "returns": "The application registration builder.",
+      "kind": "Method",
+      "signature": "AddEntraIdApplication(name string) EntraIdApplicationResource",
+      "receiver": "DistributedApplicationBuilder",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ],
+      "appliesTo": [
+        "DistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "AddExistingEntraIdApplication",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/addExistingEntraIdApplication",
+      "qualifiedName": "addExistingEntraIdApplication",
+      "description": "References an existing registration without enabling Azure provisioning or querying Microsoft Graph.",
+      "remarks": "Literal IDs are validated immediately; parameter values are validated at startup. Other Azure resources retain their provisioning setup.",
+      "returns": "The application registration builder.",
+      "kind": "Method",
+      "signature": "AddExistingEntraIdApplication(name string, tenantId any, clientId any) EntraIdApplicationResource",
+      "receiver": "DistributedApplicationBuilder",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The resource name."
+        },
+        {
+          "name": "tenantId",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource"
+          ],
+          "description": "The registration's home tenant GUID or domain, as a literal or parameter. Sign-in keywords are not home tenant IDs."
+        },
+        {
+          "name": "clientId",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource"
+          ],
+          "description": "The registration's application client GUID, as a literal or parameter."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ],
+      "appliesTo": [
+        "DistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "AsExistingApplication",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/asExistingApplication",
+      "qualifiedName": "asExistingApplication",
+      "description": "References an existing registration without undoing the Azure provisioning setup enabled when this resource was added.",
+      "remarks": "The registration itself is not provisioned or queried. Deployment can still require Azure authentication and configuration.\nUse addExistingEntraIdApplication instead for a configuration-only AppHost without Azure setup.\nThrows before changing the resource if registration-only configuration was already applied.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "AsExistingApplication(tenantId any, clientId any) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "tenantId",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource"
+          ],
+          "description": "The registration's home tenant GUID or domain, as a literal or parameter."
+        },
+        {
+          "name": "clientId",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource"
+          ],
+          "description": "The registration's application client GUID, as a literal or parameter."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "GetScopeUri",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/getScopeUri",
+      "qualifiedName": "getScopeUri",
+      "description": "Gets an expression for the full URI of one of this registration's scopes, such as api://{clientId}/access_as_user.",
+      "remarks": "Clients request the full URI as the token scope. Throws when the registration has no such scope, or is an existing registration without an application ID URI.",
+      "returns": "An expression that resolves when the registration's application ID URI is known.",
+      "kind": "Method",
+      "signature": "GetScopeUri(scopeName string) *ReferenceExpression",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "scopeName",
+          "type": "string",
+          "description": "The name of a scope added with withScope."
+        }
+      ],
+      "returnType": "*ReferenceExpression",
+      "errorModel": "deferred",
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "PublishWithAppRoleAssignment",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/publishWithAppRoleAssignment",
+      "qualifiedName": "publishWithAppRoleAssignment",
+      "description": "Publishes explicit application-role assignments to a managed identity or a compute resource's managed identity.",
+      "remarks": "Has no effect during local run. Existing registrations are not modified. No caller registration or federation is created.\nRequires Graph AppRoleAssignment.ReadWrite.All and Application.Read.All (or higher application-read permission), administrator\nconsent and, for delegated deployment, a supported Entra directory role. Removing a call does not revoke a deployed grant.",
+      "returns": "The API registration builder.",
+      "kind": "Method",
+      "signature": "PublishWithAppRoleAssignment(identity any, roleValues []string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "identity",
+          "type": "any",
+          "allowedTypes": [
+            "AzureUserAssignedIdentityResource",
+            "IComputeResource"
+          ],
+          "description": "The user-assigned identity or compute resource receiving the roles."
+        },
+        {
+          "name": "roleValues",
+          "type": "[]string",
+          "description": "Enabled role values declared on this API that allow Application members."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "PublishWithFederatedManagedIdentityCredential",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/publishWithFederatedManagedIdentityCredential",
+      "qualifiedName": "publishWithFederatedManagedIdentityCredential",
+      "description": "Publishes managed identity federation trust for a registration created by Aspire.",
+      "remarks": "Not used during local run. Throws for existing registrations. A selected compute resource must reference this registration.\nWith an explicit identity, each consumer must use that identity. Only Azure public, US Government and China clouds are supported.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "PublishWithFederatedManagedIdentityCredential(options ...*PublishWithFederatedManagedIdentityCredentialOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [],
+      "options": {
+        "typeName": "PublishWithFederatedManagedIdentityCredentialOptions",
+        "fields": [
+          {
+            "name": "Identity",
+            "jsonName": "identity",
+            "type": "any",
+            "description": "A compute resource whose identity to trust, an explicit user-assigned identity, or no value to trust every consumer's own identity."
+          }
+        ]
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "RunWithLocalDeveloperCertificateCredential",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/runWithLocalDeveloperCertificateCredential",
+      "qualifiedName": "runWithLocalDeveloperCertificateCredential",
+      "description": "Creates and provisions a short-lived certificate credential for local development.",
+      "remarks": "Each application gets a dedicated certificate in the AppHost's local store. Certificates last two days;\non a subsequent run, a certificate with one day or less remaining is replaced by overwriting its PFX file.\nOnly the public certificate is provisioned in Entra. Referencing applications receive the private\ncredential as a secret `Base64EncodedValue` in Microsoft.Identity.Web's `ClientCredentials` configuration.\nAspire replaces the registration's entire `keyCredentials` collection with the selected certificate.\nExisting certificate credentials are not retained, so older sessions must restart after renewal.\nDevelopment and production must use separate Entra registrations. Never register developer certificates\non a production application. Different resource groups do not isolate tenant-scoped registrations:\nuse distinct registration names or tenant-resource suffixes. This method does not provision or emit a credential when publishing;\nomitting a credential from publish does not revoke a key previously registered against the same application.\nIn either mode, this configuration prevents conversion to an existing registration with `AsExistingApplication`.\nRenewal is checked at AppHost startup, not in the background. Restart long-running development sessions\nbefore the certificate expires. Use `PublishWithFederatedManagedIdentityCredential` for deployed workloads.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "RunWithLocalDeveloperCertificateCredential() EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithAdminConsent",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withAdminConsent",
+      "qualifiedName": "withAdminConsent",
+      "description": "Grants tenant-wide consent to delegated permissions that this registration declared for another registration in the AppHost.",
+      "remarks": "This creates a delegated permission grant for all users (`consentType: AllPrincipals`) from this registration to\n`api`, so nobody is prompted to consent. The identity that deploys needs a directory role such as\nPrivileged Role Administrator, Cloud Application Administrator or Application Administrator, or a privileged\nMicrosoft Graph permission such as `DelegatedPermissionGrant.ReadWrite.All`. Deployment fails without it.\nSee .\nA grant is neither a declaration nor a pre-authorization. Throws for an existing caller; grant its consent manually\nin the Microsoft Entra admin center. A created caller may consent to an existing API.\nThe grant is declared in full: it is set to exactly the scopes passed to `WithAdminConsent` for this registration and\n`api`. A scope that was granted to the pair outside Aspire, or that is removed from the calls while others remain,\nis revoked by the next deployment. When no call remains for the pair, nothing is sent and the existing grant stays.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithAdminConsent(api EntraIdApplicationResource, scopeNames []string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "api",
+          "type": "EntraIdApplicationResource",
+          "description": "The registration that exposes the scopes."
+        },
+        {
+          "name": "scopeNames",
+          "type": "[]string",
+          "description": "The names of scopes already declared with `WithApiPermissions`."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithAllowWebApiToBeAuthorizedByACL",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withAllowWebApiToBeAuthorizedByACL",
+      "qualifiedName": "withAllowWebApiToBeAuthorizedByACL",
+      "description": "Enables ACL-based authorization for daemon-to-API scenarios.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithAllowWebApiToBeAuthorizedByACL() EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithApiPermissions",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withApiPermissions",
+      "qualifiedName": "withApiPermissions",
+      "description": "Declares that this registration requires delegated permissions to scopes of another registration in the AppHost.",
+      "remarks": "This adds the scopes to the registration's API permissions, the list shown in the portal. It grants nothing:\nusers are prompted to consent the first time they sign in unless an administrator consents\n(`WithAdminConsent`)\nor `api` pre-authorizes the caller (`WithPreAuthorizedApplication`).\nA token request can cover the scopes of only one API. Request the scopes of each API in a separate token request.\nFor an existing caller, only consumer DownstreamApis configuration is emitted; configure its API permissions manually.\n```\nvar entraApi = builder.AddEntraIdApplication(\"entra-api\")\n.WithScope(\"access_as_user\", \"Allows the app to call the API on behalf of the signed-in user.\");\nvar entraWeb = builder.AddEntraIdApplication(\"entra-web\")\n.WithApiPermissions(entraApi, \"access_as_user\");\n```",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithApiPermissions(api EntraIdApplicationResource, scopeNames []string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "api",
+          "type": "EntraIdApplicationResource",
+          "description": "The registration that exposes the scopes."
+        },
+        {
+          "name": "scopeNames",
+          "type": "[]string",
+          "description": "The names of the scopes, added with `WithScope` to `api`."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithAppRole",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withAppRole",
+      "qualifiedName": "withAppRole",
+      "description": "Declares an application role on a registration created by Aspire.",
+      "remarks": "Application roles are separate from delegated scopes and from Azure RBAC roles. This only declares the role; it does not assign it or grant consent.\nRole IDs stay the same across deployments, and changing a role's value or ID creates a different role. Whenever at least one role is declared,\nthe complete appRoles collection is sent, so include every role to keep. Microsoft Graph rejects deleting an enabled role.\nExisting registrations are never modified, so this throws for registrations created with addExistingEntraIdApplication.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithAppRole(value string, displayName string, description string, options ...*WithAppRoleOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "string",
+          "description": "The value emitted in the roles claim, for example Admin. It must be unique for the application, at most 120 characters, must not start with a period, and may contain only ASCII letters, digits and the punctuation that Microsoft Graph allows."
+        },
+        {
+          "name": "displayName",
+          "type": "string",
+          "description": "The display name shown in the Microsoft Entra admin center."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "description": "The description shown in assignment and consent experiences."
+        }
+      ],
+      "options": {
+        "typeName": "WithAppRoleOptions",
+        "fields": [
+          {
+            "name": "AllowedMemberTypes",
+            "jsonName": "allowedMemberTypes",
+            "type": "[]string",
+            "description": "The member types the role can be assigned to, passed through to Microsoft Graph (for example User or Application). Defaults to User."
+          },
+          {
+            "name": "Id",
+            "jsonName": "id",
+            "type": "*string",
+            "description": "An optional role GUID. When omitted, a stable ID is derived from the registration's resource name and value."
+          },
+          {
+            "name": "IsEnabled",
+            "jsonName": "isEnabled",
+            "type": "*bool",
+            "description": "Whether the role is enabled. Defaults to true. To retire a role, deploy it with false and leave it declared; disabling is not access revocation because existing assignments still receive the role in tokens."
+          }
+        ]
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithApplicationIdUri",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withApplicationIdUri",
+      "qualifiedName": "withApplicationIdUri",
+      "description": "Exposes the registration as an API identified by an application ID URI.",
+      "remarks": "For a registration created by Aspire, the URI is written to the registration and must be unique in the tenant. The default api://{clientId}\nform is set by a second update of the registration, after Microsoft Graph creates it, and is accepted by the tenant's default policy.\nA custom URI fails deployment if the tenant's policy rejects it. For an existing registration, the URI is configuration only: Aspire does not\nmodify the registration, and getScopeUri uses the URI to build scope names for callers. Existing registrations require an explicit URI;\nomitting it throws instead of inferring the registration's URI.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithApplicationIdUri(options ...*WithApplicationIdUriOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [],
+      "options": {
+        "typeName": "WithApplicationIdUriOptions",
+        "fields": [
+          {
+            "name": "ApplicationIdUri",
+            "jsonName": "applicationIdUri",
+            "type": "*string",
+            "description": "A custom URI, such as api://contoso-orders or https://contoso.onmicrosoft.com/orders. Omit to use the default api://{clientId}."
+          }
+        ]
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithApplicationOwners",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withApplicationOwners",
+      "qualifiedName": "withApplicationOwners",
+      "description": "Appends an application owner supplied as a literal directory object GUID or a parameter.",
+      "remarks": "Call repeatedly for multiple owners. Existing owners are not removed. Throws for existing registrations; configure their owners manually.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithApplicationOwners(ownerObjectId any) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "ownerObjectId",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource"
+          ],
+          "description": "The directory object ID of a user or service principal."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithAudience",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withAudience",
+      "qualifiedName": "withAudience",
+      "description": "Adds an accepted audience for this application.",
+      "remarks": "Configures consumer token validation only. It does not change application ID URIs on created or existing registrations.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithAudience(audience string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "audience",
+          "type": "string",
+          "description": "The audience value (e.g., `api://<client-id>`)."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithCertificateDistinguishedName",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateDistinguishedName",
+      "qualifiedName": "withCertificateDistinguishedName",
+      "description": "Adds a certificate credential from the certificate store by distinguished name.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithCertificateDistinguishedName(storePath string, distinguishedName string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "storePath",
+          "type": "string",
+          "description": "The certificate store path (e.g., `\"CurrentUser/My\"`)."
+        },
+        {
+          "name": "distinguishedName",
+          "type": "string",
+          "description": "The certificate distinguished name (e.g., `\"CN=MyCert\"`)."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithCertificateFromFile",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateFromFile",
+      "qualifiedName": "withCertificateFromFile",
+      "description": "Appends a certificate file credential. The file path is on the consuming resource, not the AppHost.",
+      "remarks": "The password must be marked secret and remains a deferred parameter. File credentials are not recommended for production.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithCertificateFromFile(filePath string, options ...*WithCertificateFromFileOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "filePath",
+          "type": "string",
+          "description": "The path to the certificate file on the consumer."
+        }
+      ],
+      "options": {
+        "typeName": "WithCertificateFromFileOptions",
+        "fields": [
+          {
+            "name": "Password",
+            "jsonName": "password",
+            "type": "*ParameterResource",
+            "description": "An optional secret parameter for a password-protected certificate."
+          }
+        ]
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithCertificateFromKeyVault",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateFromKeyVault",
+      "qualifiedName": "withCertificateFromKeyVault",
+      "description": "Adds a certificate credential using a vault URL or Key Vault resource.",
+      "remarks": "The latest certificate version is used. Resource-backed vaults grant consumers the Key Vault Certificate User role by default.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithCertificateFromKeyVault(keyVaultUrl any, certificateName string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "keyVaultUrl",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "AzureKeyVaultResource"
+          ],
+          "description": "The vault URL or Key Vault resource containing the certificate."
+        },
+        {
+          "name": "certificateName",
+          "type": "string",
+          "description": "The name of the certificate in Key Vault."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithCertificateThumbprint",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateThumbprint",
+      "qualifiedName": "withCertificateThumbprint",
+      "description": "Adds a certificate credential from the certificate store by thumbprint.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithCertificateThumbprint(storePath string, thumbprint string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "storePath",
+          "type": "string",
+          "description": "The certificate store path (e.g., `\"CurrentUser/My\"`)."
+        },
+        {
+          "name": "thumbprint",
+          "type": "string",
+          "description": "The certificate thumbprint."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithClientCapability",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withClientCapability",
+      "qualifiedName": "withClientCapability",
+      "description": "Adds a client capability (e.g., `\"cp1\"` for Continuous Access Evaluation).",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithClientCapability(capability string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "capability",
+          "type": "string",
+          "description": "The capability identifier."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithClientSecret",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withClientSecret",
+      "qualifiedName": "withClientSecret",
+      "description": "Adds a client secret credential to this Entra ID application.",
+      "remarks": "This adds an entry to the `ClientCredentials` array in the Microsoft.Identity.Web\nconfiguration with `SourceType` set to `\"ClientSecret\"`.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithClientSecret(clientSecret ParameterResource) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "clientSecret",
+          "type": "ParameterResource",
+          "description": "A secret parameter containing the client secret."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithEntraIdReference",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withEntraIdReference",
+      "qualifiedName": "withEntraIdReference",
+      "description": "Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.",
+      "remarks": "Behaves like withReference with the registration, which is enough for most references. Use this method when a resource references several registrations\nthat declare permissions to the same API: give all but one of them their own downstreamApisPrefix, or the model is rejected.",
+      "returns": "The resource builder.",
+      "kind": "Method",
+      "signature": "WithEntraIdReference(source EntraIdApplicationResource, options ...*WithEntraIdReferenceOptions) ResourceWithEnvironment",
+      "receiver": "ResourceWithEnvironment",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "EntraIdApplicationResource",
+          "description": "The Entra ID application resource to reference."
+        }
+      ],
+      "options": {
+        "typeName": "WithEntraIdReferenceOptions",
+        "fields": [
+          {
+            "name": "ConnectionName",
+            "jsonName": "connectionName",
+            "type": "*string",
+            "description": "The environment variable prefix. Defaults to AzureAd for .NET program resources and the registration's name otherwise."
+          },
+          {
+            "name": "DownstreamApisPrefix",
+            "jsonName": "downstreamApisPrefix",
+            "type": "*string",
+            "description": "The configuration prefix of the DownstreamApis entries. Defaults to DownstreamApis."
+          }
+        ]
+      },
+      "returnType": "ResourceWithEnvironment",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.ContainerResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.ProjectResource",
+        "Aspire.Hosting.ApplicationModel.DotnetToolResource",
+        "Aspire.Hosting.ApplicationModel.CSharpAppResource"
+      ],
+      "appliesTo": [
+        "CSharpAppResource",
+        "ContainerResource",
+        "DotnetToolResource",
+        "ExecutableResource",
+        "ProjectResource"
+      ]
+    },
+    {
+      "name": "WithExternalApiAdminConsent",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withExternalApiAdminConsent",
+      "qualifiedName": "withExternalApiAdminConsent",
+      "description": "Grants tenant-wide consent to permissions that this registration declared for an API that is not an Aspire resource.",
+      "remarks": "A delegated permission becomes a delegated permission grant for all users. An application permission becomes an app role assignment\nto this registration's service principal. The deploying identity needs a directory role or Microsoft Graph permission that allows consent, and deployment fails without it.\nApplication permissions to broad scopes such as Directory.Read.All give the application access to the whole tenant, so grant only what the application needs.\nThrows when a permission was not declared first or the caller is an existing registration. Grant consent for existing registrations manually.\nConsent is not additive. The delegated grant is declared in full: it is set to exactly the delegated permissions passed to withExternalApiAdminConsent\nfor this registration and API, so a permission granted to the pair outside Aspire, or removed from the calls while others remain, is revoked by the next deployment.\nWhen no delegated call remains for the pair, nothing is sent and the existing grant stays. Each application permission is a separate app role assignment:\nAspire creates it but does not delete it when its consent is removed from the AppHost, so remove it in the Microsoft Entra admin center.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithExternalApiAdminConsent(api any, permissions []*EntraIdExternalApiPermission) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "api",
+          "type": "any",
+          "allowedTypes": [
+            "EntraIdWellKnownApi",
+            "*EntraIdCustomApi"
+          ],
+          "description": "A well-known API, or an API identified by its application ID and application ID URI."
+        },
+        {
+          "name": "permissions",
+          "type": "[]*EntraIdExternalApiPermission",
+          "description": "Permissions already declared with withExternalApiPermissions."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithExternalApiPermissions",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withExternalApiPermissions",
+      "qualifiedName": "withExternalApiPermissions",
+      "description": "Declares permissions to a Microsoft first-party or other API that is not an Aspire resource, such as Microsoft Graph.",
+      "remarks": "For a registration created by Aspire, this adds the permissions to the registration's API permissions list. It grants nothing;\nuse withExternalApiAdminConsent to opt in to consent. For an existing registration, nothing is deployed: the declaration only\nconfigures the DownstreamApis entries that resources referencing the registration receive.\nDelegated permissions let the application act for a signed-in user. Application permissions let it act as itself and always need administrator consent.\nThe two kinds are separate permissions, even when they share a name. Well-known APIs resolve common permission names to their IDs;\nother permissions, and every permission of a custom API, need an explicit id.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithExternalApiPermissions(api any, permissions []*EntraIdExternalApiPermission) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "api",
+          "type": "any",
+          "allowedTypes": [
+            "EntraIdWellKnownApi",
+            "*EntraIdCustomApi"
+          ],
+          "description": "A well-known API, or an API identified by its application ID and application ID URI."
+        },
+        {
+          "name": "permissions",
+          "type": "[]*EntraIdExternalApiPermission",
+          "description": "The permissions to declare. Each is delegated unless its type is Application."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithExtraQueryParameter",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withExtraQueryParameter",
+      "qualifiedName": "withExtraQueryParameter",
+      "description": "Adds an extra query parameter to send to the identity provider.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithExtraQueryParameter(key string, value string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "key",
+          "type": "string",
+          "description": "The query parameter key."
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "description": "The query parameter value."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithFederatedManagedIdentityCredential",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withFederatedManagedIdentityCredential",
+      "qualifiedName": "withFederatedManagedIdentityCredential",
+      "description": "Configures a pre-existing managed identity trust for token acquisition, without provisioning or assigning an identity.",
+      "remarks": "Applies in run and publish modes. This only emits consumer configuration; it does not create federation trust.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithFederatedManagedIdentityCredential(managedIdentityClientId string, options ...*EntraIdTokenExchangeOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "managedIdentityClientId",
+          "type": "string",
+          "description": "The client GUID of a user-assigned managed identity that the registration already trusts."
+        }
+      ],
+      "options": {
+        "typeName": "EntraIdTokenExchangeOptions",
+        "isDirect": true,
+        "fields": []
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithIdTokenIssuance",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withIdTokenIssuance",
+      "qualifiedName": "withIdTokenIssuance",
+      "description": "Enables ID-token issuance through implicit and hybrid flows for a registration created by Aspire.",
+      "remarks": "Enables ID-token issuance only, not implicit access-token issuance. Not needed for authorization-code-only flows;\nprefer authorization code flow with PKCE for new production applications.\nThrows for existing registrations. Configure their Authentication settings separately.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithIdTokenIssuance() EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithInstance",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withInstance",
+      "qualifiedName": "withInstance",
+      "description": "Configures the Entra ID instance URL. Defaults to `https://login.microsoftonline.com/`.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithInstance(instance string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "instance",
+          "type": "string",
+          "description": "The Entra ID instance URL, such as `https://login.microsoftonline.us/` for Azure Government or `https://contoso.ciamlogin.com/` for an external tenant."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithOwners",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withOwners",
+      "qualifiedName": "withOwners",
+      "description": "Appends an owner to both the application registration and service principal.",
+      "remarks": "Owners can manage the registration. Call repeatedly for multiple owners. Throws for existing registrations; configure their owners manually.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithOwners(ownerObjectId any) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "ownerObjectId",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource"
+          ],
+          "description": "The directory object GUID of a user or service principal, as a literal or parameter."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithPreAuthorizedApplication",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withPreAuthorizedApplication",
+      "qualifiedName": "withPreAuthorizedApplication",
+      "description": "Pre-authorizes a client application to request some of this registration's scopes without any consent prompt.",
+      "remarks": "Pre-authorization is separate from the client's declaration of the permission (`WithApiPermissions`)\nand from consent (`WithAdminConsent`).\nIt lets a trusted client skip the consent prompt, which is intended for first-party clients of the same organization.\nAspire deploys each registration as its own module. Pre-authorization makes this registration wait for the client's ID, while\nthe client's declaration waits for this registration's ID, so two registrations cannot use both. Use a declaration with\n`WithAdminConsent` on the client, or pre-authorization alone. Throws if this API registration is existing;\nconfigure its pre-authorized clients manually. An existing client can still be pre-authorized by a registration Aspire creates.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithPreAuthorizedApplication(client EntraIdApplicationResource, scopeNames []string) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "client",
+          "type": "EntraIdApplicationResource",
+          "description": "The client application to pre-authorize."
+        },
+        {
+          "name": "scopeNames",
+          "type": "[]string",
+          "description": "The names of the scopes, added with `WithScope`, that the client may request."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithRedirectUris",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withRedirectUris",
+      "qualifiedName": "withRedirectUris",
+      "description": "Appends web redirect URIs supplied as a literal, a parameter, or an endpoint.",
+      "remarks": "Call repeatedly to append values in order. Endpoint URLs remain deferred: run uses the allocated primary URL;\npublish/deploy uses the compute environment host. Parameter URI lists are split on commas without trimming.\nThrows for existing registrations; configure their redirect URIs manually.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithRedirectUris(redirectUri any, options ...*WithRedirectUrisOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "redirectUri",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource",
+            "EndpointReference"
+          ],
+          "description": "A full URI, a parameter containing comma-separated full URIs, or an endpoint. With callback paths, a parameter supplies a host instead."
+        }
+      ],
+      "options": {
+        "typeName": "WithRedirectUrisOptions",
+        "fields": [
+          {
+            "name": "CallbackPaths",
+            "jsonName": "callbackPaths",
+            "type": "[]string",
+            "description": "Callback paths starting with '/'. Required for an endpoint; with a host parameter, produces HTTPS URIs. Omit for full URIs."
+          }
+        ]
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithScope",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withScope",
+      "qualifiedName": "withScope",
+      "description": "Exposes a delegated permission scope that clients can request to call this registration as an API.",
+      "remarks": "Scopes are declared explicitly. Unless an application ID URI is set with withApplicationIdUri, the registration uses api://{clientId}.\nThe scope's ID stays the same across deployments. Microsoft Graph does not let a deployment remove an enabled scope or change its name:\nto retire a scope, deploy it with isEnabled set to false and remove it in a later deployment.\nFor an existing registration the scope is configuration only, which lets callers declare permissions to it. Set its id to the ID the registration defines.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithScope(name string, description string, options ...*EntraIdScopeOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The scope's name, which appears in the token's scp claim, such as access_as_user."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "description": "What the scope allows, shown on the consent page."
+        }
+      ],
+      "options": {
+        "typeName": "EntraIdScopeOptions",
+        "isDirect": true,
+        "fields": []
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithSendX5C",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withSendX5C",
+      "qualifiedName": "withSendX5C",
+      "description": "Sends the `x5c` claim (the public key of the certificate) with token requests.",
+      "remarks": "Sending `x5c` enables certificate rollover without redeploying the application. It only applies\nto certificate-based credentials and increases the size of each token request, so it is opt-in.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithSendX5C() EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithServicePrincipalOwners",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withServicePrincipalOwners",
+      "qualifiedName": "withServicePrincipalOwners",
+      "description": "Appends a service principal owner supplied as a literal directory object GUID or a parameter.",
+      "remarks": "Service principal ownership is independent of application ownership. Throws for existing registrations; configure their owners manually.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithServicePrincipalOwners(ownerObjectId any) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "ownerObjectId",
+          "type": "any",
+          "allowedTypes": [
+            "string",
+            "ParameterResource"
+          ],
+          "description": "The directory object ID of a user or service principal."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithSignInAudience",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withSignInAudience",
+      "qualifiedName": "withSignInAudience",
+      "description": "Configures which accounts can sign in to this application.",
+      "remarks": "The audience must match the registration's supported account types. The default uses the home tenant as TenantId.\nOther audiences use organizations, common, or consumers as TenantId and also emit AppHomeTenantId.\nAlso configures supported account types on registrations created by Aspire. For existing registrations, configures consumers only.\nValidate the tenant ID (tid) claim before allowing access to tenant-specific data.\nSee https://learn.microsoft.com/entra/identity-platform/claims-validation.",
+      "returns": "The resource builder for chaining.",
+      "kind": "Method",
+      "signature": "WithSignInAudience(signInAudience EntraIdSignInAudience) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [
+        {
+          "name": "signInAudience",
+          "type": "EntraIdSignInAudience",
+          "description": "The accounts that can sign in. It must match the \"Supported account types\" setting of the app registration."
+        }
+      ],
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    },
+    {
+      "name": "WithSignedAssertionFile",
+      "capabilityId": "Aspire.Hosting.Azure.EntraId/withSignedAssertionFile",
+      "qualifiedName": "withSignedAssertionFile",
+      "description": "Appends a signed assertion file credential, such as an AKS workload identity token.",
+      "returns": "The registration builder.",
+      "kind": "Method",
+      "signature": "WithSignedAssertionFile(options ...*WithSignedAssertionFileOptions) EntraIdApplicationResource",
+      "receiver": "EntraIdApplicationResource",
+      "parameters": [],
+      "options": {
+        "typeName": "WithSignedAssertionFileOptions",
+        "fields": [
+          {
+            "name": "FilePath",
+            "jsonName": "filePath",
+            "type": "*string",
+            "description": "The token file path on the consumer. Omit to use the consumer's AZURE_FEDERATED_TOKEN_FILE setting."
+          }
+        ]
+      },
+      "returnType": "EntraIdApplicationResource",
+      "returnsReceiver": true,
+      "errorModel": "deferred",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Azure.EntraIdApplicationResource"
+      ],
+      "appliesTo": [
+        "EntraIdApplicationResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "AzureKeyVaultResource",
+      "fullName": "Aspire.Hosting.Azure.AzureKeyVaultResource",
+      "kind": "handle",
+      "implementedInterfaces": [],
+      "capabilities": [],
+      "synthesizedMembers": []
+    },
+    {
+      "name": "AzureUserAssignedIdentityResource",
+      "fullName": "Aspire.Hosting.Azure.AzureUserAssignedIdentityResource",
+      "kind": "handle",
+      "implementedInterfaces": [],
+      "capabilities": [],
+      "synthesizedMembers": []
+    },
+    {
+      "name": "EntraIdApplicationResource",
+      "fullName": "Aspire.Hosting.Azure.EntraIdApplicationResource",
+      "kind": "handle",
+      "description": "A resource that represents a Microsoft Entra ID application registration.",
+      "remarks": "Entra ID application registrations define the identity configuration for services\nin a distributed application. Each application registration includes a tenant ID,\nclient ID, and optionally client credentials and API scopes.\nAspire creates new registrations using a resource-group-scoped Microsoft Graph Bicep deployment.\nUse `AddExistingEntraIdApplication` to reference an existing registration without deploying infrastructure.\nRegistration-only builder APIs throw on existing references. Converting a resource with\n`AsExistingApplication` also throws if registration-only configuration was already applied.\nConsumer configuration and explicit metadata describing existing API URIs and scopes remain supported.\nReferences to this resource inject configuration as environment variables.\n.NET program references default to names such as `AzureAd__TenantId` and `AzureAd__ClientId`,\ncompatible with Microsoft.Identity.Web. Other references default to an uppercase resource-name prefix\nand a single underscore separator, and can configure their own prefix and separator.\nThe properties align with `MicrosoftEntraApplicationOptions` from\n`Microsoft.Identity.Abstractions`.",
+      "implementedInterfaces": [
+        "Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "AsExistingApplication",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/asExistingApplication",
+          "qualifiedName": "asExistingApplication",
+          "description": "References an existing registration without undoing the Azure provisioning setup enabled when this resource was added.",
+          "remarks": "The registration itself is not provisioned or queried. Deployment can still require Azure authentication and configuration.\nUse addExistingEntraIdApplication instead for a configuration-only AppHost without Azure setup.\nThrows before changing the resource if registration-only configuration was already applied.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "AsExistingApplication(tenantId any, clientId any) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "tenantId",
+              "type": "any",
+              "allowedTypes": [
+                "string",
+                "ParameterResource"
+              ],
+              "description": "The registration's home tenant GUID or domain, as a literal or parameter."
+            },
+            {
+              "name": "clientId",
+              "type": "any",
+              "allowedTypes": [
+                "string",
+                "ParameterResource"
+              ],
+              "description": "The registration's application client GUID, as a literal or parameter."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "GetScopeUri",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/getScopeUri",
+          "qualifiedName": "getScopeUri",
+          "description": "Gets an expression for the full URI of one of this registration's scopes, such as api://{clientId}/access_as_user.",
+          "remarks": "Clients request the full URI as the token scope. Throws when the registration has no such scope, or is an existing registration without an application ID URI.",
+          "returns": "An expression that resolves when the registration's application ID URI is known.",
+          "kind": "Method",
+          "signature": "GetScopeUri(scopeName string) *ReferenceExpression",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "scopeName",
+              "type": "string",
+              "description": "The name of a scope added with withScope."
+            }
+          ],
+          "returnType": "*ReferenceExpression",
+          "errorModel": "deferred",
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "PublishWithAppRoleAssignment",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/publishWithAppRoleAssignment",
+          "qualifiedName": "publishWithAppRoleAssignment",
+          "description": "Publishes explicit application-role assignments to a managed identity or a compute resource's managed identity.",
+          "remarks": "Has no effect during local run. Existing registrations are not modified. No caller registration or federation is created.\nRequires Graph AppRoleAssignment.ReadWrite.All and Application.Read.All (or higher application-read permission), administrator\nconsent and, for delegated deployment, a supported Entra directory role. Removing a call does not revoke a deployed grant.",
+          "returns": "The API registration builder.",
+          "kind": "Method",
+          "signature": "PublishWithAppRoleAssignment(identity any, roleValues []string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "identity",
+              "type": "any",
+              "allowedTypes": [
+                "AzureUserAssignedIdentityResource",
+                "IComputeResource"
+              ],
+              "description": "The user-assigned identity or compute resource receiving the roles."
+            },
+            {
+              "name": "roleValues",
+              "type": "[]string",
+              "description": "Enabled role values declared on this API that allow Application members."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "PublishWithFederatedManagedIdentityCredential",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/publishWithFederatedManagedIdentityCredential",
+          "qualifiedName": "publishWithFederatedManagedIdentityCredential",
+          "description": "Publishes managed identity federation trust for a registration created by Aspire.",
+          "remarks": "Not used during local run. Throws for existing registrations. A selected compute resource must reference this registration.\nWith an explicit identity, each consumer must use that identity. Only Azure public, US Government and China clouds are supported.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "PublishWithFederatedManagedIdentityCredential(options ...*PublishWithFederatedManagedIdentityCredentialOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [],
+          "options": {
+            "typeName": "PublishWithFederatedManagedIdentityCredentialOptions",
+            "fields": [
+              {
+                "name": "Identity",
+                "jsonName": "identity",
+                "type": "any",
+                "description": "A compute resource whose identity to trust, an explicit user-assigned identity, or no value to trust every consumer's own identity."
+              }
+            ]
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "RunWithLocalDeveloperCertificateCredential",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/runWithLocalDeveloperCertificateCredential",
+          "qualifiedName": "runWithLocalDeveloperCertificateCredential",
+          "description": "Creates and provisions a short-lived certificate credential for local development.",
+          "remarks": "Each application gets a dedicated certificate in the AppHost's local store. Certificates last two days;\non a subsequent run, a certificate with one day or less remaining is replaced by overwriting its PFX file.\nOnly the public certificate is provisioned in Entra. Referencing applications receive the private\ncredential as a secret `Base64EncodedValue` in Microsoft.Identity.Web's `ClientCredentials` configuration.\nAspire replaces the registration's entire `keyCredentials` collection with the selected certificate.\nExisting certificate credentials are not retained, so older sessions must restart after renewal.\nDevelopment and production must use separate Entra registrations. Never register developer certificates\non a production application. Different resource groups do not isolate tenant-scoped registrations:\nuse distinct registration names or tenant-resource suffixes. This method does not provision or emit a credential when publishing;\nomitting a credential from publish does not revoke a key previously registered against the same application.\nIn either mode, this configuration prevents conversion to an existing registration with `AsExistingApplication`.\nRenewal is checked at AppHost startup, not in the background. Restart long-running development sessions\nbefore the certificate expires. Use `PublishWithFederatedManagedIdentityCredential` for deployed workloads.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "RunWithLocalDeveloperCertificateCredential() EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithAdminConsent",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withAdminConsent",
+          "qualifiedName": "withAdminConsent",
+          "description": "Grants tenant-wide consent to delegated permissions that this registration declared for another registration in the AppHost.",
+          "remarks": "This creates a delegated permission grant for all users (`consentType: AllPrincipals`) from this registration to\n`api`, so nobody is prompted to consent. The identity that deploys needs a directory role such as\nPrivileged Role Administrator, Cloud Application Administrator or Application Administrator, or a privileged\nMicrosoft Graph permission such as `DelegatedPermissionGrant.ReadWrite.All`. Deployment fails without it.\nSee .\nA grant is neither a declaration nor a pre-authorization. Throws for an existing caller; grant its consent manually\nin the Microsoft Entra admin center. A created caller may consent to an existing API.\nThe grant is declared in full: it is set to exactly the scopes passed to `WithAdminConsent` for this registration and\n`api`. A scope that was granted to the pair outside Aspire, or that is removed from the calls while others remain,\nis revoked by the next deployment. When no call remains for the pair, nothing is sent and the existing grant stays.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithAdminConsent(api EntraIdApplicationResource, scopeNames []string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "api",
+              "type": "EntraIdApplicationResource",
+              "description": "The registration that exposes the scopes."
+            },
+            {
+              "name": "scopeNames",
+              "type": "[]string",
+              "description": "The names of scopes already declared with `WithApiPermissions`."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithAllowWebApiToBeAuthorizedByACL",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withAllowWebApiToBeAuthorizedByACL",
+          "qualifiedName": "withAllowWebApiToBeAuthorizedByACL",
+          "description": "Enables ACL-based authorization for daemon-to-API scenarios.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithAllowWebApiToBeAuthorizedByACL() EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithApiPermissions",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withApiPermissions",
+          "qualifiedName": "withApiPermissions",
+          "description": "Declares that this registration requires delegated permissions to scopes of another registration in the AppHost.",
+          "remarks": "This adds the scopes to the registration's API permissions, the list shown in the portal. It grants nothing:\nusers are prompted to consent the first time they sign in unless an administrator consents\n(`WithAdminConsent`)\nor `api` pre-authorizes the caller (`WithPreAuthorizedApplication`).\nA token request can cover the scopes of only one API. Request the scopes of each API in a separate token request.\nFor an existing caller, only consumer DownstreamApis configuration is emitted; configure its API permissions manually.\n```\nvar entraApi = builder.AddEntraIdApplication(\"entra-api\")\n.WithScope(\"access_as_user\", \"Allows the app to call the API on behalf of the signed-in user.\");\nvar entraWeb = builder.AddEntraIdApplication(\"entra-web\")\n.WithApiPermissions(entraApi, \"access_as_user\");\n```",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithApiPermissions(api EntraIdApplicationResource, scopeNames []string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "api",
+              "type": "EntraIdApplicationResource",
+              "description": "The registration that exposes the scopes."
+            },
+            {
+              "name": "scopeNames",
+              "type": "[]string",
+              "description": "The names of the scopes, added with `WithScope` to `api`."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithAppRole",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withAppRole",
+          "qualifiedName": "withAppRole",
+          "description": "Declares an application role on a registration created by Aspire.",
+          "remarks": "Application roles are separate from delegated scopes and from Azure RBAC roles. This only declares the role; it does not assign it or grant consent.\nRole IDs stay the same across deployments, and changing a role's value or ID creates a different role. Whenever at least one role is declared,\nthe complete appRoles collection is sent, so include every role to keep. Microsoft Graph rejects deleting an enabled role.\nExisting registrations are never modified, so this throws for registrations created with addExistingEntraIdApplication.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithAppRole(value string, displayName string, description string, options ...*WithAppRoleOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "value",
+              "type": "string",
+              "description": "The value emitted in the roles claim, for example Admin. It must be unique for the application, at most 120 characters, must not start with a period, and may contain only ASCII letters, digits and the punctuation that Microsoft Graph allows."
+            },
+            {
+              "name": "displayName",
+              "type": "string",
+              "description": "The display name shown in the Microsoft Entra admin center."
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "description": "The description shown in assignment and consent experiences."
+            }
+          ],
+          "options": {
+            "typeName": "WithAppRoleOptions",
+            "fields": [
+              {
+                "name": "AllowedMemberTypes",
+                "jsonName": "allowedMemberTypes",
+                "type": "[]string",
+                "description": "The member types the role can be assigned to, passed through to Microsoft Graph (for example User or Application). Defaults to User."
+              },
+              {
+                "name": "Id",
+                "jsonName": "id",
+                "type": "*string",
+                "description": "An optional role GUID. When omitted, a stable ID is derived from the registration's resource name and value."
+              },
+              {
+                "name": "IsEnabled",
+                "jsonName": "isEnabled",
+                "type": "*bool",
+                "description": "Whether the role is enabled. Defaults to true. To retire a role, deploy it with false and leave it declared; disabling is not access revocation because existing assignments still receive the role in tokens."
+              }
+            ]
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithApplicationIdUri",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withApplicationIdUri",
+          "qualifiedName": "withApplicationIdUri",
+          "description": "Exposes the registration as an API identified by an application ID URI.",
+          "remarks": "For a registration created by Aspire, the URI is written to the registration and must be unique in the tenant. The default api://{clientId}\nform is set by a second update of the registration, after Microsoft Graph creates it, and is accepted by the tenant's default policy.\nA custom URI fails deployment if the tenant's policy rejects it. For an existing registration, the URI is configuration only: Aspire does not\nmodify the registration, and getScopeUri uses the URI to build scope names for callers. Existing registrations require an explicit URI;\nomitting it throws instead of inferring the registration's URI.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithApplicationIdUri(options ...*WithApplicationIdUriOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [],
+          "options": {
+            "typeName": "WithApplicationIdUriOptions",
+            "fields": [
+              {
+                "name": "ApplicationIdUri",
+                "jsonName": "applicationIdUri",
+                "type": "*string",
+                "description": "A custom URI, such as api://contoso-orders or https://contoso.onmicrosoft.com/orders. Omit to use the default api://{clientId}."
+              }
+            ]
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithApplicationOwners",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withApplicationOwners",
+          "qualifiedName": "withApplicationOwners",
+          "description": "Appends an application owner supplied as a literal directory object GUID or a parameter.",
+          "remarks": "Call repeatedly for multiple owners. Existing owners are not removed. Throws for existing registrations; configure their owners manually.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithApplicationOwners(ownerObjectId any) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "ownerObjectId",
+              "type": "any",
+              "allowedTypes": [
+                "string",
+                "ParameterResource"
+              ],
+              "description": "The directory object ID of a user or service principal."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithAudience",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withAudience",
+          "qualifiedName": "withAudience",
+          "description": "Adds an accepted audience for this application.",
+          "remarks": "Configures consumer token validation only. It does not change application ID URIs on created or existing registrations.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithAudience(audience string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "audience",
+              "type": "string",
+              "description": "The audience value (e.g., `api://<client-id>`)."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithCertificateDistinguishedName",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateDistinguishedName",
+          "qualifiedName": "withCertificateDistinguishedName",
+          "description": "Adds a certificate credential from the certificate store by distinguished name.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithCertificateDistinguishedName(storePath string, distinguishedName string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "storePath",
+              "type": "string",
+              "description": "The certificate store path (e.g., `\"CurrentUser/My\"`)."
+            },
+            {
+              "name": "distinguishedName",
+              "type": "string",
+              "description": "The certificate distinguished name (e.g., `\"CN=MyCert\"`)."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithCertificateFromFile",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateFromFile",
+          "qualifiedName": "withCertificateFromFile",
+          "description": "Appends a certificate file credential. The file path is on the consuming resource, not the AppHost.",
+          "remarks": "The password must be marked secret and remains a deferred parameter. File credentials are not recommended for production.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithCertificateFromFile(filePath string, options ...*WithCertificateFromFileOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "filePath",
+              "type": "string",
+              "description": "The path to the certificate file on the consumer."
+            }
+          ],
+          "options": {
+            "typeName": "WithCertificateFromFileOptions",
+            "fields": [
+              {
+                "name": "Password",
+                "jsonName": "password",
+                "type": "*ParameterResource",
+                "description": "An optional secret parameter for a password-protected certificate."
+              }
+            ]
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithCertificateFromKeyVault",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateFromKeyVault",
+          "qualifiedName": "withCertificateFromKeyVault",
+          "description": "Adds a certificate credential using a vault URL or Key Vault resource.",
+          "remarks": "The latest certificate version is used. Resource-backed vaults grant consumers the Key Vault Certificate User role by default.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithCertificateFromKeyVault(keyVaultUrl any, certificateName string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "keyVaultUrl",
+              "type": "any",
+              "allowedTypes": [
+                "string",
+                "AzureKeyVaultResource"
+              ],
+              "description": "The vault URL or Key Vault resource containing the certificate."
+            },
+            {
+              "name": "certificateName",
+              "type": "string",
+              "description": "The name of the certificate in Key Vault."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithCertificateThumbprint",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withCertificateThumbprint",
+          "qualifiedName": "withCertificateThumbprint",
+          "description": "Adds a certificate credential from the certificate store by thumbprint.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithCertificateThumbprint(storePath string, thumbprint string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "storePath",
+              "type": "string",
+              "description": "The certificate store path (e.g., `\"CurrentUser/My\"`)."
+            },
+            {
+              "name": "thumbprint",
+              "type": "string",
+              "description": "The certificate thumbprint."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithClientCapability",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withClientCapability",
+          "qualifiedName": "withClientCapability",
+          "description": "Adds a client capability (e.g., `\"cp1\"` for Continuous Access Evaluation).",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithClientCapability(capability string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "capability",
+              "type": "string",
+              "description": "The capability identifier."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithClientSecret",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withClientSecret",
+          "qualifiedName": "withClientSecret",
+          "description": "Adds a client secret credential to this Entra ID application.",
+          "remarks": "This adds an entry to the `ClientCredentials` array in the Microsoft.Identity.Web\nconfiguration with `SourceType` set to `\"ClientSecret\"`.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithClientSecret(clientSecret ParameterResource) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "clientSecret",
+              "type": "ParameterResource",
+              "description": "A secret parameter containing the client secret."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithExternalApiAdminConsent",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withExternalApiAdminConsent",
+          "qualifiedName": "withExternalApiAdminConsent",
+          "description": "Grants tenant-wide consent to permissions that this registration declared for an API that is not an Aspire resource.",
+          "remarks": "A delegated permission becomes a delegated permission grant for all users. An application permission becomes an app role assignment\nto this registration's service principal. The deploying identity needs a directory role or Microsoft Graph permission that allows consent, and deployment fails without it.\nApplication permissions to broad scopes such as Directory.Read.All give the application access to the whole tenant, so grant only what the application needs.\nThrows when a permission was not declared first or the caller is an existing registration. Grant consent for existing registrations manually.\nConsent is not additive. The delegated grant is declared in full: it is set to exactly the delegated permissions passed to withExternalApiAdminConsent\nfor this registration and API, so a permission granted to the pair outside Aspire, or removed from the calls while others remain, is revoked by the next deployment.\nWhen no delegated call remains for the pair, nothing is sent and the existing grant stays. Each application permission is a separate app role assignment:\nAspire creates it but does not delete it when its consent is removed from the AppHost, so remove it in the Microsoft Entra admin center.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithExternalApiAdminConsent(api any, permissions []*EntraIdExternalApiPermission) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "api",
+              "type": "any",
+              "allowedTypes": [
+                "EntraIdWellKnownApi",
+                "*EntraIdCustomApi"
+              ],
+              "description": "A well-known API, or an API identified by its application ID and application ID URI."
+            },
+            {
+              "name": "permissions",
+              "type": "[]*EntraIdExternalApiPermission",
+              "description": "Permissions already declared with withExternalApiPermissions."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithExternalApiPermissions",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withExternalApiPermissions",
+          "qualifiedName": "withExternalApiPermissions",
+          "description": "Declares permissions to a Microsoft first-party or other API that is not an Aspire resource, such as Microsoft Graph.",
+          "remarks": "For a registration created by Aspire, this adds the permissions to the registration's API permissions list. It grants nothing;\nuse withExternalApiAdminConsent to opt in to consent. For an existing registration, nothing is deployed: the declaration only\nconfigures the DownstreamApis entries that resources referencing the registration receive.\nDelegated permissions let the application act for a signed-in user. Application permissions let it act as itself and always need administrator consent.\nThe two kinds are separate permissions, even when they share a name. Well-known APIs resolve common permission names to their IDs;\nother permissions, and every permission of a custom API, need an explicit id.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithExternalApiPermissions(api any, permissions []*EntraIdExternalApiPermission) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "api",
+              "type": "any",
+              "allowedTypes": [
+                "EntraIdWellKnownApi",
+                "*EntraIdCustomApi"
+              ],
+              "description": "A well-known API, or an API identified by its application ID and application ID URI."
+            },
+            {
+              "name": "permissions",
+              "type": "[]*EntraIdExternalApiPermission",
+              "description": "The permissions to declare. Each is delegated unless its type is Application."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithExtraQueryParameter",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withExtraQueryParameter",
+          "qualifiedName": "withExtraQueryParameter",
+          "description": "Adds an extra query parameter to send to the identity provider.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithExtraQueryParameter(key string, value string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "key",
+              "type": "string",
+              "description": "The query parameter key."
+            },
+            {
+              "name": "value",
+              "type": "string",
+              "description": "The query parameter value."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithFederatedManagedIdentityCredential",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withFederatedManagedIdentityCredential",
+          "qualifiedName": "withFederatedManagedIdentityCredential",
+          "description": "Configures a pre-existing managed identity trust for token acquisition, without provisioning or assigning an identity.",
+          "remarks": "Applies in run and publish modes. This only emits consumer configuration; it does not create federation trust.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithFederatedManagedIdentityCredential(managedIdentityClientId string, options ...*EntraIdTokenExchangeOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "managedIdentityClientId",
+              "type": "string",
+              "description": "The client GUID of a user-assigned managed identity that the registration already trusts."
+            }
+          ],
+          "options": {
+            "typeName": "EntraIdTokenExchangeOptions",
+            "isDirect": true,
+            "fields": []
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithIdTokenIssuance",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withIdTokenIssuance",
+          "qualifiedName": "withIdTokenIssuance",
+          "description": "Enables ID-token issuance through implicit and hybrid flows for a registration created by Aspire.",
+          "remarks": "Enables ID-token issuance only, not implicit access-token issuance. Not needed for authorization-code-only flows;\nprefer authorization code flow with PKCE for new production applications.\nThrows for existing registrations. Configure their Authentication settings separately.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithIdTokenIssuance() EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithInstance",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withInstance",
+          "qualifiedName": "withInstance",
+          "description": "Configures the Entra ID instance URL. Defaults to `https://login.microsoftonline.com/`.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithInstance(instance string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "instance",
+              "type": "string",
+              "description": "The Entra ID instance URL, such as `https://login.microsoftonline.us/` for Azure Government or `https://contoso.ciamlogin.com/` for an external tenant."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithOwners",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withOwners",
+          "qualifiedName": "withOwners",
+          "description": "Appends an owner to both the application registration and service principal.",
+          "remarks": "Owners can manage the registration. Call repeatedly for multiple owners. Throws for existing registrations; configure their owners manually.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithOwners(ownerObjectId any) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "ownerObjectId",
+              "type": "any",
+              "allowedTypes": [
+                "string",
+                "ParameterResource"
+              ],
+              "description": "The directory object GUID of a user or service principal, as a literal or parameter."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithPreAuthorizedApplication",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withPreAuthorizedApplication",
+          "qualifiedName": "withPreAuthorizedApplication",
+          "description": "Pre-authorizes a client application to request some of this registration's scopes without any consent prompt.",
+          "remarks": "Pre-authorization is separate from the client's declaration of the permission (`WithApiPermissions`)\nand from consent (`WithAdminConsent`).\nIt lets a trusted client skip the consent prompt, which is intended for first-party clients of the same organization.\nAspire deploys each registration as its own module. Pre-authorization makes this registration wait for the client's ID, while\nthe client's declaration waits for this registration's ID, so two registrations cannot use both. Use a declaration with\n`WithAdminConsent` on the client, or pre-authorization alone. Throws if this API registration is existing;\nconfigure its pre-authorized clients manually. An existing client can still be pre-authorized by a registration Aspire creates.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithPreAuthorizedApplication(client EntraIdApplicationResource, scopeNames []string) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "client",
+              "type": "EntraIdApplicationResource",
+              "description": "The client application to pre-authorize."
+            },
+            {
+              "name": "scopeNames",
+              "type": "[]string",
+              "description": "The names of the scopes, added with `WithScope`, that the client may request."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithRedirectUris",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withRedirectUris",
+          "qualifiedName": "withRedirectUris",
+          "description": "Appends web redirect URIs supplied as a literal, a parameter, or an endpoint.",
+          "remarks": "Call repeatedly to append values in order. Endpoint URLs remain deferred: run uses the allocated primary URL;\npublish/deploy uses the compute environment host. Parameter URI lists are split on commas without trimming.\nThrows for existing registrations; configure their redirect URIs manually.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithRedirectUris(redirectUri any, options ...*WithRedirectUrisOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "redirectUri",
+              "type": "any",
+              "allowedTypes": [
+                "string",
+                "ParameterResource",
+                "EndpointReference"
+              ],
+              "description": "A full URI, a parameter containing comma-separated full URIs, or an endpoint. With callback paths, a parameter supplies a host instead."
+            }
+          ],
+          "options": {
+            "typeName": "WithRedirectUrisOptions",
+            "fields": [
+              {
+                "name": "CallbackPaths",
+                "jsonName": "callbackPaths",
+                "type": "[]string",
+                "description": "Callback paths starting with '/'. Required for an endpoint; with a host parameter, produces HTTPS URIs. Omit for full URIs."
+              }
+            ]
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithScope",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withScope",
+          "qualifiedName": "withScope",
+          "description": "Exposes a delegated permission scope that clients can request to call this registration as an API.",
+          "remarks": "Scopes are declared explicitly. Unless an application ID URI is set with withApplicationIdUri, the registration uses api://{clientId}.\nThe scope's ID stays the same across deployments. Microsoft Graph does not let a deployment remove an enabled scope or change its name:\nto retire a scope, deploy it with isEnabled set to false and remove it in a later deployment.\nFor an existing registration the scope is configuration only, which lets callers declare permissions to it. Set its id to the ID the registration defines.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithScope(name string, description string, options ...*EntraIdScopeOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "The scope's name, which appears in the token's scp claim, such as access_as_user."
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "description": "What the scope allows, shown on the consent page."
+            }
+          ],
+          "options": {
+            "typeName": "EntraIdScopeOptions",
+            "isDirect": true,
+            "fields": []
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithSendX5C",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withSendX5C",
+          "qualifiedName": "withSendX5C",
+          "description": "Sends the `x5c` claim (the public key of the certificate) with token requests.",
+          "remarks": "Sending `x5c` enables certificate rollover without redeploying the application. It only applies\nto certificate-based credentials and increases the size of each token request, so it is opt-in.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithSendX5C() EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithServicePrincipalOwners",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withServicePrincipalOwners",
+          "qualifiedName": "withServicePrincipalOwners",
+          "description": "Appends a service principal owner supplied as a literal directory object GUID or a parameter.",
+          "remarks": "Service principal ownership is independent of application ownership. Throws for existing registrations; configure their owners manually.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithServicePrincipalOwners(ownerObjectId any) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "ownerObjectId",
+              "type": "any",
+              "allowedTypes": [
+                "string",
+                "ParameterResource"
+              ],
+              "description": "The directory object ID of a user or service principal."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithSignInAudience",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withSignInAudience",
+          "qualifiedName": "withSignInAudience",
+          "description": "Configures which accounts can sign in to this application.",
+          "remarks": "The audience must match the registration's supported account types. The default uses the home tenant as TenantId.\nOther audiences use organizations, common, or consumers as TenantId and also emit AppHomeTenantId.\nAlso configures supported account types on registrations created by Aspire. For existing registrations, configures consumers only.\nValidate the tenant ID (tid) claim before allowing access to tenant-specific data.\nSee https://learn.microsoft.com/entra/identity-platform/claims-validation.",
+          "returns": "The resource builder for chaining.",
+          "kind": "Method",
+          "signature": "WithSignInAudience(signInAudience EntraIdSignInAudience) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [
+            {
+              "name": "signInAudience",
+              "type": "EntraIdSignInAudience",
+              "description": "The accounts that can sign in. It must match the \"Supported account types\" setting of the app registration."
+            }
+          ],
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        },
+        {
+          "name": "WithSignedAssertionFile",
+          "capabilityId": "Aspire.Hosting.Azure.EntraId/withSignedAssertionFile",
+          "qualifiedName": "withSignedAssertionFile",
+          "description": "Appends a signed assertion file credential, such as an AKS workload identity token.",
+          "returns": "The registration builder.",
+          "kind": "Method",
+          "signature": "WithSignedAssertionFile(options ...*WithSignedAssertionFileOptions) EntraIdApplicationResource",
+          "receiver": "EntraIdApplicationResource",
+          "parameters": [],
+          "options": {
+            "typeName": "WithSignedAssertionFileOptions",
+            "fields": [
+              {
+                "name": "FilePath",
+                "jsonName": "filePath",
+                "type": "*string",
+                "description": "The token file path on the consumer. Omit to use the consumer's AZURE_FEDERATED_TOKEN_FILE setting."
+              }
+            ]
+          },
+          "returnType": "EntraIdApplicationResource",
+          "returnsReceiver": true,
+          "errorModel": "deferred",
+          "returnsBuilder": true,
+          "targetTypeId": "Aspire.Hosting.Azure.EntraId/Aspire.Hosting.Azure.EntraIdApplicationResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Azure.EntraIdApplicationResource"
+          ],
+          "appliesTo": [
+            "EntraIdApplicationResource"
+          ]
+        }
+      ],
+      "synthesizedMembers": []
+    }
+  ],
+  "dtoTypes": [
+    {
+      "name": "EntraIdCustomApi",
+      "fullName": "Aspire.Hosting.EntraIdCustomApi",
+      "kind": "dto",
+      "description": "Identifies an API that is not an Aspire resource by its application ID and application ID URI.",
+      "fields": [
+        {
+          "name": "DisplayName",
+          "jsonName": "DisplayName",
+          "type": "string",
+          "description": "Gets a name for the API used in diagnostics and as the name of its DownstreamApis entry (its letters and digits)."
+        },
+        {
+          "name": "ApplicationId",
+          "jsonName": "ApplicationId",
+          "type": "string",
+          "description": "Gets the API's application (client) ID as a GUID."
+        },
+        {
+          "name": "ResourceUri",
+          "jsonName": "ResourceUri",
+          "type": "string",
+          "description": "Gets the API's application ID URI, the prefix of its scopes in token requests. It is not derived from the application ID because an API can use any URI."
+        },
+        {
+          "name": "BaseUrl",
+          "jsonName": "BaseUrl",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets the API's root URL, which Aspire adds to the DownstreamApis entry as BaseUrl. When omitted, the caller must supply the address."
+        }
+      ]
+    },
+    {
+      "name": "EntraIdExternalApiPermission",
+      "fullName": "Aspire.Hosting.EntraIdExternalApiPermission",
+      "kind": "dto",
+      "description": "A permission of an API that is not an Aspire resource.",
+      "fields": [
+        {
+          "name": "Name",
+          "jsonName": "Name",
+          "type": "string",
+          "description": "Gets the permission's name, such as User.Read."
+        },
+        {
+          "name": "Type",
+          "jsonName": "Type",
+          "type": "*EntraIdPermissionType",
+          "isOptional": true,
+          "description": "Gets the kind of permission. Defaults to a delegated permission."
+        },
+        {
+          "name": "Id",
+          "jsonName": "Id",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets the permission's ID as a GUID. Required for a custom API and for a permission that a well-known API does not list by name."
+        }
+      ]
+    },
+    {
+      "name": "EntraIdScopeOptions",
+      "fullName": "Aspire.Hosting.EntraIdScopeOptions",
+      "kind": "dto",
+      "description": "Optional settings for a scope exposed by a created registration or described by an existing reference.",
+      "fields": [
+        {
+          "name": "DisplayName",
+          "jsonName": "DisplayName",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets the scope's title, shown on the admin consent page. Defaults to the scope's name."
+        },
+        {
+          "name": "UserConsentDisplayName",
+          "jsonName": "UserConsentDisplayName",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets the scope's title shown on the consent page for users. Defaults to the display name."
+        },
+        {
+          "name": "UserConsentDescription",
+          "jsonName": "UserConsentDescription",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets what the scope allows, shown on the consent page for users. Defaults to the scope's description."
+        },
+        {
+          "name": "RequiresAdminConsent",
+          "jsonName": "RequiresAdminConsent",
+          "type": "*bool",
+          "isOptional": true,
+          "description": "Gets whether only an administrator can consent to the scope. Defaults to false, which lets users consent."
+        },
+        {
+          "name": "IsEnabled",
+          "jsonName": "IsEnabled",
+          "type": "*bool",
+          "isOptional": true,
+          "description": "Gets whether clients can request the scope. Defaults to true."
+        },
+        {
+          "name": "Id",
+          "jsonName": "Id",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets the scope's ID as a GUID, which must stay the same across deployments. Aspire derives a stable ID when omitted."
+        }
+      ]
+    },
+    {
+      "name": "EntraIdTokenExchangeOptions",
+      "fullName": "Aspire.Hosting.EntraIdTokenExchangeOptions",
+      "kind": "dto",
+      "description": "Optional token exchange settings for a pre-existing managed identity federation trust.",
+      "fields": [
+        {
+          "name": "TokenExchangeUrl",
+          "jsonName": "TokenExchangeUrl",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets the token exchange audience. Defaults to api://AzureADTokenExchange when omitted."
+        },
+        {
+          "name": "TokenExchangeAuthority",
+          "jsonName": "TokenExchangeAuthority",
+          "type": "*string",
+          "isOptional": true,
+          "description": "Gets the token exchange authority URL when it differs from the application's authority."
+        }
+      ]
+    }
+  ],
+  "enumTypes": [
+    {
+      "name": "EntraIdPermissionType",
+      "fullName": "Aspire.Hosting.Azure.EntraIdPermissionType",
+      "kind": "enum",
+      "description": "The kind of permission that an application requests from an API.",
+      "members": [
+        {
+          "name": "EntraIdPermissionTypeDelegated",
+          "value": "Delegated",
+          "description": "A delegated permission (an OAuth 2.0 scope). The application calls the API on behalf of a signed-in user."
+        },
+        {
+          "name": "EntraIdPermissionTypeApplication",
+          "value": "Application",
+          "description": "An application permission (an app role of the API's service principal). The application calls the API as itself, with no user."
+        }
+      ]
+    },
+    {
+      "name": "EntraIdSignInAudience",
+      "fullName": "Aspire.Hosting.Azure.EntraIdSignInAudience",
+      "kind": "enum",
+      "description": "Specifies which Microsoft accounts can sign in to an Entra ID application.",
+      "remarks": "The value must match the \"Supported account types\" setting of the app registration in the Azure portal.\nThe names match the `signInAudience` property of the Microsoft Graph\napplication resource,\nwhich stores that setting.\nMicrosoft.Identity.Web reads the sign-in audience from its `TenantId` setting. A single-tenant app\nuses its home tenant there. The other audiences use the keywords `organizations`, `common`,\nor `consumers` instead, and pass the home tenant as `AppHomeTenantId`.",
+      "members": [
+        {
+          "name": "EntraIdSignInAudienceAzureADMyOrg",
+          "value": "AzureADMyOrg",
+          "description": "Only work or school accounts in the app's home tenant can sign in. This is the default."
+        },
+        {
+          "name": "EntraIdSignInAudienceAzureADMultipleOrgs",
+          "value": "AzureADMultipleOrgs",
+          "description": "Work or school accounts in any Microsoft Entra tenant can sign in."
+        },
+        {
+          "name": "EntraIdSignInAudienceAzureADandPersonalMicrosoftAccount",
+          "value": "AzureADandPersonalMicrosoftAccount",
+          "description": "Work or school accounts in any Microsoft Entra tenant, and personal Microsoft accounts, can sign in."
+        },
+        {
+          "name": "EntraIdSignInAudiencePersonalMicrosoftAccount",
+          "value": "PersonalMicrosoftAccount",
+          "description": "Only personal Microsoft accounts, such as Outlook.com and Xbox accounts, can sign in."
+        }
+      ]
+    },
+    {
+      "name": "EntraIdWellKnownApi",
+      "fullName": "Aspire.Hosting.EntraIdWellKnownApi",
+      "kind": "enum",
+      "description": "The Microsoft first-party APIs whose common permissions Aspire knows by name.",
+      "members": [
+        {
+          "name": "EntraIdWellKnownApiMicrosoftGraph",
+          "value": "MicrosoftGraph",
+          "description": "Microsoft Graph."
+        },
+        {
+          "name": "EntraIdWellKnownApiAzureResourceManager",
+          "value": "AzureResourceManager",
+          "description": "Azure Resource Manager, whose delegated permission is user_impersonation."
+        },
+        {
+          "name": "EntraIdWellKnownApiAzureStorage",
+          "value": "AzureStorage",
+          "description": "Azure Storage, whose delegated permission is user_impersonation."
+        }
+      ]
+    }
+  ],
+  "exportedValues": []
+}

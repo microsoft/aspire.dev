@@ -353,7 +353,7 @@ test('uses concise section copy and a compact editorial rhythm', async ({ page }
     expect(Math.max(...layout.headingLines)).toBeLessThanOrEqual(2);
     expect(Math.max(...layout.sectionHeights)).toBeLessThanOrEqual(1575);
   } else if (layout.width <= 500) {
-    expect(layout.pageHeight).toBeLessThanOrEqual(12_700);
+    expect(layout.pageHeight).toBeLessThanOrEqual(12_750);
   }
 });
 
@@ -2178,7 +2178,7 @@ test('keeps every dashboard screenshot loaded and fully contained in both themes
           })
         )
         .toEqual({
-          naturalSize: [1680, 1050],
+          naturalSize: [2560, 1600],
           contained: true,
         });
     }

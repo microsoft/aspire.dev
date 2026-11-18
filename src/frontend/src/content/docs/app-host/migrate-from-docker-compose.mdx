@@ -110,14 +110,14 @@ var database = builder.AddPostgres("postgres")
     .AddDatabase("myapp");
 
 // Add the API project with proper dependencies
-var api = builder.AddProject<Projects.MyApp_Api>("api")
+var api = builder.AddDotnetProject("api", "../MyApp.Api/MyApp.Api.csproj")
     .WithHttpEndpoint(port: 5000)
     .WithHttpHealthCheck("/health")
     .WithReference(database, "DefaultConnection")
     .WaitFor(database);
 
 // Add the frontend project with dependencies
-var frontend = builder.AddProject<Projects.MyApp_Frontend>("frontend")
+var frontend = builder.AddDotnetProject("frontend", "../MyApp.Frontend/MyApp.Frontend.csproj")
     .WithHttpEndpoint(port: 3000)
     .WithReference(api)
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
@@ -139,14 +139,14 @@ const database = (await builder.addPostgres("postgres")
     .addDatabase("myapp");
 
 // Add the API project with proper dependencies
-const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj")
+const api = await builder.addDotnetProject("api", "./MyApp.Api/MyApp.Api.csproj")
     .withHttpEndpoint({ port: 5000 })
     .withHttpHealthCheck("/health")
     .withReference(database, "DefaultConnection")
     .waitFor(database);
 
 // Add the frontend project with dependencies
-const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
+const frontend = await builder.addDotnetProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
     .withHttpEndpoint({ port: 3000 })
     .withReference(api)
     .withEnvironment("API_URL", api.getEndpoint("http"))
@@ -158,12 +158,12 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="note" title="build: services become project or Dockerfile resources">
-In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly as project references with <ApiReference name="Aspire.Hosting.ProjectResourceBuilderExtensions.AddProject" />, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfile" /> for an existing Dockerfile or <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfileBuilder" /> when the AppHost should generate the Dockerfile programmatically.
+In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly by project path with <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" />, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfile" /> for an existing Dockerfile or <ApiReference name="Aspire.Hosting.ContainerResourceBuilderExtensions.AddDockerfileBuilder" /> when the AppHost should generate the Dockerfile programmatically.
 </Aside>
 
 **Key differences explained:**
 
-- **Build vs. project** — Docker Compose `build:` services become `AddProject<T>()` for .NET apps, which runs them directly instead of in containers
+- **Build vs. project** — Docker Compose `build:` services become `AddDotnetProject` resources for .NET apps, which runs them directly instead of in containers
 - **Ports** — Both examples explicitly map ports (3000 and 5000)
 - **Startup order** — Docker Compose uses `depends_on` with health conditions; Aspire uses <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> for startup ordering
 - **Service discovery** — <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> only configures service discovery and connection strings; it doesn't control startup order
@@ -527,7 +527,7 @@ Successfully migrating from Docker Compose to Aspire requires a systematic appro
 
    - **Add backing services** like PostgreSQL, Redis with specific versions using `WithImageTag()`
    - **Add persistent storage** using `WithDataVolume()` where needed
-   - **Convert .NET applications** to project references with `AddProject<T>()` for better integration
+   - **Convert .NET applications** to `AddDotnetProject` resources for better integration
    - **Convert Dockerfile-built containers** using `AddDockerfile()` to match `build:` directives
    - **Convert pre-built images** using `AddContainer()` to match `image:` directives
    - **Configure dependencies** with `WithReference()` for service discovery
@@ -604,14 +604,14 @@ const app = await builder.addContainer("app", "myapp:latest")
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(database)  // Service discovery
     .WaitFor(database);       // Startup ordering
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj", { launchProfileName: "https" })
     .withReference(database)  // Service discovery
     .waitFor(database);       // Startup ordering
 ```
@@ -654,13 +654,13 @@ Docker Compose health checks use shell commands. Aspire integrations (like Postg
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithHttpHealthCheck("/health");
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.mts"
-const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+const api = await builder.addDotnetProject("api", "./Api/Api.csproj", { launchProfileName: "https" })
     .withHttpHealthCheck("/health");
 ```
 </TabItem>
@@ -683,7 +683,7 @@ var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpi
     .WithHealthCheck("rabbitmq-health");
 
 // WaitFor uses the registered health check to determine readiness
-var app = builder.AddProject<Projects.App>("app")
+var app = builder.AddDotnetProject("app", "../App/App.csproj")
     .WaitFor(rabbit);
 ```
 </TabItem>
@@ -693,7 +693,7 @@ const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-managem
     .withHealthCheck("rabbitmq-health");
 
 // WaitFor uses the registered health check to determine readiness
-const app = await builder.addProject("app", "./App/App.csproj", "https")
+const app = await builder.addDotnetProject("app", "./App/App.csproj", { launchProfileName: "https" })
     .waitFor(rabbit);
 ```
 </TabItem>

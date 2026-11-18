@@ -254,6 +254,14 @@ describe('validateGeneratedApiData', () => {
     );
   });
 
+  test('allows an options DTO alongside other optional arguments', () => {
+    const input = createValidInput();
+    input.declarations +=
+      '\nexport interface ApiManagement {\n  addProduct(name: string, options?: { options?: FooOptions; productName?: string }): FooResource;\n}';
+
+    expect(validateGeneratedApiData(input).errors).toEqual([]);
+  });
+
   test('rejects same-version attribute payload loss', () => {
     const input = createValidInput();
     input.packages[0].data.types![0].members![0].attributes = [

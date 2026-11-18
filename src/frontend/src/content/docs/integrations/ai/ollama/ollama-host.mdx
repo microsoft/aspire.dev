@@ -22,7 +22,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Ollama hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Ollama server and its model resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Ollama hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Ollama server and its model resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Ollama integration, start with the [Get started with Ollama integrations](/integrations/ai/ollama/ollama-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Ollama](../ollama-connect/).
 
@@ -77,6 +77,27 @@ This updates your `aspire.config.json` with the Ollama hosting integration packa
 </Aside>
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add ollama --source CommunityToolkit
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Ollama hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Ollama": "*"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Ollama resource
@@ -91,7 +112,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var ollama = builder.AddOllama("ollama");
 var llama3 = ollama.AddModel("llama3");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(llama3);
 
 // After adding all resources, run the app...
@@ -110,6 +131,32 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama3);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+	llama3 := ollama.AddModel("llama3")
+
+	builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(llama3)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -145,7 +192,7 @@ var phi35 = ollama.AddModel("phi3.5");
 // Add with an explicit resource name
 var llama3 = ollama.AddModel("ollama-llama3", "llama3");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(phi35)
     .WithReference(llama3);
 
@@ -173,6 +220,38 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+
+	// Add by model name — resource name is generated automatically
+	phi35 := ollama.AddModel("phi3.5")
+
+	// Add with an explicit resource name
+	llama3 := ollama.AddNamedModel("ollama-llama3", "llama3")
+
+	builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(phi35).
+		WithReference(llama3)
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 ## Download the LLM
@@ -198,7 +277,7 @@ var ollama = builder.AddOllama("ollama")
 
 var llama3 = ollama.AddModel("llama3");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(llama3);
 
 // After adding all resources, run the app...
@@ -219,6 +298,34 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama3);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").
+		WithDataVolume(nil)
+
+	llama3 := ollama.AddModel("llama3")
+
+	builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(llama3)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -296,6 +403,62 @@ await ollama.addModel("llama3");
 </Aside>
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+**Nvidia:**
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").
+		WithGPUSupport(nil)
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
+```
+
+**AMD:**
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	vendor := aspire.OllamaGpuVendorAMD
+	ollama := builder.AddOllama("ollama").
+		WithGPUSupport(aspire.GPUSupportVendor(vendor))
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
+```
+
+</TabItem>
 </Tabs>
 
 For more information, see [GPU support in Docker Desktop](https://docs.docker.com/desktop/gpu/) and [GPU support in Podman](https://github.com/containers/podman/issues/19005).
@@ -315,7 +478,7 @@ var llama = ollama.AddHuggingFaceModel(
     "llama",
     "bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(llama);
 
 // After adding all resources, run the app...
@@ -337,6 +500,35 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(llama);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama")
+
+	llama := ollama.AddHuggingFaceModel(
+		"llama",
+		"bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS")
+
+	builder.AddNodeApp("api", "./api", "index.js").
+		WithReference(llama)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -372,6 +564,30 @@ await ollama.addModel("llama3");
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama", aspire.AddOllamaPort(11434))
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
+```
+</TabItem>
 </Tabs>
 
 ## Open WebUI support
@@ -405,6 +621,31 @@ await ollama.addModel("llama3");
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	ollama := builder.AddOllama("ollama").
+		WithOpenWebUI(nil)
+
+	ollama.AddModel("llama3")
+
+	// After adding all resources, run the app...
+}
+```
 </TabItem>
 </Tabs>
 
