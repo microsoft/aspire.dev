@@ -1638,8 +1638,8 @@ describe('custom Astro component render coverage', () => {
 
     // The primary "View on GitHub" CTA in the hero uses the Starlight `github`
     // icon on the left of the label and no longer ships the external-link
-    // icon on the right. Match the unique github SVG path fragment.
-    const githubIconPath = 'M12 .3a12 12 0 0 0-3.8 23.38';
+    // icon on the right. Match its reference into the shared icon sprite.
+    const githubIconPath = '.sprite.svg#i-github';
     expect(html).toContain(githubIconPath);
     const primaryCtaStart = html.search(/class="sample-action primary\b/);
     const primaryCtaEnd = html.indexOf('</a>', primaryCtaStart);

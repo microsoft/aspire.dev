@@ -1,0 +1,51 @@
+---
+/*
+ * Drop-in replacement for Starlight's `<Icon>`. Every import of Starlight's icon component
+ * (ours, Starlight's own, and plugins') is redirected here by the `aspire:starlight-icon-sprite`
+ * Vite plugin in `astro.config.mjs`. Icons repeated across the site reference a shared,
+ * immutable SVG sprite with `<use>`; anything else falls back to Starlight's inline markup.
+ */
+import type { StarlightIcon } from '@astrojs/starlight/types';
+import StarlightIconComponent from '../../../node_modules/@astrojs/starlight/user-components/Icon.astro';
+import spriteUrl from '@assets/icons/starlight-icons.sprite.svg?url';
+import { isSpriteIcon, spriteIconId } from '@utils/icon-sprite';
+
+interface Props {
+  name: StarlightIcon;
+  label?: string;
+  color?: string;
+  size?: string;
+  class?: string;
+}
+
+const { name, label, size = '1em', color } = Astro.props;
+const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden': 'true' } as const);
+---
+
+{
+  isSpriteIcon(name) ? (
+    <svg
+      {...a11yAttrs}
+      class={Astro.props.class}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+    >
+      <use href={`${spriteUrl}#${spriteIconId(name)}`} />
+    </svg>
+  ) : (
+    <StarlightIconComponent {...Astro.props} />
+  )
+}
+
+<style define:vars={{ 'sl-icon-color': color, 'sl-icon-size': size }}>
+  @layer starlight.components {
+    svg {
+      color: var(--sl-icon-color);
+      font-size: var(--sl-icon-size, 1em);
+      width: 1em;
+      height: 1em;
+    }
+  }
+</style>
