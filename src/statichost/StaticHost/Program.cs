@@ -11,6 +11,10 @@ if (builder.Configuration.GetConnectionString("secrets") is not null)
     builder.Configuration.AddAzureKeyVaultSecrets("secrets");
 }
 
+// Background workers are non-essential; a failure is logged but must not take the site down.
+builder.Services.Configure<HostOptions>(options =>
+    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
+
 builder.AddLiveStatus();
 
 builder.Services.AddHsts(options =>
