@@ -286,6 +286,27 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
           slug: 'reference/cli/shell-completion',
         },
         {
+          label: 'Security considerations',
+          translations: {
+            da: 'Sikkerhedsovervejelser',
+            de: 'Sicherheitsüberlegungen',
+            en: 'Security considerations',
+            es: 'Consideraciones de seguridad',
+            fr: 'Considérations de sécurité',
+            hi: 'सुरक्षा संबंधी विचार',
+            id: 'Pertimbangan keamanan',
+            it: 'Considerazioni sulla sicurezza',
+            ja: 'セキュリティに関する考慮事項',
+            ko: '보안 고려 사항',
+            'pt-BR': 'Considerações de segurança',
+            ru: 'Соображения безопасности',
+            tr: 'Güvenlik değerlendirmeleri',
+            uk: 'Міркування щодо безпеки',
+            'zh-CN': '安全注意事项',
+          },
+          slug: 'reference/cli/security-considerations',
+        },
+        {
           label: 'Microsoft telemetry',
           translations: {
             da: 'Microsoft telemetri',
