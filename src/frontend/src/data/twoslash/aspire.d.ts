@@ -283,6 +283,102 @@ export declare const Method: {
 };
 
 /**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementBackendProtocol
+ */
+
+export type AzureApiManagementBackendProtocol = "Http" | "Soap";
+export declare const AzureApiManagementBackendProtocol: {
+  readonly Http: "Http";
+  readonly Soap: "Soap";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementDiagnosticVerbosity
+ */
+
+export type AzureApiManagementDiagnosticVerbosity = "Error" | "Information" | "Verbose";
+export declare const AzureApiManagementDiagnosticVerbosity: {
+  readonly Error: "Error";
+  readonly Information: "Information";
+  readonly Verbose: "Verbose";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementHostnameType
+ */
+
+export type AzureApiManagementHostnameType = "ConfigurationApi" | "Proxy" | "DeveloperPortal" | "Portal" | "Management" | "Scm";
+export declare const AzureApiManagementHostnameType: {
+  readonly ConfigurationApi: "ConfigurationApi";
+  readonly Proxy: "Proxy";
+  readonly DeveloperPortal: "DeveloperPortal";
+  readonly Portal: "Portal";
+  readonly Management: "Management";
+  readonly Scm: "Scm";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementOpenApiFormat
+ */
+
+export type AzureApiManagementOpenApiFormat = "OpenApi" | "OpenApiJson" | "SwaggerJson";
+export declare const AzureApiManagementOpenApiFormat: {
+  readonly OpenApi: "OpenApi";
+  readonly OpenApiJson: "OpenApiJson";
+  readonly SwaggerJson: "SwaggerJson";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementProductState
+ */
+
+export type AzureApiManagementProductState = "NotPublished" | "Published";
+export declare const AzureApiManagementProductState: {
+  readonly NotPublished: "NotPublished";
+  readonly Published: "Published";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementSku
+ */
+
+export type AzureApiManagementSku = "Consumption" | "Developer" | "Basic" | "BasicV2" | "Standard" | "StandardV2" | "Premium" | "PremiumV2";
+export declare const AzureApiManagementSku: {
+  readonly Consumption: "Consumption";
+  readonly Developer: "Developer";
+  readonly Basic: "Basic";
+  readonly BasicV2: "BasicV2";
+  readonly Standard: "Standard";
+  readonly StandardV2: "StandardV2";
+  readonly Premium: "Premium";
+  readonly PremiumV2: "PremiumV2";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementSubscriptionState
+ */
+
+export type AzureApiManagementSubscriptionState = "Active" | "Suspended" | "Submitted" | "Rejected" | "Expired" | "Cancelled";
+export declare const AzureApiManagementSubscriptionState: {
+  readonly Active: "Active";
+  readonly Suspended: "Suspended";
+  readonly Submitted: "Submitted";
+  readonly Rejected: "Rejected";
+  readonly Expired: "Expired";
+  readonly Cancelled: "Cancelled";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementVirtualNetworkMode
+ */
+
+export type AzureApiManagementVirtualNetworkMode = "External" | "Internal";
+export declare const AzureApiManagementVirtualNetworkMode: {
+  readonly External: "External";
+  readonly Internal: "Internal";
+};
+
+/**
  * Enum Aspire.Hosting.AzureAppConfigurationRole
  */
 
@@ -13432,6 +13528,84 @@ export interface SQSEventSourceOptions {
 }
 
 /**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementBackendOptions
+ */
+
+export interface AzureApiManagementBackendOptions {
+  title?: string;
+  protocol?: AzureApiManagementBackendProtocol;
+  validateCertificateChain?: boolean;
+  validateCertificateName?: boolean;
+  managedIdentityResource?: string;
+  circuitBreaker?: AzureApiManagementCircuitBreakerOptions;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementCircuitBreakerOptions
+ */
+
+export interface AzureApiManagementCircuitBreakerOptions {
+  name?: string;
+  failureCount?: number;
+  failureIntervalSeconds?: number;
+  statusCodeRanges?: AzureApiManagementStatusCodeRange[];
+  tripDurationSeconds?: number;
+  acceptRetryAfter?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementDiagnosticOptions
+ */
+
+export interface AzureApiManagementDiagnosticOptions {
+  samplingPercentage?: number;
+  verbosity?: AzureApiManagementDiagnosticVerbosity;
+  logClientIp?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementOptions
+ */
+
+export interface AzureApiManagementOptions {
+  publisherEmail?: string;
+  publisherName?: string;
+  sku?: AzureApiManagementSku;
+  capacity?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementProductOptions
+ */
+
+export interface AzureApiManagementProductOptions {
+  description?: string;
+  terms?: string;
+  subscriptionRequired?: boolean;
+  approvalRequired?: boolean;
+  subscriptionsLimit?: number;
+  state?: AzureApiManagementProductState;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementStatusCodeRange
+ */
+
+export interface AzureApiManagementStatusCodeRange {
+  minimum?: number;
+  maximum?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementSubscriptionOptions
+ */
+
+export interface AzureApiManagementSubscriptionOptions {
+  allowTracing?: boolean;
+  state?: AzureApiManagementSubscriptionState;
+}
+
+/**
  * DTO Aspire.Hosting.Azure.AzureContainerAppScaleConfig
  */
 
@@ -17159,7 +17333,7 @@ export interface LambdaEmulatorResource extends ExecutableResource, IComputeReso
  * Handle Aspire.Hosting.AWS.Lambda.LambdaProjectResource
  */
 
-export interface LambdaProjectResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface LambdaProjectResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 
   withDynamoDBStreamsEventSource(tableName: string, options?: DynamoDBStreamsEventSourceOptions): this;
 
@@ -17359,6 +17533,349 @@ export interface IAzureKeyVaultResource {
  */
 
 export interface IAzureKeyVaultSecretReference {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementApiResource
+ */
+
+export interface AzureApiManagementApiResource extends IResource, IResourceWithParent {
+  /**
+   * Adds an explicitly modeled operation to an API.
+   */
+
+  addOperation(name: string, method: string, urlTemplate: string, options?: { displayName?: string; operationName?: string }): AzureApiManagementOperationResource;
+  /**
+   * Adds an explicitly modeled operation to an API.
+   */
+
+  addOperation(name: string, method: string, urlTemplate: string, displayName?: string, operationName?: string): AzureApiManagementOperationResource;
+  /**
+   * Configures an API to route requests to a backend.
+   */
+
+  withApiBackend(backend: AzureApiManagementBackendResource): this;
+  /**
+   * Configures an API to route requests to a backend pool.
+   */
+
+  withApiBackendPool(backend: AzureApiManagementBackendPoolResource): this;
+  /**
+   * Sends API-level API Management diagnostics to Application Insights.
+   */
+
+  withApplicationInsights(applicationInsights: AzureApplicationInsightsResource, options?: AzureApiManagementDiagnosticOptions): this;
+  /**
+   * Appends an XML policy statement to the API-level inbound policy section.
+   */
+
+  withInboundPolicy(policyXml: string): this;
+  /**
+   * Includes a policy fragment in the API-level inbound policy.
+   */
+
+  withInboundPolicyFragment(fragment: AzureApiManagementPolicyFragmentResource): this;
+  /**
+   * Imports an OpenAPI document from a file into an API.
+   */
+
+  withOpenApiDocument(documentPath: string, options?: { format?: AzureApiManagementOpenApiFormat }): this;
+  /**
+   * Imports an OpenAPI document from a file into an API.
+   */
+
+  withOpenApiDocument(documentPath: string, format?: AzureApiManagementOpenApiFormat): this;
+  /**
+   * Imports an OpenAPI document exposed by the API's target compute resource.
+   */
+
+  withOpenApiEndpoint(options?: { documentPath?: string; endpointName?: string; format?: AzureApiManagementOpenApiFormat }): this;
+  /**
+   * Imports an OpenAPI document exposed by the API's target compute resource.
+   */
+
+  withOpenApiEndpoint(documentPath?: string, endpointName?: string, format?: AzureApiManagementOpenApiFormat): this;
+  /**
+   * Replaces the complete API-level policy document.
+   */
+
+  withPolicy(policyXml: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementBackendPoolResource
+ */
+
+export interface AzureApiManagementBackendPoolResource extends IResource, IResourceWithParent {
+  /**
+   * Adds a backend to a load-balancing pool.
+   */
+
+  addBackendPoolMember(backend: AzureApiManagementBackendResource, options?: { priority?: number; weight?: number }): AzureApiManagementBackendPoolResource;
+  /**
+   * Adds a backend to a load-balancing pool.
+   */
+
+  addBackendPoolMember(backend: AzureApiManagementBackendResource, priority?: number, weight?: number): AzureApiManagementBackendPoolResource;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementBackendResource
+ */
+
+export interface AzureApiManagementBackendResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementNamedValueResource
+ */
+
+export interface AzureApiManagementNamedValueResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementOperationResource
+ */
+
+export interface AzureApiManagementOperationResource extends IResource, IResourceWithParent {
+  /**
+   * Appends an XML policy statement to the operation-level inbound policy section.
+   */
+
+  withInboundPolicy(policyXml: string): this;
+  /**
+   * Includes a policy fragment in the operation-level inbound policy.
+   */
+
+  withInboundPolicyFragment(fragment: AzureApiManagementPolicyFragmentResource): this;
+  /**
+   * Replaces the complete operation-level policy document.
+   */
+
+  withPolicy(policyXml: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementPolicyFragmentResource
+ */
+
+export interface AzureApiManagementPolicyFragmentResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementProductResource
+ */
+
+export interface AzureApiManagementProductResource extends IResource, IResourceWithParent {
+  /**
+   * Adds a subscription scoped to an API Management product.
+   */
+
+  addSubscription(name: string, displayName: string, options?: { options?: AzureApiManagementSubscriptionOptions; subscriptionName?: string }): AzureApiManagementSubscriptionResource;
+  /**
+   * Adds a subscription scoped to an API Management product.
+   */
+
+  addSubscription(name: string, displayName: string, options?: AzureApiManagementSubscriptionOptions, subscriptionName?: string): AzureApiManagementSubscriptionResource;
+  /**
+   * Adds an API to an API Management product.
+   */
+
+  withApi(api: AzureApiManagementApiResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementResource
+ */
+
+export interface AzureApiManagementResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters, IAzurePrivateEndpointTarget {
+  /**
+   * Adds an API that routes requests to an Aspire compute resource.
+   */
+
+  addApi(name: string, target: IComputeResource, path: string, options?: { displayName?: string; subscriptionRequired?: boolean; apiName?: string }): AzureApiManagementApiResource;
+  /**
+   * Adds an API that routes requests to an Aspire compute resource.
+   */
+
+  addApi(name: string, target: IComputeResource, path: string, displayName?: string, subscriptionRequired?: boolean, apiName?: string): AzureApiManagementApiResource;
+  /**
+   * Adds an API whose backend is configured separately.
+   */
+
+  addApiWithoutTarget(name: string, path: string, options?: { displayName?: string; subscriptionRequired?: boolean; apiName?: string }): AzureApiManagementApiResource;
+  /**
+   * Adds an API whose backend is configured separately.
+   */
+
+  addApiWithoutTarget(name: string, path: string, displayName?: string, subscriptionRequired?: boolean, apiName?: string): AzureApiManagementApiResource;
+  /**
+   * Adds an Azure OpenAI deployment as an API Management backend.
+   */
+
+  addAzureOpenAIBackend(name: string, deployment: AzureOpenAIDeploymentResource, options?: { backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds an Azure OpenAI deployment as an API Management backend.
+   */
+
+  addAzureOpenAIBackend(name: string, deployment: AzureOpenAIDeploymentResource, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a configurable backend to the API Management service.
+   */
+
+  addBackend(name: string, uri: ReferenceExpression, options?: { options?: AzureApiManagementBackendOptions; backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds a configurable backend to the API Management service.
+   */
+
+  addBackend(name: string, uri: ReferenceExpression, options?: AzureApiManagementBackendOptions, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a reusable load-balancing pool to the API Management service.
+   */
+
+  addBackendPool(name: string, options?: { displayName?: string; backendPoolName?: string }): AzureApiManagementBackendPoolResource;
+  /**
+   * Adds a reusable load-balancing pool to the API Management service.
+   */
+
+  addBackendPool(name: string, displayName?: string, backendPoolName?: string): AzureApiManagementBackendPoolResource;
+  /**
+   * Adds an Azure Blob Storage service as an API Management backend.
+   */
+
+  addBlobStorageBackend(name: string, blobs: AzureBlobStorageResource, options?: { backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds an Azure Blob Storage service as an API Management backend.
+   */
+
+  addBlobStorageBackend(name: string, blobs: AzureBlobStorageResource, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a Microsoft Foundry OpenAI deployment as an API Management backend.
+   */
+
+  addFoundryBackend(name: string, deployment: FoundryDeploymentResource, options?: { backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds a Microsoft Foundry OpenAI deployment as an API Management backend.
+   */
+
+  addFoundryBackend(name: string, deployment: FoundryDeploymentResource, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a Key Vault-backed named value to the API Management service from a polyglot AppHost.
+   */
+
+  addKeyVaultNamedValue(name: string, vault: AzureKeyVaultResource, secretName: string, options?: { displayName?: string; namedValueName?: string; tags?: string[] }): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a Key Vault-backed named value to the API Management service from a polyglot AppHost.
+   */
+
+  addKeyVaultNamedValue(name: string, vault: AzureKeyVaultResource, secretName: string, displayName?: string, namedValueName?: string, tags?: string[]): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a non-secret named value to the API Management service.
+   */
+
+  addNamedValue(name: string, value: string, options?: { displayName?: string; namedValueName?: string; tags?: string[] }): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a non-secret named value to the API Management service.
+   */
+
+  addNamedValue(name: string, value: string, displayName?: string, namedValueName?: string, tags?: string[]): AzureApiManagementNamedValueResource;
+  /**
+   * Adds an OpenAI-compatible API backed by an API Management load-balancing pool.
+   */
+
+  addOpenAIApi(name: string, path: string, options?: { displayName?: string; subscriptionRequired?: boolean; apiName?: string }): AzureApiManagementApiResource;
+  /**
+   * Adds an OpenAI-compatible API backed by an API Management load-balancing pool.
+   */
+
+  addOpenAIApi(name: string, path: string, displayName?: string, subscriptionRequired?: boolean, apiName?: string): AzureApiManagementApiResource;
+  /**
+   * Adds a reusable policy fragment to the API Management service.
+   */
+
+  addPolicyFragment(name: string, policyXml: string, options?: { description?: string; fragmentName?: string }): AzureApiManagementPolicyFragmentResource;
+  /**
+   * Adds a reusable policy fragment to the API Management service.
+   */
+
+  addPolicyFragment(name: string, policyXml: string, description?: string, fragmentName?: string): AzureApiManagementPolicyFragmentResource;
+  /**
+   * Adds a product to the API Management service.
+   */
+
+  addProduct(name: string, displayName: string, options?: { options?: AzureApiManagementProductOptions; productName?: string }): AzureApiManagementProductResource;
+  /**
+   * Adds a product to the API Management service.
+   */
+
+  addProduct(name: string, displayName: string, options?: AzureApiManagementProductOptions, productName?: string): AzureApiManagementProductResource;
+  /**
+   * Adds a secret parameter as a named value in the API Management service.
+   */
+
+  addSecretNamedValue(name: string, value: string | ParameterResource, options?: { displayName?: string; namedValueName?: string; tags?: string[] }): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a secret parameter as a named value in the API Management service.
+   */
+
+  addSecretNamedValue(name: string, value: string | ParameterResource, displayName?: string, namedValueName?: string, tags?: string[]): AzureApiManagementNamedValueResource;
+  /**
+   * Sends service-level API Management diagnostics to Application Insights.
+   */
+
+  withApplicationInsights(applicationInsights: AzureApplicationInsightsResource, options?: AzureApiManagementDiagnosticOptions): this;
+  /**
+   * Configures the user-assigned managed identity used by API Management.
+   */
+
+  withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
+  /**
+   * Injects a classic Developer or Premium API Management service into a virtual network subnet.
+   */
+
+  withClassicVirtualNetwork(subnet: AzureSubnetResource, mode: AzureApiManagementVirtualNetworkMode): this;
+  /**
+   * Configures a custom hostname from a polyglot AppHost using a certificate stored in Azure Key Vault.
+   */
+
+  withCustomDomain(hostname: string, vault: AzureKeyVaultResource, certificateSecretName: string, options?: { type?: AzureApiManagementHostnameType; defaultSslBinding?: boolean; negotiateClientCertificate?: boolean }): this;
+  /**
+   * Configures a custom hostname from a polyglot AppHost using a certificate stored in Azure Key Vault.
+   */
+
+  withCustomDomain(hostname: string, vault: AzureKeyVaultResource, certificateSecretName: string, type?: AzureApiManagementHostnameType, defaultSslBinding?: boolean, negotiateClientCertificate?: boolean): this;
+  /**
+   * Appends an XML policy statement to the service-level inbound policy section.
+   */
+
+  withInboundPolicy(policyXml: string): this;
+  /**
+   * Includes a policy fragment in the service-level inbound policy.
+   */
+
+  withInboundPolicyFragment(fragment: AzureApiManagementPolicyFragmentResource): this;
+  /**
+   * Replaces the complete service-level policy document.
+   */
+
+  withPolicy(policyXml: string): this;
+  /**
+   * Injects a Premium v2 API Management service into a virtual network for private inbound and outbound access.
+   */
+
+  withVirtualNetworkInjection(subnet: AzureSubnetResource): this;
+  /**
+   * Integrates a Standard v2 or Premium v2 API Management service with a virtual network for outbound access.
+   */
+
+  withVirtualNetworkIntegration(subnet: AzureSubnetResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementSubscriptionResource
+ */
+
+export interface AzureApiManagementSubscriptionResource extends IResource, IResourceWithParent {
 }
 
 /**
@@ -196037,40 +196554,20 @@ export interface KeycloakResource extends ContainerResource, IComputeResource, I
 
 export interface CertManagerIssuerResource extends IResource, IResourceWithParent {
   /**
-   * Configures the issuer to use a custom ACME directory endpoint (e.g., a private ACME server such as ZeroSSL or step-ca).
+   * Configures the ACME directory URL and contact email using either two strings or two parameters.
    */
 
-  withAcmeServer(serverUrl: string, email: string): this;
+  withAcmeServer(serverUrl: string | ParameterResource, email: string | ParameterResource): this;
   /**
-   * Configures the issuer to use a custom ACME directory endpoint with a parameterized email.
+   * Configures External Account Binding (EAB) with a key identifier and secret HMAC key resolved at deploy time.
    */
 
-  withAcmeServerParam(serverUrl: string, email: string | ParameterResource): this;
+  withExternalAccountBinding(keyId: string | ParameterResource, hmacKey: string | ParameterResource): this;
   /**
    * Adds an HTTP-01 ACME challenge solver to the issuer. cert-manager will satisfy the challenge by provisioning a temporary HTTP route at `/.well-known/acme-challenge/{token}` on the same hostname being validated. This requires the hostname to be publicly reachable on port 80.
    */
 
   withHttp01Solver(): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt production ACME endpoint.
-   */
-
-  withLetsEncryptProduction(email: string): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt production ACME endpoint, with the contact email supplied via a parameter resolved at deploy time.
-   */
-
-  withLetsEncryptProductionParam(email: string | ParameterResource): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt staging ACME endpoint. Certificates issued from staging are not trusted by browsers, but the endpoint has much higher rate limits, making it the right choice for development and CI workflows.
-   */
-
-  withLetsEncryptStaging(email: string): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt staging ACME endpoint, with the contact email supplied via a parameter resolved at deploy time.
-   */
-
-  withLetsEncryptStagingParam(email: string | ParameterResource): this;
 }
 
 /**
@@ -196249,6 +196746,11 @@ export interface KubernetesEnvironmentResource extends IComputeEnvironmentResour
    */
 
   kubeConfigPath: PropertyAccessor<string>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Determines whether to include an Aspire dashboard for telemetry visualization in this environment.
    */
@@ -196508,6 +197010,16 @@ export interface KubernetesIngressResource extends IResource, IResourceWithParen
 
 export interface KubernetesManifestResource {
   /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  metadata: PropertyAccessor<ObjectMetaV1>;
+  /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  setMetadata(value: ObjectMetaV1): KubernetesManifestResource;
+  /**
    * Adds or updates a Kubernetes annotation on this manifest.
    */
 
@@ -196516,7 +197028,7 @@ export interface KubernetesManifestResource {
    * Adds or updates a manifest field using a dot-separated path.
    */
 
-  withField(path: string, value: string | number | boolean): KubernetesManifestResource;
+  withField(path: string, value: any): KubernetesManifestResource;
   /**
    * Adds or updates a Kubernetes label on this manifest.
    */
@@ -196557,7 +197069,22 @@ export interface KubernetesPersistentVolumeResource extends IResource, IResource
 
   withCapacityParam(capacity: string | ParameterResource): this;
   /**
-   * Sets the storage class for a persistent volume
+   * Configures the generated persistent volume claim
+   */
+
+  withConfiguration(configure: (obj: PersistentVolumeClaim) => Promise<void>): this;
+  /**
+   * Omits `spec.storageClassName` from the generated PVC so Kubernetes can assign the cluster's default StorageClass. To request a classless volume, call `WithStorageClass` with an empty string.
+   */
+
+  withoutStorageClass(): KubernetesPersistentVolumeResource;
+  /**
+   * Sets the name of the existing PersistentVolume to bind to in the generated PVC's `spec.volumeName`.
+   */
+
+  withPersistentVolumeName(persistentVolumeName: string): this;
+  /**
+   * Sets the Kubernetes storage class name on the PVC's `spec.storageClassName`. When unset, the cluster's default storage class is used. An empty string explicitly disables storage class assignment.
    */
 
   withStorageClass(storageClassName: string): this;
@@ -196593,6 +197120,119 @@ export interface KubernetesResource extends IResource, IResourceWithParent {
    */
 
   parent: PropertyAccessor<KubernetesEnvironmentResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.ObjectMetaV1
+ */
+
+export interface ObjectMetaV1 {
+  /**
+   * Represents a collection of annotations associated with a Kubernetes object metadata.
+   */
+
+  annotations: PropertyAccessor<Dict<string,string>>;
+  /**
+   * A collection of key-value pairs used to organize and categorize Kubernetes resources.
+   */
+
+  labels: PropertyAccessor<Dict<string,string>>;
+  /**
+   * A collection of key-value pairs used to organize and categorize Kubernetes resources.
+   */
+
+  setLabels(value: Dict<string,string>): ObjectMetaV1;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.PersistentVolumeClaim
+ */
+
+export interface PersistentVolumeClaim {
+  /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  metadata: PropertyAccessor<ObjectMetaV1>;
+  /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  setMetadata(value: ObjectMetaV1): PersistentVolumeClaim;
+  /**
+   * Gets or sets the specification of the PersistentVolumeClaim (PVC) resource.
+   */
+
+  setSpec(value: PersistentVolumeClaimSpecV1): PersistentVolumeClaim;
+  /**
+   * Gets or sets the specification of the PersistentVolumeClaim (PVC) resource.
+   */
+
+  spec: PropertyAccessor<PersistentVolumeClaimSpecV1>;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.PersistentVolumeClaimSpecV1
+ */
+
+export interface PersistentVolumeClaimSpecV1 {
+  /**
+   * Defines the access modes for a Persistent Volume Claim.
+   */
+
+  accessModes: PropertyAccessor<List<string>>;
+  /**
+   * Gets or sets the resource requirements for the volume. Defines the requested and limit capacities for the volume resources, including storage and other related attributes.
+   */
+
+  resources: PropertyAccessor<VolumeResourceRequirementsV1>;
+  /**
+   * Gets or sets the resource requirements for the volume. Defines the requested and limit capacities for the volume resources, including storage and other related attributes.
+   */
+
+  setResources(value: VolumeResourceRequirementsV1): PersistentVolumeClaimSpecV1;
+  /**
+   * Gets or sets the name of the storage class required by the PersistentVolumeClaim.
+   */
+
+  setStorageClassName(value: string): PersistentVolumeClaimSpecV1;
+  /**
+   * Specifies the volume mode for a PersistentVolumeClaim. This determines how data in the volume is accessed by pods using the claim.
+   */
+
+  setVolumeMode(value: string): PersistentVolumeClaimSpecV1;
+  /**
+   * Gets or sets the name of the specific volume to be bound to the PersistentVolumeClaim.
+   */
+
+  setVolumeName(value: string): PersistentVolumeClaimSpecV1;
+  /**
+   * Gets or sets the name of the storage class required by the PersistentVolumeClaim.
+   */
+
+  storageClassName: PropertyAccessor<string>;
+  /**
+   * Specifies the volume mode for a PersistentVolumeClaim. This determines how data in the volume is accessed by pods using the claim.
+   */
+
+  volumeMode: PropertyAccessor<string>;
+  /**
+   * Gets or sets the name of the specific volume to be bound to the PersistentVolumeClaim.
+   */
+
+  volumeName: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.VolumeResourceRequirementsV1
+ */
+
+export interface VolumeResourceRequirementsV1 {
+  /**
+   * Represents the minimum amount of compute resources required for a volume in a Kubernetes environment. Specifies the resource requests for the volume, such as storage capacity or other resource types. Used to define guaranteed resource allocation for the volume.
+   */
+
+  requests: PropertyAccessor<Dict<string,string>>;
 }
 
 /**
@@ -202170,6 +202810,11 @@ export interface IDistributedApplicationBuilder {
    */
 
   addBicepTemplateString(name: string, bicepContent: string): AzureBicepResource;
+  /**
+   * Adds an Azure API Management service.
+   */
+
+  addAzureApiManagement(name: string, options: AzureApiManagementOptions): AzureApiManagementResource;
   /**
    * Adds an Azure App Configuration resource to the application model.
    */

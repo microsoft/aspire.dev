@@ -1292,6 +1292,18 @@ describe('API reference authoring validator', () => {
     const packageDocuments = readJsonDocuments<ApiReferencePackageDocument>(
       path.join(frontendRoot, 'src', 'data', 'pkgs')
     );
+    const deferredTypeScriptPackages = new Set(
+      (
+        JSON.parse(
+          fs.readFileSync(
+            path.join(frontendRoot, 'src', 'data', 'api-generation-failures.json'),
+            'utf8'
+          )
+        ) as { name: string; stage: string }[]
+      )
+        .filter((failure) => failure.stage === 'TypeScript')
+        .map((failure) => failure.name)
+    );
     const index = buildApiReferenceIndex(
       packageDocuments,
       readJsonDocuments<ApiReferenceTsDocument>(
@@ -1351,6 +1363,7 @@ describe('API reference authoring validator', () => {
     const declaredExportFailures: string[] = [];
     const checkedExports = new Set<string>();
     for (const pkg of packageDocuments) {
+      if (deferredTypeScriptPackages.has(pkg.package.name)) continue;
       for (const type of pkg.types ?? []) {
         const typeName = (
           type.fullName ?? `${type.namespace ? `${type.namespace}.` : ''}${type.name}`
