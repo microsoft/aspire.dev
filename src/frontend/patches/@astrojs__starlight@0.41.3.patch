@@ -1,5 +1,5 @@
 diff --git a/components/Search.astro b/components/Search.astro
-index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc714330421 100644
+index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..0a35ace9530404d2469ae11ed87688766d75e8bd 100644
 --- a/components/Search.astro
 +++ b/components/Search.astro
 @@ -59,7 +59,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
@@ -112,3 +112,52 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc7
  		}
  	}
  	customElements.define('site-search', SiteSearch);
+diff --git a/components/SidebarSublist.astro b/components/SidebarSublist.astro
+index 457ab20fd3583f521bd756cd2acb5cc57643d60b..b6c81a9520418c03b14e3053c46edc9541556e03 100644
+--- a/components/SidebarSublist.astro
++++ b/components/SidebarSublist.astro
+@@ -1,7 +1,6 @@
+ ---
+ import { flattenSidebar } from '../utils/navigation';
+ import type { SidebarEntry } from '../utils/routing/types';
+-import Icon from '../user-components/Icon.astro';
+ import Badge from '../user-components/Badge.astro';
+ import SidebarRestorePoint from './SidebarRestorePoint.astro';
+ 
+@@ -48,7 +47,7 @@ const { sublist, nested } = Astro.props;
+ 									/>
+ 								)}
+ 							</span>
+-							<Icon name="right-caret" class="caret" size="1.25rem" />
++							<span class="caret" aria-hidden="true" />
+ 						</summary>
+ 						<SidebarRestorePoint />
+ 						<Astro.self sublist={entry.entries} nested />
+@@ -101,7 +100,14 @@ const { sublist, nested } = Astro.props;
+ 			display: none;
+ 		}
+ 
++		/* Masked from shared CSS instead of an inline SVG repeated for every sidebar group. */
+ 		.caret {
++			display: block;
++			width: 1.25rem;
++			height: 1.25rem;
++			background-color: currentColor;
++			-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z'/%3E%3C/svg%3E") center / contain no-repeat;
++			mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z'/%3E%3C/svg%3E") center / contain no-repeat;
+ 			transition: transform 0.2s ease-in-out;
+ 			flex-shrink: 0;
+ 		}
+@@ -111,6 +117,12 @@ const { sublist, nested } = Astro.props;
+ 		[open] > summary .caret {
+ 			transform: rotateZ(90deg);
+ 		}
++		@media (forced-colors: active) {
++			.caret {
++				forced-color-adjust: none;
++				background-color: CanvasText;
++			}
++		}
+ 
+ 		a {
+ 			display: block;

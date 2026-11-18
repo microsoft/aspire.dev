@@ -66,6 +66,12 @@ export default defineConfig({
   cacheDir: './node_modules/.astro',
   ...(outDir ? { outDir } : {}),
   vite: {
+    build: {
+      // Astro inlines processed <script>s (and Vite inlines `?url` scripts as data: URLs) when
+      // they're under this limit. Shared scripts are repeated on every one of ~38k pages, so
+      // always emit JavaScript as cacheable /_astro/ files; other assets keep Vite's default.
+      assetsInlineLimit: (filePath) => (/\.[cm]?[jt]s(?:\?|$)/.test(filePath) ? false : undefined),
+    },
     define: {
       // Resolve filesystem-backed redirects before prerender modules are bundled.
       __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
@@ -249,6 +255,9 @@ export default defineConfig({
   ],
   build: {
     concurrency: buildConcurrency,
+    // Every docs page shares the same component stylesheets, so ship them as cached files
+    // instead of re-inlining the same ~13-18 KB of CSS into each of the ~38k pages.
+    inlineStylesheets: 'never',
   },
   experimental: {
     parallelPrerender: { workers: prerenderWorkers },
