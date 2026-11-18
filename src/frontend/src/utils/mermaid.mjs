@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import logos from '@iconify-json/logos/icons.json' with { type: 'json' };
 import iconoir from '@iconify-json/iconoir/icons.json' with { type: 'json' };
 import { getIconData, iconToSVG, replaceIDs } from '@iconify/utils';
@@ -45,13 +46,16 @@ const localLogos = {
   'sql-projects': ['sql-database-projects-icon.png'],
   'sql-server': ['sql-icon.png'],
 };
+// Resolve from the frontend root, not import.meta.url: Astro bundles this module into
+// dist/.prerender/chunks for production builds, where relative source paths don't exist.
+const iconsDir = resolve(process.cwd(), 'src/assets/icons');
 for (const [name, files] of Object.entries(localLogos)) {
   packs.aspire.icons[name] = {
     width: 100,
     height: 100,
     body: files.map((file, index) => {
       const mime = file.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
-      const data = readFileSync(new URL(`../assets/icons/${file}`, import.meta.url)).toString('base64');
+      const data = readFileSync(resolve(iconsDir, file)).toString('base64');
       const theme = files.length > 1 ? ` data-theme="${index === 0 ? 'light' : 'dark'}"` : '';
       return `<image${theme} href="data:${mime};base64,${data}" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`;
     }).join(''),
