@@ -1125,6 +1125,10 @@ export const docsTopics = {
       },
       items: [
         {
+          label: 'Create and customize templates',
+          slug: 'extensibility/templates',
+        },
+        {
           label: 'Custom resources',
           slug: 'extensibility/custom-resources',
         },

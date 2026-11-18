@@ -1,0 +1,186 @@
+---
+title: Create and customize Aspire app templates
+description: Fork an Aspire template, customize its files and prompts, test the generated app locally, and share a reviewed Git revision with your team.
+---
+
+An application template gives your team a reusable starting point with the services, configuration, and conventions you choose. Start by forking a template close to the application you want, make a small change, and test the generated app before sharing your fork.
+
+Aspire uses the [.NET template engine](https://learn.microsoft.com/dotnet/core/tools/templates) to process template files. Templates can contain applications in any language, AppHosts, workflows, and documentation; they don't need to contain a .NET project.
+
+## Prerequisites
+
+- [Aspire CLI 17.0 or later](/get-started/install-cli/)
+- Git and a GitHub account for creating and sharing a fork
+- The language tools required by your chosen template
+
+The example below uses the FastAPI and React template from [microsoft/aspire-templates](https://github.com/microsoft/aspire-templates). Install Node.js and [uv](https://docs.astral.sh/uv/getting-started/installation/) to run its generated app. For Azure-focused starting points, see [Azure/aspire-templates](https://github.com/Azure/aspire-templates).
+
+## Fork a template and try it locally
+
+Fork `microsoft/aspire-templates` into your GitHub account, then clone your fork. Replace `YOUR-ACCOUNT` with its owner:
+
+```bash title="Clone your template repository"
+git clone https://github.com/YOUR-ACCOUNT/aspire-templates.git
+cd aspire-templates
+```
+
+Each directory under `templates` is a separately selectable template. For this walkthrough, use `templates/aspire-py-starter`:
+
+```text title="Files you will work with"
+templates/aspire-py-starter/
+  .template.config/
+    template.json
+    aspirecli.host.json
+  app/
+  frontend/
+  apphost.mts
+  aspire.config.json
+```
+
+Generate a baseline from that directory:
+
+```bash title="Try the unmodified template"
+aspire new --template-path ./templates/aspire-py-starter --name BaselineApp --output ../BaselineApp
+```
+
+Follow the prompts, leaving Redis and `.dev.localhost` URLs disabled for this first run. Review any separately offered configuration source before accepting it.
+
+Keep generated apps outside the template repository. You can compare them with later generations without accidentally copying them into your template.
+
+## Customize your starting point
+
+Edit the application files as you would in any other repository. For example, change the sample API response or frontend text, and add a `README.md` inside `templates/aspire-py-starter` with your team's local run instructions. Files in that directory become part of the generated app.
+
+The configuration files have different responsibilities:
+
+| File                                   | Purpose                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `.template.config/template.json`       | Standard engine metadata, parameters, replacements, and conditional file selection               |
+| `.template.config/aspirecli.host.json` | Aspire CLI prompt labels and visibility, plus Aspire-specific version and configuration behavior |
+| `aspire.config.json`                   | Configuration for the generated application, not for the template wizard                         |
+
+In `template.json`, give your fork a distinct `identity`, `name`, `shortName`, and `description`. For example, use `Example.Templates.FastApi`, `Example FastAPI starter`, and `example-fastapi` for the first three fields. Keep the existing symbols and file-processing rules.
+
+`identity` distinguishes the template from others, `name` is its display name, and `shortName` is its template-engine identifier. Changing the short name doesn't register a new built-in `aspire new` subcommand: select your directory with `--template-path`.
+
+To insert the project name into your new README, write `TemplateApp` where the name should appear and add `"sourceName": "TemplateApp"` at the top level of `template.json`. The engine replaces this marker in file contents and paths with the supplied name. Keep the template's existing name-derived symbols, which may handle other naming requirements.
+
+Use distinctive replacement markers and inspect the output. Replacements are text transformations, not escaping for JSON, source code, or shell commands.
+
+## Add a choice to the wizard
+
+Add a small optional feature before changing more of the application. In this example, let users choose whether to include a team contribution guide.
+
+Create `templates/aspire-py-starter/CONTRIBUTING.md` with the instructions you want generated apps to include. Add the following entry to the existing `symbols` object in `template.json`:
+
+```json title="template.json: add a boolean parameter"
+{
+  "IncludeTeamGuide": {
+    "type": "parameter",
+    "datatype": "bool",
+    "defaultValue": "true",
+    "description": "Include the team contribution guide."
+  }
+}
+```
+
+Add this top-level `sources` property to omit the file when the option is disabled:
+
+```json title="template.json: select an optional file"
+{
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!IncludeTeamGuide)",
+          "exclude": ["CONTRIBUTING.md"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+If you're adapting a different template that already has `sources`, add the modifier to its existing source rather than replacing its rules.
+
+In `aspirecli.host.json`, add this entry to the existing `symbolInfo` object:
+
+```json title="aspirecli.host.json: label the prompt"
+{
+  "IncludeTeamGuide": {
+    "displayName": "Include your team's contribution guide"
+  }
+}
+```
+
+The parameter and file condition are standard template-engine features. The host file supplies the Aspire wizard label. Preserve its other entries, particularly hidden version parameters and their value sources.
+
+For larger options, keep the generated application consistent: an optional cache may need matching conditions in the AppHost, application code, dependencies, and configuration. The Python starter's existing `UseRedisCache` option demonstrates this pattern. See the [template-engine reference](https://github.com/dotnet/templating/wiki/Reference-for-template.json) for choices, required inputs, conditional content, and generated symbols.
+
+## Generate and test your changes
+
+Generate into a fresh output directory:
+
+```bash title="Generate from your customized template"
+aspire new --template-path ./templates/aspire-py-starter --name TeamApp --output ../TeamApp
+```
+
+Accept the contribution-guide option. Check that the generated app contains `CONTRIBUTING.md`, that your README uses `TeamApp`, and that your application changes are present. Generate again into another directory and decline the option; the contribution guide should be absent.
+
+For local and Git templates, Aspire 17.0 presents custom parameters through the wizard rather than adding arbitrary command-line flags. For unattended generation, every enabled input needs a default or a host-supplied value:
+
+```bash title="Check default generation without optional setup"
+aspire new --template-path ./templates/aspire-py-starter --name DefaultApp --output ../DefaultApp --non-interactive --suppress-agent-init --use-config-source false
+```
+
+This command declines a separate configuration source and skips agent setup. It still uses the template directory you selected.
+
+Review the generated app's files and dependency sources, then run it:
+
+```bash title="Run the generated application"
+cd ../TeamApp
+aspire run
+```
+
+Check that the backend and frontend start and that the application responds. Repeat for any optional application features you change. File generation alone doesn't prove that a template produces a working app.
+
+The existing host metadata injects the running Aspire SDK identity and resolves integration-package versions. Keep version ranges appropriate to the SDK and APIs your template supports; don't assume that the newest package is compatible. If resolution fails, check both the range and the generated app's effective NuGet sources before changing either.
+
+## Share your fork
+
+Commit and push your changes, preserving the upstream license and attribution. Share the repository, template path, tested tool versions, and a reviewed revision.
+
+Users can generate directly from your fork without registering it globally. Replace the account and ref below; use a full commit SHA when you want the same template files you reviewed:
+
+```bash title="Generate from a reviewed Git revision"
+aspire new --template-repository https://github.com/YOUR-ACCOUNT/aspire-templates --template-repository-ref YOUR-COMMIT-SHA --template-path templates/aspire-py-starter --name SharedApp --output ./SharedApp
+```
+
+Pinning a commit fixes the template content, not floating dependency versions. For collections used regularly, link your team to [`aspire template source add`](/reference/cli/commands/aspire-template-source-add/); it registers a source globally for discovery in the `aspire new` picker.
+
+Only use sources you trust. Review generated scripts, workflows, and dependency configuration before execution. Private repositories need Git credentials in the user's environment; don't embed credentials in URLs or template files.
+
+## Start from scratch
+
+If no existing template fits, begin with a working Aspire application and add `.template.config/template.json` at its root:
+
+```json title=".template.config/template.json"
+{
+  "$schema": "https://json.schemastore.org/template",
+  "identity": "Example.Templates.TeamApp",
+  "name": "Example team application",
+  "shortName": "example-team",
+  "description": "A starting point for the team's Aspire applications.",
+  "sourceName": "TemplateApp"
+}
+```
+
+Use `TemplateApp` as the original application name or choose a `sourceName` that matches your files. Start with fixed, tested package versions; dynamic package resolution and host metadata aren't required for a basic template.
+
+Exclude local secrets, build output, and dependency directories from generated apps. Preserve intended hidden files such as `.gitignore` and `.github` workflows, and verify that workflow expressions survive generation. Test with `--template-path` as above before adding more parameters.
+
+## See also
+
+- [`aspire new` command reference](/reference/cli/commands/aspire-new/)
+- [Template source commands](/reference/cli/commands/aspire-template-source/)
+- [.NET template authoring reference](https://learn.microsoft.com/dotnet/core/tools/templates)
