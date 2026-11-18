@@ -147,7 +147,7 @@ internal sealed class RedisLiveStatusCoordination(
                     continue;
                 }
             }
-            catch (RedisException exception)
+            catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
             {
                 logger.LogWarning(
                     exception,
@@ -235,7 +235,7 @@ internal sealed class RedisLiveStatusCoordination(
 
             return (long)result != 0;
         }
-        catch (RedisException exception)
+        catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
         {
             logger.LogWarning(
                 exception,
@@ -257,7 +257,7 @@ internal sealed class RedisLiveStatusCoordination(
                 [leaseKey],
                 [ownerToken]).ConfigureAwait(false);
         }
-        catch (RedisException exception)
+        catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
         {
             logger.LogWarning(
                 exception,
@@ -305,7 +305,7 @@ internal sealed class RedisLiveStatusCoordination(
                     [key],
                     [ownerToken]).ConfigureAwait(false);
             }
-            catch (RedisException exception)
+            catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
             {
                 logger.LogWarning(
                     exception,
