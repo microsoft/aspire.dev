@@ -173,7 +173,7 @@ describe('title tooltip navigation lifecycle', () => {
     vi.resetModules();
     await import('@scripts/tooltips');
     expect(addListener.mock.calls.map(([event]) => event)).toEqual([
-      'astro:before-swap', 'astro:page-load', 'keydown', 'pointerdown',
+      'astro:before-swap', 'astro:page-load', 'keydown', 'pointerdown', 'pointermove', 'keydown',
       'astro:before-preparation', 'visibilitychange',
     ]);
 
@@ -253,6 +253,18 @@ describe('title tooltip navigation lifecycle', () => {
       expect(instance.hide).not.toHaveBeenCalled();
       vi.advanceTimersByTime(200);
       expect(instance.hide).toHaveBeenCalled();
+    });
+
+    it.each([
+      ['mouse', () => Object.assign(new Event('pointermove'), { pointerType: 'mouse' })],
+      ['keyboard', () => Object.assign(new Event('keydown'), { key: 'Tab' })],
+    ])('does not auto-hide %s-triggered tooltips after an earlier tap', async (_, nextInput) => {
+      await import('@scripts/tooltips');
+      document.dispatchEvent(Object.assign(new Event('pointerdown'), { pointerType: 'touch' }));
+      document.dispatchEvent(nextInput());
+      const { instance } = shownInstance({});
+      vi.advanceTimersByTime(3000);
+      expect(instance.hide).not.toHaveBeenCalled();
     });
 
     it('stops monitoring after the tooltip hides', async () => {

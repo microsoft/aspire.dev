@@ -49,6 +49,16 @@ function trackPointer(event: PointerEvent) {
   lastPointerType = event.pointerType;
 }
 
+// Mouse hover and keyboard focus don't emit pointerdown, so reset the modality on those too;
+// otherwise a tooltip opened by mouse or Tab after a tap would inherit the touch auto-hide.
+function trackMouse(event: PointerEvent) {
+  if (event.pointerType === 'mouse') lastPointerType = 'mouse';
+}
+
+function trackKeyboard() {
+  lastPointerType = 'keyboard';
+}
+
 function hideAllTooltips() {
   hideAll({ duration: 0 });
 }
@@ -110,6 +120,8 @@ if (!lifecycleDocument.__aspireTooltipsCleanup) {
     document.removeEventListener('keydown', dismissTooltip);
     document.removeEventListener('DOMContentLoaded', initializeTooltips);
     document.removeEventListener('pointerdown', trackPointer, true);
+    document.removeEventListener('pointermove', trackMouse, true);
+    document.removeEventListener('keydown', trackKeyboard, true);
     document.removeEventListener('astro:before-preparation', hideAllTooltips);
     document.removeEventListener('visibilitychange', hideTooltipsWhenHidden);
     window.removeEventListener('scroll', hideAllTooltips, true);
@@ -122,6 +134,8 @@ if (!lifecycleDocument.__aspireTooltipsCleanup) {
   document.addEventListener('astro:page-load', initializeTooltips);
   document.addEventListener('keydown', dismissTooltip);
   document.addEventListener('pointerdown', trackPointer, { capture: true, passive: true });
+  document.addEventListener('pointermove', trackMouse, { capture: true, passive: true });
+  document.addEventListener('keydown', trackKeyboard, { capture: true });
   document.addEventListener('astro:before-preparation', hideAllTooltips);
   document.addEventListener('visibilitychange', hideTooltipsWhenHidden);
   window.addEventListener('scroll', hideAllTooltips, { capture: true, passive: true });

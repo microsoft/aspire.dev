@@ -1318,21 +1318,33 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
           Array.from(this.sidebarContainer?.querySelectorAll<HTMLDetailsElement>('details') ?? []);
         // The button collapses everything once every group is open; otherwise it expands.
         const syncToggle = () => {
-          const allOpen = groups().length > 0 && groups().every((d) => d.open);
+          const all = groups();
+          const allOpen = all.length > 0 && all.every((d) => d.open);
           const label = allOpen ? toggleBtn.dataset.collapseLabel : toggleBtn.dataset.expandLabel;
+          if (toggleBtn.dataset.expanded === String(allOpen)) return;
           toggleBtn.dataset.expanded = String(allOpen);
           toggleBtn.setAttribute('aria-label', label ?? '');
           if (toggleBtn.getAttribute('title') !== '') toggleBtn.title = label ?? '';
           (toggleBtn as HTMLButtonElement & { _tippy?: { setContent(content: string): void } })
             ._tippy?.setContent(label ?? '');
         };
+        // Expanding/collapsing everything fires one `toggle` per group; sync once per frame.
+        let syncFrame = 0;
+        const scheduleSync = () => {
+          if (syncFrame) return;
+          syncFrame = requestAnimationFrame(() => {
+            syncFrame = 0;
+            syncToggle();
+          });
+        };
+        signal.addEventListener('abort', () => cancelAnimationFrame(syncFrame));
         toggleBtn.addEventListener('click', () => {
           const expand = toggleBtn.dataset.expanded !== 'true';
           for (const d of groups()) d.open = expand;
           syncToggle();
         }, { signal });
         // `toggle` doesn't bubble; capture it to track groups opened or closed by hand.
-        this.sidebarContainer?.addEventListener('toggle', syncToggle, { capture: true, signal });
+        this.sidebarContainer?.addEventListener('toggle', scheduleSync, { capture: true, signal });
         syncToggle();
       }
     }
