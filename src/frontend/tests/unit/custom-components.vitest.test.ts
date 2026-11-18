@@ -151,7 +151,7 @@ describe('community brand components', () => {
         expect(html).toContain(name);
         expect(html).toContain(token);
         expect(html).toContain(variant === 'gradients'
-          ? value.replace('(', '( ').replaceAll(', ', ', ').replace(/\)$/, ' )')
+          ? value.replace('(', '( ').replace(/\)$/, ' )')
           : value);
         expect(html).toContain(`aria-label="Copy ${name}"`);
       }
