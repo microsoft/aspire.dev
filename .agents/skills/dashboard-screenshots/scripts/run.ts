@@ -1,4 +1,4 @@
-// One-shot orchestrator: bun scripts/run.ts [--branch release/17.0] [--only <substr>] [--inventory] [--verify] [--keep]
+// One-shot orchestrator: bun scripts/run.ts [--branch release/X.Y] [--only <substr>] [--inventory] [--verify] [--keep]
 import { existsSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, statSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
