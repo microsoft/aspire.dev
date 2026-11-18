@@ -1,6 +1,61 @@
-import tippy, { type Instance, type Placement, type ReferenceElement } from 'tippy.js';
+import tippy, { hideAll, type Instance, type Placement, type ReferenceElement } from 'tippy.js';
 
 const tooltips = new Map<ReferenceElement, { instance: Instance; title: string }>();
+
+const MONITOR_INTERVAL_MS = 250;
+const TOUCH_AUTO_HIDE_MS = 1500;
+const monitors = new WeakMap<Instance, number[]>();
+let lastPointerType = '';
+
+function isRendered(element: Element) {
+  if (!element.isConnected || element.getClientRects().length === 0) return false;
+  return typeof element.checkVisibility === 'function'
+    ? element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })
+    : true;
+}
+
+// Touch leaves :hover and focus stuck on the tapped element, and clicks often hide or move the
+// reference, so tippy never sees the mouseleave/blur it waits for. Hide those tooltips ourselves.
+function startMonitor(instance: Instance) {
+  stopMonitor(instance);
+  const reference = instance.reference;
+  const timers: number[] = [];
+
+  timers.push(
+    window.setInterval(() => {
+      const engaged =
+        reference.matches(':hover, :focus-visible') ||
+        (instance.props.interactive && instance.popper.matches(':hover, :focus-within'));
+      if (!isRendered(reference) || !engaged) instance.hide();
+    }, MONITOR_INTERVAL_MS)
+  );
+
+  if (lastPointerType === 'touch' || lastPointerType === 'pen') {
+    timers.push(window.setTimeout(() => instance.hide(), TOUCH_AUTO_HIDE_MS));
+  }
+
+  monitors.set(instance, timers);
+}
+
+function stopMonitor(instance: Instance) {
+  for (const id of monitors.get(instance) ?? []) {
+    clearInterval(id);
+    clearTimeout(id);
+  }
+  monitors.delete(instance);
+}
+
+function trackPointer(event: PointerEvent) {
+  lastPointerType = event.pointerType;
+}
+
+function hideAllTooltips() {
+  hideAll({ duration: 0 });
+}
+
+function hideTooltipsWhenHidden() {
+  if (document.visibilityState === 'hidden') hideAllTooltips();
+}
 
 function initializeTooltips() {
   for (const element of document.querySelectorAll<ReferenceElement>('[title]')) {
@@ -21,6 +76,9 @@ function initializeTooltips() {
       hideOnClick: true,
       animation: 'scale',
       onClickOutside: (instance) => instance.hide(),
+      onShown: startMonitor,
+      onHidden: stopMonitor,
+      onDestroy: stopMonitor,
     });
     tooltips.set(element, { instance, title });
     element.setAttribute('title', '');
@@ -51,6 +109,11 @@ if (!lifecycleDocument.__aspireTooltipsCleanup) {
     document.removeEventListener('astro:page-load', initializeTooltips);
     document.removeEventListener('keydown', dismissTooltip);
     document.removeEventListener('DOMContentLoaded', initializeTooltips);
+    document.removeEventListener('pointerdown', trackPointer, true);
+    document.removeEventListener('astro:before-preparation', hideAllTooltips);
+    document.removeEventListener('visibilitychange', hideTooltipsWhenHidden);
+    window.removeEventListener('scroll', hideAllTooltips, true);
+    window.removeEventListener('resize', hideAllTooltips);
     destroyTooltips();
     delete lifecycleDocument.__aspireTooltipsCleanup;
   };
@@ -58,6 +121,11 @@ if (!lifecycleDocument.__aspireTooltipsCleanup) {
   document.addEventListener('astro:before-swap', destroyTooltips);
   document.addEventListener('astro:page-load', initializeTooltips);
   document.addEventListener('keydown', dismissTooltip);
+  document.addEventListener('pointerdown', trackPointer, { capture: true, passive: true });
+  document.addEventListener('astro:before-preparation', hideAllTooltips);
+  document.addEventListener('visibilitychange', hideTooltipsWhenHidden);
+  window.addEventListener('scroll', hideAllTooltips, { capture: true, passive: true });
+  window.addEventListener('resize', hideAllTooltips, { passive: true });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeTooltips, { once: true });

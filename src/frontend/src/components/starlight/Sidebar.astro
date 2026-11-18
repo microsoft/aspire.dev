@@ -211,6 +211,19 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
                 </svg>
               </button>
             </div>
+            <button
+              type="button"
+              class="sidebar-toggle-all"
+              data-expand-label={Astro.locals.t('catalogSearch.sidebarExpandAll')}
+              data-collapse-label={Astro.locals.t('catalogSearch.sidebarCollapseAll')}
+              aria-label={Astro.locals.t('catalogSearch.sidebarExpandAll')}
+              title={Astro.locals.t('catalogSearch.sidebarExpandAll')}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path class="icon-expand" d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                <path class="icon-collapse" d="m7 20 5-5 5 5M7 4l5 5 5-5" />
+              </svg>
+            </button>
             <div id="sidebar-filter-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true" data-count-template={Astro.locals.t('catalogSearch.sidebarCount')} />
           </div>
           <div
@@ -318,6 +331,19 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
                 </svg>
               </button>
             </div>
+            <button
+              type="button"
+              class="sidebar-toggle-all"
+              data-expand-label={Astro.locals.t('catalogSearch.sidebarExpandAll')}
+              data-collapse-label={Astro.locals.t('catalogSearch.sidebarCollapseAll')}
+              aria-label={Astro.locals.t('catalogSearch.sidebarExpandAll')}
+              title={Astro.locals.t('catalogSearch.sidebarExpandAll')}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path class="icon-expand" d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+                <path class="icon-collapse" d="m7 20 5-5 5 5M7 4l5 5 5-5" />
+              </svg>
+            </button>
             <div id="sidebar-filter-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true" data-count-template={Astro.locals.t('catalogSearch.sidebarCount')} />
           </div>
           <div
@@ -531,23 +557,76 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     --sidebar-control-height: 2.5rem;
   }
 
-  /* Sidebar header wrappers — topics list + filter scroll along with the
-     rest of the sidebar content (no sticky positioning). */
+  /* Flatten the header wrapper so the filter row's sticky containing block
+     is the full-height sidebar column, not this short wrapper. The topics
+     list scrolls away while the filter row pins to the top. Rail-mode
+     rules target children of this wrapper, which still match. */
   .api-sidebar-sticky,
   .topic-sidebar-sticky {
-    padding-top: 0.75rem;
+    display: contents;
+  }
+
+  :is(.api-sidebar-sticky, .topic-sidebar-sticky) > :first-child {
+    margin-top: 0.75rem;
   }
 
   /* The visual styling for `.starlight-sidebar-topics` lives globally in
      `site.css` (mirroring the original plugin look). The scoped class here
      only adds a small bottom margin so the filter row beneath sits flush. */
   .topics-sidebar-list {
-    margin-bottom: 0.75rem;
+    /* 0.75rem total gap; the sticky filter row adds 0.5rem of top padding. */
+    margin-bottom: 0.25rem;
   }
 
-  /* Filter row sits full-width directly below the topics list. */
-  .sidebar-filter-row {
-    margin-bottom: 0.75rem;
+  /* Filter row sits full-width below the topics list and pins to the top of
+     the sidebar while the page list scrolls beneath it. */
+  .sidebar-filter.sidebar-filter-row {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    padding-block: 0.5rem;
+    /* Inherit the pane's real surface (it differs by theme and layout). */
+    background-color: inherit;
+  }
+
+  .sidebar-filter-row .sidebar-filter-wrap {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sidebar-toggle-all {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    color: var(--sl-color-gray-2);
+    background: var(--sidebar-dropdown-trigger-bg);
+    border: 1px solid var(--sidebar-dropdown-trigger-border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .sidebar-toggle-all:hover {
+    color: var(--sl-color-white);
+    background: var(--sidebar-dropdown-hover-bg);
+  }
+
+  .sidebar-toggle-all svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .sidebar-toggle-all:not([data-expanded='true']) .icon-collapse,
+  .sidebar-toggle-all[data-expanded='true'] .icon-expand {
+    display: none;
   }
 
   .sidebar-dropdown-shell {
@@ -927,7 +1006,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     position: fixed;
     top: calc(
       var(--sl-nav-height, 3.5rem) + var(--aspire-banner-height, 0px) +
-        var(--sl-mobile-toc-height, 0px) + 0.75rem
+        var(--sl-mobile-toc-height, 0px) + 0.25rem
     );
     left: var(--sl-sidebar-width);
     display: flex;
@@ -1232,6 +1311,30 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         this.clear();
         this.input?.focus();
       }, { signal });
+
+      const toggleBtn = container.querySelector<HTMLButtonElement>('.sidebar-toggle-all');
+      if (toggleBtn) {
+        const groups = () =>
+          Array.from(this.sidebarContainer?.querySelectorAll<HTMLDetailsElement>('details') ?? []);
+        // The button collapses everything once every group is open; otherwise it expands.
+        const syncToggle = () => {
+          const allOpen = groups().length > 0 && groups().every((d) => d.open);
+          const label = allOpen ? toggleBtn.dataset.collapseLabel : toggleBtn.dataset.expandLabel;
+          toggleBtn.dataset.expanded = String(allOpen);
+          toggleBtn.setAttribute('aria-label', label ?? '');
+          if (toggleBtn.getAttribute('title') !== '') toggleBtn.title = label ?? '';
+          (toggleBtn as HTMLButtonElement & { _tippy?: { setContent(content: string): void } })
+            ._tippy?.setContent(label ?? '');
+        };
+        toggleBtn.addEventListener('click', () => {
+          const expand = toggleBtn.dataset.expanded !== 'true';
+          for (const d of groups()) d.open = expand;
+          syncToggle();
+        }, { signal });
+        // `toggle` doesn't bubble; capture it to track groups opened or closed by hand.
+        this.sidebarContainer?.addEventListener('toggle', syncToggle, { capture: true, signal });
+        syncToggle();
+      }
     }
 
     private handleInput(): void {

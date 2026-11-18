@@ -1,14 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createTooltip } = vi.hoisted(() => ({
+const { createTooltip, hideAll } = vi.hoisted(() => ({
   createTooltip:
     vi.fn<(element: TooltipElement, options: TooltipOptions) => TooltipElement['_tippy']>(),
+  hideAll: vi.fn(),
 }));
-vi.mock('tippy.js', () => ({ default: createTooltip }));
+vi.mock('tippy.js', () => ({ default: createTooltip, hideAll }));
 
 interface TooltipOptions {
   content: string;
   onClickOutside: (instance: { hide(): void }) => void;
+  onShown: (instance: unknown) => void;
+  onHidden: (instance: unknown) => void;
 }
 
 class TooltipElement {
@@ -50,6 +53,14 @@ describe('title tooltip navigation lifecycle', () => {
       querySelectorAll: () => elements,
     });
     vi.stubGlobal('document', document);
+    vi.stubGlobal(
+      'window',
+      Object.assign(new EventTarget(), {
+        setInterval: (handler: () => void, ms?: number) => globalThis.setInterval(handler, ms),
+        setTimeout: (handler: () => void, ms?: number) => globalThis.setTimeout(handler, ms),
+      })
+    );
+    hideAll.mockReset();
     createTooltip.mockReset().mockImplementation((element: TooltipElement) => {
       const instance = {
         state: { isDestroyed: false },
@@ -162,7 +173,8 @@ describe('title tooltip navigation lifecycle', () => {
     vi.resetModules();
     await import('@scripts/tooltips');
     expect(addListener.mock.calls.map(([event]) => event)).toEqual([
-      'astro:before-swap', 'astro:page-load', 'keydown',
+      'astro:before-swap', 'astro:page-load', 'keydown', 'pointerdown',
+      'astro:before-preparation', 'visibilitychange',
     ]);
 
     document.activeElement = elements[0];
@@ -196,6 +208,71 @@ describe('title tooltip navigation lifecycle', () => {
     document.activeElement = elements[0];
     document.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Escape' }));
     expect(elements[0]._tippy!.hide).toHaveBeenCalledOnce();
+  });
+
+  describe('stuck tooltip monitor', () => {
+    function shownInstance(reference: Partial<{ hovered: boolean; rendered: boolean }>) {
+      const state = { hovered: true, rendered: true, ...reference };
+      const instance = {
+        reference: {
+          isConnected: true,
+          getClientRects: () => (state.rendered ? [{}] : []),
+          matches: () => state.hovered,
+        },
+        popper: { matches: () => false },
+        props: { interactive: false },
+        hide: vi.fn(),
+      };
+      createTooltip.mock.calls[0][1].onShown(instance);
+      return { instance, state };
+    }
+
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('hides once the reference is no longer hovered/focused or is no longer rendered', async () => {
+      await import('@scripts/tooltips');
+      const unhovered = shownInstance({});
+      vi.advanceTimersByTime(300);
+      expect(unhovered.instance.hide).not.toHaveBeenCalled();
+      unhovered.state.hovered = false;
+      vi.advanceTimersByTime(300);
+      expect(unhovered.instance.hide).toHaveBeenCalled();
+
+      const removed = shownInstance({});
+      removed.state.rendered = false;
+      vi.advanceTimersByTime(300);
+      expect(removed.instance.hide).toHaveBeenCalled();
+    });
+
+    it('auto-hides touch-triggered tooltips even while :hover sticks', async () => {
+      await import('@scripts/tooltips');
+      document.dispatchEvent(Object.assign(new Event('pointerdown'), { pointerType: 'touch' }));
+      const { instance } = shownInstance({});
+      vi.advanceTimersByTime(1400);
+      expect(instance.hide).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(200);
+      expect(instance.hide).toHaveBeenCalled();
+    });
+
+    it('stops monitoring after the tooltip hides', async () => {
+      await import('@scripts/tooltips');
+      const { instance, state } = shownInstance({});
+      createTooltip.mock.calls[0][1].onHidden(instance);
+      state.rendered = false;
+      vi.advanceTimersByTime(1000);
+      expect(instance.hide).not.toHaveBeenCalled();
+    });
+
+    it('hides all tooltips on scroll, resize, navigation and tab hide', async () => {
+      await import('@scripts/tooltips');
+      window.dispatchEvent(new Event('scroll'));
+      window.dispatchEvent(new Event('resize'));
+      document.dispatchEvent(new Event('astro:before-preparation'));
+      Object.assign(document, { visibilityState: 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(hideAll).toHaveBeenCalledTimes(4);
+    });
   });
 
   it('honors the text-only API reference flag after navigation', async () => {
