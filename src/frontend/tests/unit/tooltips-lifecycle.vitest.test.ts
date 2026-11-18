@@ -276,14 +276,15 @@ describe('title tooltip navigation lifecycle', () => {
       expect(instance.hide).not.toHaveBeenCalled();
     });
 
-    it('hides all tooltips on scroll, resize, navigation and tab hide', async () => {
+    it('hides all tooltips on navigation and tab hide, but not on scroll (focus scrolls into view)', async () => {
       await import('@scripts/tooltips');
       window.dispatchEvent(new Event('scroll'));
       window.dispatchEvent(new Event('resize'));
+      expect(hideAll).not.toHaveBeenCalled();
       document.dispatchEvent(new Event('astro:before-preparation'));
       Object.assign(document, { visibilityState: 'hidden' });
       document.dispatchEvent(new Event('visibilitychange'));
-      expect(hideAll).toHaveBeenCalledTimes(4);
+      expect(hideAll).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -24,7 +24,7 @@ function startMonitor(instance: Instance) {
   timers.push(
     window.setInterval(() => {
       const engaged =
-        reference.matches(':hover, :focus-visible') ||
+        reference.matches(':hover, :focus, :focus-within') ||
         (instance.props.interactive && instance.popper.matches(':hover, :focus-within'));
       if (!isRendered(reference) || !engaged) instance.hide();
     }, MONITOR_INTERVAL_MS)
@@ -124,8 +124,6 @@ if (!lifecycleDocument.__aspireTooltipsCleanup) {
     document.removeEventListener('keydown', trackKeyboard, true);
     document.removeEventListener('astro:before-preparation', hideAllTooltips);
     document.removeEventListener('visibilitychange', hideTooltipsWhenHidden);
-    window.removeEventListener('scroll', hideAllTooltips, true);
-    window.removeEventListener('resize', hideAllTooltips);
     destroyTooltips();
     delete lifecycleDocument.__aspireTooltipsCleanup;
   };
@@ -138,8 +136,6 @@ if (!lifecycleDocument.__aspireTooltipsCleanup) {
   document.addEventListener('keydown', trackKeyboard, { capture: true });
   document.addEventListener('astro:before-preparation', hideAllTooltips);
   document.addEventListener('visibilitychange', hideTooltipsWhenHidden);
-  window.addEventListener('scroll', hideAllTooltips, { capture: true, passive: true });
-  window.addEventListener('resize', hideAllTooltips, { passive: true });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeTooltips, { once: true });
