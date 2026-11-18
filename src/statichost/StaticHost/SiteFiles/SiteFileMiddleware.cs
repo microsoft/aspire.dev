@@ -43,6 +43,8 @@ internal sealed class SiteFileMiddleware
 
     private const string UnknownContentType = "application/octet-stream";
 
+    private const string AllowedMethods = "GET, HEAD";
+
     private static readonly PathString s_immutablePrefix = "/_astro";
 
     private readonly RequestDelegate _next;
@@ -62,7 +64,6 @@ internal sealed class SiteFileMiddleware
     {
         var request = context.Request;
         if (context.GetEndpoint() is not null
-            || !(HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method))
             || !request.Path.HasValue
             || request.Path.Value.EndsWith('/'))
         {
@@ -74,6 +75,15 @@ internal sealed class SiteFileMiddleware
         if (!file.Exists || file.IsDirectory)
         {
             await _next(context);
+            return;
+        }
+
+        // A file only answers GET and HEAD. Other methods get 405, as they did from the static
+        // asset endpoints, which routing matched by path and then rejected by method.
+        if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method))
+        {
+            context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+            context.Response.Headers.Allow = AllowedMethods;
             return;
         }
 

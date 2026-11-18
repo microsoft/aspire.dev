@@ -331,13 +331,22 @@ public sealed class SiteFileTests
     }
 
     [Fact]
-    public async Task Post_falls_through()
+    public async Task Other_methods_on_a_file_are_not_allowed()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile("data.json", "{}"));
 
-        using var response = await server.Client.PostAsync("/data.json", new StringContent("{}"));
+        foreach (var method in new[] { HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete, HttpMethod.Options })
+        {
+            using var request = new HttpRequestMessage(method, "/data.json") { Content = new StringContent("{}") };
+            using var response = await server.Client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+            Assert.Equal(["GET", "HEAD"], response.Content.Headers.Allow);
+        }
+
+        // A path with no file still falls through to the 404 page.
+        using var missing = await server.Client.PostAsync("/missing.json", new StringContent("{}"));
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
     }
 
     [Fact]
