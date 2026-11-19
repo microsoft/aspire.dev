@@ -6,6 +6,7 @@ import { redirects } from './config/redirects.mjs';
 import { locales } from './config/locales.ts';
 import { getTranslatedPaths } from './config/translated-paths.mjs';
 import { localeFallbackDevIntegration } from './config/locale-fallback-dev-integration.mjs';
+import { isExcludedFromLinkValidation } from './config/links-validator-exclude.mjs';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import { aspireProject } from './src/data/aspire-project.ts';
@@ -168,11 +169,7 @@ export default defineConfig({
           starlightLinksValidator({
             errorOnRelativeLinks: false,
             errorOnFallbackPages: false,
-            exclude: [
-              '/i18n/', '/reference/api', '/reference/api/**',
-              // Custom Astro destinations checked by the Dev Hub browser tests.
-              '/hub/', '/hub/glossary/ats/', '/get-started/glossary/#polyglot',
-            ],
+            exclude: ({ link }) => isExcludedFromLinkValidation(link),
           }),
           starlightGitHubAlerts(),
           starlightLlmsTxt({
