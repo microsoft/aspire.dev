@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { isExcludedFromLinkValidation } from '../../config/links-validator-exclude.mjs';
 import { getLocaleFallbackDevPath } from '../../config/locale-fallback-dev-integration.mjs';
 import { getTranslatedPaths } from '../../config/translated-paths.mjs';
 import {
@@ -83,6 +84,42 @@ test('collectSidebarLabelTranslations reads topic labels and item translations',
     Welcome: 'Willkommen',
   });
   expect(collectSidebarLabelTranslations(topics, 'pt-BR')).toEqual({ Welcome: 'Bem-vindo' });
+});
+
+describe('isExcludedFromLinkValidation', () => {
+  const docsDir = mkdtempSync(join(tmpdir(), 'aspire-links-'));
+  for (const file of [
+    'index.mdx',
+    'docs.mdx',
+    'get-started/install-cli.mdx',
+    'dashboard/index.md',
+  ]) {
+    mkdirSync(join(docsDir, file, '..'), { recursive: true });
+    writeFileSync(join(docsDir, file), '---\ntitle: T\n---\n');
+  }
+
+  test.each([
+    '/de/',
+    '/de/docs/',
+    '/pt-br/get-started/install-cli/#install',
+    '/de/dashboard/?tab=x',
+    '/de/hub/',
+    '/de/reference/api/csharp/',
+    '/hub/glossary/ats/',
+    '/reference/api/typescript/',
+  ])('skips %s', (link) => {
+    expect(isExcludedFromLinkValidation(link, docsDir)).toBe(true);
+  });
+
+  test.each([
+    '/de/not-a-real-page/',
+    '/xx/docs/',
+    '/docs/',
+    '/get-started/install-cli/',
+    'https://example.com/de/docs/',
+  ])('validates %s', (link) => {
+    expect(isExcludedFromLinkValidation(link, docsDir)).toBe(false);
+  });
 });
 
 describe('translated paths', () => {
