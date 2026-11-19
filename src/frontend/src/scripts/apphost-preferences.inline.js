@@ -127,6 +127,16 @@
 
   restorePreferences(document.documentElement, new URL(window.location.href));
 
+  // Seed the OsAwareTabs default before Starlight's per-tabs restore script runs during
+  // parsing, so first-visit Windows readers see PowerShell without a Bash flash.
+  try {
+    var shellKey = 'starlight-synced-tabs__terminal';
+    if (!localStorage.getItem(shellKey)) {
+      var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '';
+      localStorage.setItem(shellKey, /^win/i.test(platform) || /Win(dows|32|64)/i.test(platform) ? 'PowerShell' : 'Bash');
+    }
+  } catch {}
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAppHostLangSync);
   } else {
