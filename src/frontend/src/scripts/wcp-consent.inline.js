@@ -1,5 +1,6 @@
-// WCP cookie-consent bootstrap. Loaded as a render-blocking external script from Head.astro so it
-// primes consent state before paint, while being cached once instead of inlined in every page.
+// WCP cookie-consent bootstrap. Head.astro loads it as a cached, deferred external script instead of
+// inlining it in every page; the only pre-paint step (hiding cookie controls for regions that a
+// previous visit found need no consent) stays inline in Head.astro.
 // Plain browser JavaScript (not TypeScript): Vite emits `?url` imports verbatim, without transpiling.
 (function () {
   if (window.__aspireWcpConsentInitialized) return;
@@ -23,23 +24,6 @@
       window.localStorage.setItem('aspireConsentRequired', isRequired ? 'true' : 'false');
     } catch {}
   }
-
-  // Before WCP loads, hide the buttons only if a previous visit already
-  // established that consent is not required here. Unknown => leave them
-  // visible; defaulting to visible keeps us failsafe (we never hide a control
-  // a required region needs just because WCP was slow or blocked).
-  function primeConsentRequirementState() {
-    try {
-      if (
-        window.localStorage.getItem('aspireConsentRequired') === 'false' &&
-        document.documentElement
-      ) {
-        document.documentElement.setAttribute('data-consent-not-required', '');
-      }
-    } catch {}
-  }
-
-  primeConsentRequirementState();
 
   // Failsafe: if the CDN script is blocked (ad-blocker, firewall, CSP) or slow to
   // arrive, poll for a bounded window and then give up so the page never hangs or

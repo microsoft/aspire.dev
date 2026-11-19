@@ -110,7 +110,22 @@ function computeSourceUrl() {
   CDN from ever blocking page render.
 -->
 <script is:inline async src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
-<script is:inline src={wcpConsentScriptUrl}></script>
+{
+  /*
+   * Before paint, hide cookie controls only if a previous visit established that consent is not
+   * required here (unknown => visible, so a required region never loses a control). The rest of
+   * the bootstrap is deferred: it only needs the parsed DOM, and keeping it out of the
+   * render-blocking path means first paint waits on a single small cached file.
+   */
+}
+<script is:inline>
+  try {
+    if (localStorage.getItem('aspireConsentRequired') === 'false') {
+      document.documentElement.setAttribute('data-consent-not-required', '');
+    }
+  } catch {}
+</script>
+<script is:inline defer src={wcpConsentScriptUrl}></script>
 
 <!-- WebMCP: register a single `search-aspire-docs` tool for in-page agents. -->
 <script>

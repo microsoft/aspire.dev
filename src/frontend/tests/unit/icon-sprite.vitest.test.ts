@@ -31,10 +31,13 @@ describe('Starlight icon sprite', () => {
   });
 
   it('keeps inlining icons outside the sprite', async () => {
-    const html = normalizeHtml(await renderComponent(Icon, { props: { name: 'seti:rust' } }));
+    const html = normalizeHtml(
+      await renderComponent(Icon, { props: { name: 'seti:rust', class: 'custom-icon' } })
+    );
 
     expect(html).not.toContain('<use');
     expect(html).toContain(Icons['seti:rust']);
     expect(html).toContain('aria-hidden="true"');
+    expect(html).toMatch(/<svg[^>]*class="custom-icon\b/);
   });
 });
