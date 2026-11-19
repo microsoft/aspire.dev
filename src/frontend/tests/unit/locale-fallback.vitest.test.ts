@@ -8,10 +8,35 @@ import { getTranslatedPaths } from '../../config/translated-paths.mjs';
 import {
   collectSidebarLabelTranslations,
   getFallbackLocale,
+  getLocaleFallbackDictionaryPath,
   localizeHref,
   translateUiText,
 } from '../../src/utils/locale-fallback';
+import { hashLocaleFallbackDictionaries } from '../../src/utils/locale-fallback-version';
 import { isTranslatedPath } from '../../src/utils/translated-routes';
+
+describe('dictionary versioning', () => {
+  test('getLocaleFallbackDictionaryPath appends the version only when given', () => {
+    expect(getLocaleFallbackDictionaryPath('de')).toBe('/locale-fallback/de.json');
+    expect(getLocaleFallbackDictionaryPath('pt-br', 'abc123')).toBe(
+      '/locale-fallback/pt-br.json?v=abc123'
+    );
+  });
+
+  test('hashLocaleFallbackDictionaries is stable and changes with content', () => {
+    const dictionaries = { de: '{"notice":"Hinweis"}', ja: '{"notice":"注意"}' };
+    const version = hashLocaleFallbackDictionaries(dictionaries);
+
+    expect(version).toMatch(/^[0-9a-f]{12}$/);
+    expect(hashLocaleFallbackDictionaries({ ja: dictionaries.ja, de: dictionaries.de })).toBe(
+      version
+    );
+    expect(hashLocaleFallbackDictionaries({ ...dictionaries, de: '{"notice":"Neu"}' })).not.toBe(
+      version
+    );
+    expect(hashLocaleFallbackDictionaries({ de: dictionaries.de })).not.toBe(version);
+  });
+});
 
 describe('getFallbackLocale', () => {
   test('returns the requested locale when the English page is served in place', () => {

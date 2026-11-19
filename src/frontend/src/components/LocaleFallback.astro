@@ -1,5 +1,10 @@
 ---
-import { fallbackLocales, getLocaleFallbackDictionaryPath } from '@utils/locale-fallback';
+import {
+  fallbackLocales,
+  getLocaleFallbackDictionaryPath,
+  LOCALE_FALLBACK_VERSION_META,
+} from '@utils/locale-fallback';
+import { getLocaleFallbackVersion } from '@utils/locale-fallback-dictionary';
 
 /*
  * Rendered only on default-locale (English) pages. The static host serves
@@ -7,9 +12,11 @@ import { fallbackLocales, getLocaleFallbackDictionaryPath } from '@utils/locale-
  * `/de/get-started/install-cli/`; this marks the document before first paint
  * so the chrome stays hidden until `@scripts/locale-fallback` localizes it.
  */
-const dictionaryPathTemplate = getLocaleFallbackDictionaryPath('{locale}');
+const version = await getLocaleFallbackVersion();
+const dictionaryPathTemplate = getLocaleFallbackDictionaryPath('{locale}', version);
 ---
 
+<meta name={LOCALE_FALLBACK_VERSION_META} content={version} />
 <script is:inline define:vars={{ fallbackLocales, dictionaryPathTemplate }}>
   (function () {
     var root = document.documentElement;

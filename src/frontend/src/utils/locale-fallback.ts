@@ -36,9 +36,18 @@ export interface LocaleFallbackManifest {
   locales: string[];
 }
 
-export function getLocaleFallbackDictionaryPath(locale: string): string {
-  return `${LOCALE_FALLBACK_BASE_PATH}${locale}.json`;
+/**
+ * Dictionary URL. `version` is a content hash of every dictionary, so the
+ * versioned URL can be cached indefinitely. `locales.json` stays unversioned:
+ * StaticHost reads it from disk.
+ */
+export function getLocaleFallbackDictionaryPath(locale: string, version?: string): string {
+  const path = `${LOCALE_FALLBACK_BASE_PATH}${locale}.json`;
+  return version ? `${path}?v=${encodeURIComponent(version)}` : path;
 }
+
+/** Meta tag carrying the dictionary version on English pages. */
+export const LOCALE_FALLBACK_VERSION_META = 'aspire-locale-fallback-version';
 
 /**
  * The locale a reader asked for when the page they received is the English

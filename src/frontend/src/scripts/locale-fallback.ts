@@ -1,6 +1,7 @@
 import {
   getFallbackLocale,
   getLocaleFallbackDictionaryPath,
+  LOCALE_FALLBACK_VERSION_META,
   localizeHref,
   translateUiText,
   type LocaleFallbackDictionary,
@@ -25,9 +26,13 @@ const contentChromeSelector = '.sl-markdown-content .starlight-aside__title';
 const translatedAttributes = ['aria-label', 'title', 'placeholder'];
 
 function loadDictionary(locale: string): Promise<LocaleFallbackDictionary | undefined> {
-  let dictionary = dictionaries.get(locale);
+  const version = document.querySelector<HTMLMetaElement>(
+    `meta[name="${LOCALE_FALLBACK_VERSION_META}"]`
+  )?.content;
+  const url = getLocaleFallbackDictionaryPath(locale, version);
+  let dictionary = dictionaries.get(url);
   if (!dictionary) {
-    dictionary = fetch(getLocaleFallbackDictionaryPath(locale))
+    dictionary = fetch(url)
       .then((response) =>
         response.ok ? (response.json() as Promise<LocaleFallbackDictionary>) : undefined
       )
@@ -36,7 +41,7 @@ function loadDictionary(locale: string): Promise<LocaleFallbackDictionary | unde
         return value;
       })
       .catch(() => undefined);
-    dictionaries.set(locale, dictionary);
+    dictionaries.set(url, dictionary);
   }
   return dictionary;
 }

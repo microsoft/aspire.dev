@@ -14,7 +14,9 @@ const untranslatedNotice = 'Dieser Inhalt ist noch nicht in deiner Sprache verfÃ
 test('untranslated locale page shows localized chrome and the untranslated notice', async ({
   page,
 }) => {
+  const dictionaryRequest = page.waitForRequest(/\/locale-fallback\/de\.json\?v=[0-9a-f]{12}$/);
   await page.goto(untranslatedPath);
+  await dictionaryRequest;
 
   await expect(page).toHaveURL(new RegExp(`${untranslatedPath}$`));
   await expect(page.getByText(untranslatedNotice)).toBeVisible();
