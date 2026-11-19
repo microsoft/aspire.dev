@@ -3,6 +3,31 @@
 /* ------------------------------------------------------------------ */
 
 import { goModuleSlug, getGoModules } from './go-modules';
+import { getGoItemSlug, getGoStandaloneFunctions, getGoTopLevelRouteItems, type GoApiDocumentRouteLike } from './go-api-routes';
+import type { CompactSidebarNode } from './api-sidebar';
+
+/**
+ * Serialize a module's full catalog (grouped like the module overview) for the
+ * client-side loader. Hrefs are relative to the module root.
+ * Emitted once per module by `[module]/sidebar.json.ts`.
+ */
+export function buildCompactGoModuleSidebarTree(doc: GoApiDocumentRouteLike): CompactSidebarNode[] {
+  const all = getGoTopLevelRouteItems(doc);
+  const group = (label: string, items: GoApiDocumentRouteLike['functions']): CompactSidebarNode[] => {
+    const nodes = (items ?? [])
+      .map((item): CompactSidebarNode => [item.name, `${getGoItemSlug(item, all)}/`])
+      .filter(([, href]) => href !== '/')
+      .sort(([a], [b]) => a.localeCompare(b));
+    return nodes.length > 0 ? [[label, nodes]] : [];
+  };
+  return [
+    ['Overview', ''],
+    ...group('Handles', doc.handleTypes),
+    ...group('DTOs', doc.dtoTypes),
+    ...group('Enums', doc.enumTypes),
+    ...group('Functions', getGoStandaloneFunctions(doc)),
+  ];
+}
 
 interface SidebarLinkItem {
   label: string;
@@ -51,8 +76,8 @@ function buildModuleSidebarEntry(options: GoApiSidebarOptions): SidebarGroupItem
     currentItems = pageItems;
   }
 
-  // The catalog lives on the module overview; other pages link to it rather
-  // than embedding its full tree again. Section links reuse the page's headings.
+  // Each page renders only this spine; the full catalog is emitted once per module
+  // (\[module]/sidebar.json\) and swapped in on the client. Section links reuse the page's headings.
   currentItems.push(...options.headings.map(({ slug, text }) => ({
     label: text,
     link: `${currentPath}#${slug}`,

@@ -80,6 +80,18 @@ async function expectLanguageResults(page: Page, prefix: string, language: Langu
   return results;
 }
 
+async function expectSidebarTree(page: Page, language: Language): Promise<void> {
+  // Client navigation must load the destination's own package/module tree and mark the current page.
+  const sidebar = page.locator('.topics-sidebar[data-api-sidebar-tree-state="loaded"]');
+  await expect(sidebar).toHaveAttribute(
+    'data-api-sidebar-tree',
+    new RegExp(`^/reference/api/${language}/[^/]+/sidebar\\.json$`),
+  );
+  const current = sidebar.locator('sl-sidebar-state-persist a[aria-current="page"]');
+  await expect(current).toHaveCount(1);
+  await expect(current).toHaveAttribute('href', new URL(page.url()).pathname);
+}
+
 for (const firstLanguage of ['csharp', 'typescript', 'go'] as const) {
   test(`API package, type and member links survive ${firstLanguage}-first cross-language navigation`, async ({ page }) => {
     test.setTimeout(120_000);
@@ -124,6 +136,7 @@ for (const firstLanguage of ['csharp', 'typescript', 'go'] as const) {
       await clickClientLink(page, members.first());
       await expect(page.locator(rootSelector)).toHaveCount(0);
       await expect(page.locator('main h1')).toBeVisible();
+      await expectSidebarTree(page, language);
       await navigateClient(page, packagePath(language));
     }
     expect(errors).toEqual([]);

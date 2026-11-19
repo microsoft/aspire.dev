@@ -22,11 +22,12 @@ const apiLang = pageId.startsWith('reference/api/typescript')
       : undefined;
 const sidebar = routeData?.sidebar ?? [];
 const topics = topicState?.topics ?? [];
-// C# package pages render a small spine; the full package tree loads on the client.
-const csharpPackageSlug =
-  apiLang === 'csharp' ? Astro.url.pathname.match(/\/reference\/api\/csharp\/([^/]+)\//)?.[1] : undefined;
-const apiSidebarTreeSrc = csharpPackageSlug
-  ? `${import.meta.env.BASE_URL.replace(/\/$/, '')}/reference/api/csharp/${csharpPackageSlug}/sidebar.json`
+// Package/module pages render a small spine; the full tree loads on the client.
+const apiTreeMatch = isApiRefPage
+  ? Astro.url.pathname.match(/\/reference\/api\/(csharp|typescript|go)\/([^/]+)\//)
+  : null;
+const apiSidebarTreeSrc = apiTreeMatch
+  ? `${import.meta.env.BASE_URL.replace(/\/$/, '')}/reference/api/${apiTreeMatch[1]}/${apiTreeMatch[2]}/sidebar.json`
   : undefined;
 
 type SidebarTopicOption = {
@@ -1359,7 +1360,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         syncToggle();
       }
 
-      // The C# API sidebar swaps in its full package tree after load; refilter it.
+      // API sidebars swap in their full package/module tree after load; refilter it.
       container.addEventListener(API_SIDEBAR_TREE_LOADED_EVENT, () => {
         if (this.input?.value.trim()) this.applyFilter();
         this.sidebarContainer?.dispatchEvent(new Event('toggle'));
