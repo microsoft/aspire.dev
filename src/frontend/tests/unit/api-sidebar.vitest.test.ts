@@ -100,6 +100,19 @@ test('a type spine expands only the current type under its namespace', async () 
   expect(links(sidebar)).not.toContain(`${packagePath}kubernetesresource/`);
 });
 
+test('a marker interface spine is a plain link, not a namespace group', async () => {
+  const { getApiReferenceSidebar } = await import('../../src/utils/api-sidebar');
+  const [, pkg] = (await getApiReferenceSidebar({ packageName, type: marker as never })) as never as [
+    unknown,
+    { items: unknown[] },
+  ];
+
+  expect(pkg.items).toEqual([
+    { label: 'Overview', link: packagePath },
+    { label: 'IMarker', link: `${packagePath}imarker/` },
+  ]);
+});
+
 test('the compact package tree holds every type link relative to the package', async () => {
   const { buildCompactPackageSidebarTree, buildPackageSidebarItems } = await import('../../src/utils/api-sidebar');
 

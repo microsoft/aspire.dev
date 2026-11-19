@@ -154,8 +154,10 @@ function buildPackageSpine(pkg: PackageApiDocument, type?: PackageType): Sidebar
     const namespaces = new Set(
       pkg.types.filter((t) => t.name.length > 0).map((t) => t.namespace || '(global)')
     );
+    // Marker interfaces render as a plain link: wrapping one in its namespace would make the
+    // client loader key that namespace group by the marker's URL and splice it into the tree.
     items.push(
-      namespaces.size > 1
+      namespaces.size > 1 && !('link' in typeEntry)
         ? { label: type.namespace || '(global)', collapsed: false, items: [typeEntry] }
         : typeEntry
     );
