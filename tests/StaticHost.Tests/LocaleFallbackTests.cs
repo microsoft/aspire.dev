@@ -32,6 +32,19 @@ public sealed class LocaleFallbackTests
             string.Join(",", response.Headers.GetValues("Link")));
     }
 
+    [Theory]
+    [InlineData("/de/ja/get-started/install-cli/")]
+    [InlineData("/de/de/")]
+    public async Task Nested_locale_route_is_not_served_as_english_fallback(string path)
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(SeedSite);
+
+        using var response = await server.Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Empty(response.Content.Headers.ContentLanguage);
+    }
+
     [Fact]
     public async Task Translated_locale_route_is_served_unchanged()
     {

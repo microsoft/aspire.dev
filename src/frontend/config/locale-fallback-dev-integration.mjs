@@ -24,6 +24,8 @@ export function getLocaleFallbackDevPath(pathname, translatedPaths) {
   if (!localeSegments.includes(segment.toLowerCase()) || unlocalizedPath === '/') {
     return undefined;
   }
+  // `/de/ja/x/` must not serve the Japanese page as an English fallback for `de`.
+  if (localeSegments.includes(unlocalizedPath.split('/')[1]?.toLowerCase())) return undefined;
 
   const lastSegment = unlocalizedPath.slice(unlocalizedPath.lastIndexOf('/') + 1);
   const isMarkdown = lastSegment.endsWith('.md');

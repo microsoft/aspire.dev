@@ -63,6 +63,7 @@ internal sealed class LocaleFallbackResolver
 
         if (unlocalizedPath == "/" ||
             !_locales.TryGetValue(segment, out var locale) ||
+            StartsWithLocale(unlocalizedPath) ||
             _paths.TryGetExistingPath(path, out _) ||
             !_paths.TryGetExistingPath(unlocalizedPath, out var defaultLocalePath))
         {
@@ -81,6 +82,13 @@ internal sealed class LocaleFallbackResolver
         return string.Equals(localizedPath, path, StringComparison.Ordinal)
             ? new(LocaleFallbackAction.Rewrite, defaultLocalePath)
             : new(LocaleFallbackAction.Redirect, localizedPath);
+    }
+
+    // `/de/ja/x/` must not serve the Japanese page as an English fallback for `de`.
+    private bool StartsWithLocale(string path)
+    {
+        var end = path.IndexOf('/', 1);
+        return _locales.ContainsKey(end < 0 ? path[1..] : path[1..end]);
     }
 
     public static IReadOnlyList<string> ReadLocales(string webRootPath)

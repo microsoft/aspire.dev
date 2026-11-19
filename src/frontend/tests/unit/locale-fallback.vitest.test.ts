@@ -139,6 +139,8 @@ describe('translated paths', () => {
       '/de/get-started',
       '/get-started/install-cli/',
       '/xx/get-started/install-cli/',
+      '/de/ja/get-started/install-cli/',
+      '/de/de/',
     ]) {
       expect(getLocaleFallbackDevPath(pathname, translated)).toBeUndefined();
     }
