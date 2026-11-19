@@ -205,6 +205,7 @@ function applyTree(container: HTMLElement, payload: SidebarTreePayload): boolean
   const templates = findTemplates(packageDetails);
   if (!templates) return false;
 
+  // `.pathname` drops the `?v=` version, so hrefs resolve against the sidebar.json folder.
   const baseHref = new URL(container.dataset.apiSidebarTree!, location.href).pathname.replace(
     /[^/]*$/,
     ''

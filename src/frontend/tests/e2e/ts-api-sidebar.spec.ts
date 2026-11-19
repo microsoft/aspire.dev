@@ -76,7 +76,7 @@ test('a large module renders a spine per page and loads its catalog tree once', 
   page.on('pageerror', (error) => errors.push(error.message));
   const treeRequests: string[] = [];
   page.on('request', (req) => {
-    if (req.url().endsWith('/sidebar.json')) treeRequests.push(req.url());
+    if (new URL(req.url()).pathname.endsWith('/sidebar.json')) treeRequests.push(req.url());
   });
   await expectSpineHtml(page, `${modulePath}virtualnetworkproxy/`, 5);
   await page.goto(`${modulePath}virtualnetworkproxy/`);

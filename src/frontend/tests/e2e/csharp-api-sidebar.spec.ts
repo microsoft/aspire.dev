@@ -41,18 +41,20 @@ test('type pages server-render a small spine and load the package tree once per 
   expect(ssrLinks.length).toBeLessThan(10);
   expect(ssrSidebar).toContain(`href="${typePath}properties/"`);
   expect(ssrSidebar).not.toContain(`href="${packagePath}kubernetesresource/"`);
-  expect(html).toContain(`data-api-sidebar-tree="${packagePath}sidebar.json"`);
+  const treeSrc = html.match(/data-api-sidebar-tree="([^"]+)"/)?.[1];
+  expect(treeSrc).toMatch(new RegExp(`^${packagePath.replace(/\./g, '\\.')}sidebar\\.json\\?v=[\\w-]+$`));
 
-  const treeResponse = await request.get(`${packagePath}sidebar.json`);
+  const treeResponse = await request.get(treeSrc!);
   expect(treeResponse.ok()).toBe(true);
   const tree = await treeResponse.json() as { hash: string; items: CompactNode[] };
-  expect(tree.hash).toBeTruthy();
+  // The URL version is the payload's content hash, so the edge can cache it immutably.
+  expect(treeSrc!.endsWith(`?v=${tree.hash}`)).toBe(true);
 
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   const treeRequests: string[] = [];
   page.on('request', (req) => {
-    if (req.url().endsWith('/sidebar.json')) treeRequests.push(req.url());
+    if (new URL(req.url()).pathname.endsWith('/sidebar.json')) treeRequests.push(req.url());
   });
 
   await page.goto(`${typePath}properties/`);

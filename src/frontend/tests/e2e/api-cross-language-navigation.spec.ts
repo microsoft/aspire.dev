@@ -85,7 +85,7 @@ async function expectSidebarTree(page: Page, language: Language): Promise<void> 
   const sidebar = page.locator('.topics-sidebar[data-api-sidebar-tree-state="loaded"]');
   await expect(sidebar).toHaveAttribute(
     'data-api-sidebar-tree',
-    new RegExp(`^/reference/api/${language}/[^/]+/sidebar\\.json$`),
+    new RegExp(`^/reference/api/${language}/[^/]+/sidebar\\.json\\?v=[\\w-]+$`),
   );
   const current = sidebar.locator('sl-sidebar-state-persist a[aria-current="page"]');
   await expect(current).toHaveCount(1);

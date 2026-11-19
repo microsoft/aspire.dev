@@ -6,6 +6,7 @@ import MobileSiteLinks from '@components/starlight/MobileSiteLinks.astro';
 import { Badge, Icon, LinkButton } from '@astrojs/starlight/components';
 import { sidebarTopics } from '../../../config/sidebar/sidebar.topics.js';
 import { referenceTopics } from '../../../config/sidebar/reference.topics.js';
+import { getApiSidebarTreeSrc } from '@utils/api-sidebar-tree-src';
 import '../../styles/search-controls.css';
 
 const routeData = Astro.locals.starlightRoute;
@@ -22,12 +23,10 @@ const apiLang = pageId.startsWith('reference/api/typescript')
       : undefined;
 const sidebar = routeData?.sidebar ?? [];
 const topics = topicState?.topics ?? [];
-// Package/module pages render a small spine; the full tree loads on the client.
-const apiTreeMatch = isApiRefPage
-  ? Astro.url.pathname.match(/\/reference\/api\/(csharp|typescript|go)\/([^/]+)\//)
-  : null;
-const apiSidebarTreeSrc = apiTreeMatch
-  ? `${import.meta.env.BASE_URL.replace(/\/$/, '')}/reference/api/${apiTreeMatch[1]}/${apiTreeMatch[2]}/sidebar.json`
+// Package/module pages render a small spine; the full tree loads on the client
+// from a content-versioned URL so the edge can cache it indefinitely.
+const apiSidebarTreeSrc = isApiRefPage
+  ? await getApiSidebarTreeSrc(Astro.url.pathname, import.meta.env.BASE_URL.replace(/\/$/, ''))
   : undefined;
 
 type SidebarTopicOption = {

@@ -77,7 +77,7 @@ test('detail pages render a spine and load the module tree once', async ({ page 
   page.on('pageerror', (error) => errors.push(error.message));
   const treeRequests: string[] = [];
   page.on('request', (req) => {
-    if (req.url().endsWith('/sidebar.json')) treeRequests.push(req.url());
+    if (new URL(req.url()).pathname.endsWith('/sidebar.json')) treeRequests.push(req.url());
   });
   await expectSpineHtml(page, itemPath, 12);
   await page.goto(itemPath);
