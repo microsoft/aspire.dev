@@ -152,8 +152,11 @@ test('size report covers HTML, top-level and API directories', async () => {
 test('size budget defaults to warning and can be switched to a hard failure', () => {
   expect(readBudget({})).toEqual({ bytes: DEFAULT_DIST_SIZE_BUDGET_BYTES, mode: 'warn' });
   expect(readBudget({ DIST_SIZE_BUDGET_BYTES: '', DIST_SIZE_BUDGET_MODE: '' }).mode).toBe('warn');
-  expect(() => readBudget({ DIST_SIZE_BUDGET_BYTES: '10GB' })).toThrow(/positive integer/);
-  expect(() => readBudget({ DIST_SIZE_BUDGET_MODE: 'fail' })).toThrow(/'warn' or 'error'/);
+  const warnings: string[] = [];
+  const collect = (message: string) => warnings.push(message);
+  expect(readBudget({ DIST_SIZE_BUDGET_BYTES: '10GB' }, collect)).toEqual({ bytes: DEFAULT_DIST_SIZE_BUDGET_BYTES, mode: 'warn' });
+  expect(readBudget({ DIST_SIZE_BUDGET_MODE: 'fail' }, collect).mode).toBe('warn');
+  expect(warnings).toEqual([expect.stringMatching(/positive integer/), expect.stringMatching(/'warn' or 'error'/)]);
 
   expect(checkBudget(100, { bytes: 100, mode: 'warn' })).toMatchObject({ exceeded: false, fail: false, annotation: undefined });
   const warn = checkBudget(101, { bytes: 100, mode: 'warn' });

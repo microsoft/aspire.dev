@@ -70,15 +70,18 @@ export async function measureOutput(directory) {
   };
 }
 
-export function readBudget(env = process.env) {
+export function readBudget(env = process.env, warn = (message) => console.log(`::warning title=Frontend dist size budget::${message}`)) {
+  // A mistyped repository variable must not fail the build: fall back to the defaults.
   const raw = env.DIST_SIZE_BUDGET_BYTES?.trim();
-  const bytes = raw ? Number(raw) : DEFAULT_DIST_SIZE_BUDGET_BYTES;
+  let bytes = raw ? Number(raw) : DEFAULT_DIST_SIZE_BUDGET_BYTES;
   if (!Number.isSafeInteger(bytes) || bytes <= 0) {
-    throw new Error(`DIST_SIZE_BUDGET_BYTES must be a positive integer, got '${raw}'.`);
+    warn(`DIST_SIZE_BUDGET_BYTES must be a positive integer, got '${raw}'; using ${DEFAULT_DIST_SIZE_BUDGET_BYTES}.`);
+    bytes = DEFAULT_DIST_SIZE_BUDGET_BYTES;
   }
-  const mode = (env.DIST_SIZE_BUDGET_MODE?.trim() || 'warn').toLowerCase();
+  let mode = (env.DIST_SIZE_BUDGET_MODE?.trim() || 'warn').toLowerCase();
   if (mode !== 'warn' && mode !== 'error') {
-    throw new Error(`DIST_SIZE_BUDGET_MODE must be 'warn' or 'error', got '${mode}'.`);
+    warn(`DIST_SIZE_BUDGET_MODE must be 'warn' or 'error', got '${mode}'; using 'warn'.`);
+    mode = 'warn';
   }
   return { bytes, mode };
 }
