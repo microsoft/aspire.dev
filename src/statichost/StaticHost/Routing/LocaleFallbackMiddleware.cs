@@ -12,7 +12,7 @@ namespace StaticHost.Routing;
 /// middlewares (which map the path to its <c>.md</c> companion), <c>UseDefaultFiles</c>,
 /// and <c>UseRouting</c>.
 /// </remarks>
-internal sealed class LocaleFallbackMiddleware(RequestDelegate next, LocaleFallbackResolver resolver)
+internal sealed class LocaleFallbackMiddleware(RequestDelegate next, StaticWebRootIndex index)
 {
     private const string DefaultContentLanguage = "en";
 
@@ -20,6 +20,12 @@ internal sealed class LocaleFallbackMiddleware(RequestDelegate next, LocaleFallb
     {
         var request = context.Request;
         if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method))
+        {
+            return next(context);
+        }
+
+        var resolver = index.Current.Locales;
+        if (!resolver.IsEnabled)
         {
             return next(context);
         }

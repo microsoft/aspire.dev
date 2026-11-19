@@ -2,7 +2,7 @@ namespace StaticHost.Routing;
 
 public static class CanonicalPathRedirectExtensions
 {
-    private const string ResolverPropertyKey = "StaticHost.Routing.CanonicalPathResolver";
+    private const string IndexPropertyKey = "StaticHost.Routing.StaticWebRootIndex";
 
     /// <summary>
     /// Redirects case-insensitive static path matches to their exact on-disk casing.
@@ -12,7 +12,7 @@ public static class CanonicalPathRedirectExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.UseMiddleware<CanonicalPathRedirectMiddleware>(GetCanonicalPathResolver(app));
+        app.UseMiddleware<CanonicalPathRedirectMiddleware>(GetStaticWebRootIndex(app));
         return app;
     }
 
@@ -25,31 +25,23 @@ public static class CanonicalPathRedirectExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var environment = app.ApplicationServices.GetRequiredService<IWebHostEnvironment>();
-        var resolver = new LocaleFallbackResolver(
-            GetCanonicalPathResolver(app),
-            LocaleFallbackResolver.ReadLocales(GetWebRootPath(environment)));
-        if (resolver.IsEnabled)
-        {
-            app.UseMiddleware<LocaleFallbackMiddleware>(resolver);
-        }
-
+        app.UseMiddleware<LocaleFallbackMiddleware>(GetStaticWebRootIndex(app));
         return app;
     }
 
     // Both middlewares share one index of the static files instead of enumerating the web root twice.
-    private static CanonicalPathResolver GetCanonicalPathResolver(IApplicationBuilder app)
+    private static StaticWebRootIndex GetStaticWebRootIndex(IApplicationBuilder app)
     {
-        if (app.Properties.TryGetValue(ResolverPropertyKey, out var value) &&
-            value is CanonicalPathResolver existing)
+        if (app.Properties.TryGetValue(IndexPropertyKey, out var value) &&
+            value is StaticWebRootIndex existing)
         {
             return existing;
         }
 
         var environment = app.ApplicationServices.GetRequiredService<IWebHostEnvironment>();
-        var resolver = new CanonicalPathResolver(GetWebRootPath(environment));
-        app.Properties[ResolverPropertyKey] = resolver;
-        return resolver;
+        var index = new StaticWebRootIndex(GetWebRootPath(environment));
+        app.Properties[IndexPropertyKey] = index;
+        return index;
     }
 
     private static string GetWebRootPath(IWebHostEnvironment environment) =>

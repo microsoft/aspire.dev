@@ -4,11 +4,11 @@ namespace StaticHost.Routing;
 
 internal sealed class CanonicalPathRedirectMiddleware(
     RequestDelegate next,
-    CanonicalPathResolver resolver)
+    StaticWebRootIndex index)
 {
     public Task InvokeAsync(HttpContext context)
     {
-        if (!resolver.TryResolve(context.Request.Path, out var canonicalPath))
+        if (!index.Current.Paths.TryResolve(context.Request.Path, out var canonicalPath))
         {
             return next(context);
         }

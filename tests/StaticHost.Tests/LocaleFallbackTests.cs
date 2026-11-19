@@ -46,6 +46,30 @@ public sealed class LocaleFallbackTests
     }
 
     [Fact]
+    public async Task Site_unpacked_after_startup_enables_locale_fallback()
+    {
+        // CI starts StaticHost before it unpacks the site into the web root.
+        await using var server = await AgentReadinessTestServer.StartAsync(
+            static root => root.WriteFile("index.html", EnglishHtml));
+        using (var early = await server.Client.GetAsync("/de/get-started/install-cli/"))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, early.StatusCode);
+        }
+
+        var root = server.WebRoot;
+        Directory.CreateDirectory(Path.Combine(root, "locale-fallback"));
+        Directory.CreateDirectory(Path.Combine(root, "get-started", "install-cli"));
+        await File.WriteAllTextAsync(Path.Combine(root, "locale-fallback", "locales.json"), """{"locales":["de"]}""");
+        await File.WriteAllTextAsync(Path.Combine(root, "get-started", "install-cli", "index.html"), EnglishHtml);
+        await Task.Delay(StaticHost.Routing.StaticWebRootIndex.RetryInterval + TimeSpan.FromMilliseconds(200));
+
+        using var response = await server.Client.GetAsync("/de/get-started/install-cli/");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(["en"], response.Content.Headers.ContentLanguage);
+    }
+
+    [Fact]
     public async Task Translated_locale_route_is_served_unchanged()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(SeedSite);
