@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 
@@ -25,38 +26,37 @@ namespace StaticHost.SiteFiles;
 /// </para>
 /// <para>
 /// A request for one byte range gets it (video players need ranges); other range requests get the
-/// whole file.
+/// whole file. A range request always gets the file itself, never its brotli copy: a range of
+/// compressed bytes is useless to a client that wants to seek, and Azure Front Door answers 503
+/// when the lengths it sees for one URL's ranges disagree across encodings.
+/// </para>
+/// <para>
+/// <c>Cache-Control</c> comes from <see cref="SiteFileCacheOptions"/>.
 /// </para>
 /// </remarks>
 internal sealed class SiteFileMiddleware
 {
-    // Images, video and fonts get the SDK's default media caching, as with MapStaticAssets.
-    internal const string MediaCacheControl = "max-age=3600, must-revalidate";
-
-    // Astro hashes the names of the files it emits under /_astro/, so they can be cached forever.
-    // https://starlight.astro.build/environmental-impact/#caching
-    internal const string ImmutableCacheControl = "max-age=31536000, public, immutable";
-
-    internal const string DefaultCacheControl = "no-cache";
-
     private const string BrotliExtension = ".br";
 
     private const string UnknownContentType = "application/octet-stream";
 
     private const string AllowedMethods = "GET, HEAD";
 
-    private static readonly PathString s_immutablePrefix = "/_astro";
-
     private readonly RequestDelegate _next;
     private readonly IFileProvider _fileProvider;
     private readonly SiteFileETags _etags;
+    private readonly SiteFileCacheOptions _cacheOptions;
+    private readonly PathString[] _immutablePrefixes;
     private readonly FileExtensionContentTypeProvider _contentTypes;
 
-    public SiteFileMiddleware(RequestDelegate next, IWebHostEnvironment environment, SiteFileETags etags)
+    public SiteFileMiddleware(
+        RequestDelegate next, IWebHostEnvironment environment, SiteFileETags etags, IOptions<SiteFileCacheOptions> cacheOptions)
     {
         _next = next;
         _fileProvider = environment.WebRootFileProvider;
         _etags = etags;
+        _cacheOptions = cacheOptions.Value;
+        _immutablePrefixes = [.. _cacheOptions.GetImmutablePathPrefixes().Select(static prefix => new PathString(prefix))];
         _contentTypes = CreateContentTypeProvider();
     }
 
@@ -100,7 +100,9 @@ internal sealed class SiteFileMiddleware
         var compressedPath = request.Path.Value + BrotliExtension;
         var compressed = _fileProvider.GetFileInfo(compressedPath);
         var hasCompressed = compressed.Exists && !compressed.IsDirectory;
-        var useCompressed = hasCompressed && AcceptsBrotli(request.Headers.AcceptEncoding);
+        var useCompressed = hasCompressed
+            && request.Headers.Range.Count == 0
+            && AcceptsBrotli(request.Headers.AcceptEncoding);
         var served = useCompressed ? compressed : file;
 
         var response = context.Response;
@@ -110,7 +112,7 @@ internal sealed class SiteFileMiddleware
         var requestHeaders = request.GetTypedHeaders();
 
         var headers = response.Headers;
-        headers.CacheControl = GetCacheControl(request.Path, contentType);
+        headers.CacheControl = GetCacheControl(request, contentType);
         headers.ETag = etag;
         headers.LastModified = HeaderUtilities.FormatDate(lastModified);
         if (hasCompressed)
@@ -125,9 +127,7 @@ internal sealed class SiteFileMiddleware
         }
 
         headers.AcceptRanges = "bytes";
-        // Last-Modified is the original file's, so a date in If-Range does not vouch for the bytes
-        // of its brotli copy, which can be rewritten while the original keeps its time.
-        var range = GetRange(requestHeaders, entityTag, useCompressed ? null : lastModified, served.Length, out var unsatisfiable);
+        var range = GetRange(requestHeaders, entityTag, lastModified, served.Length, out var unsatisfiable);
         if (unsatisfiable)
         {
             response.StatusCode = StatusCodes.Status416RangeNotSatisfiable;
@@ -161,18 +161,29 @@ internal sealed class SiteFileMiddleware
         await response.SendFileAsync(served, offset, count, context.RequestAborted);
     }
 
-    internal static string GetCacheControl(PathString path, string contentType)
+    internal string GetCacheControl(HttpRequest request, string contentType)
     {
-        if (path.StartsWithSegments(s_immutablePrefix, StringComparison.Ordinal))
+        var path = request.Path;
+        foreach (var prefix in _immutablePrefixes)
         {
-            return ImmutableCacheControl;
+            if (path.StartsWithSegments(prefix, StringComparison.Ordinal))
+            {
+                return _cacheOptions.Immutable;
+            }
+        }
+
+        // A versioned URL changes with its content, so its response never goes stale.
+        if (_cacheOptions.VersionQueryParameter is { Length: > 0 } version
+            && !StringValues.IsNullOrEmpty(request.Query[version]))
+        {
+            return _cacheOptions.Immutable;
         }
 
         return contentType.StartsWith("image/", StringComparison.Ordinal)
             || contentType.StartsWith("video/", StringComparison.Ordinal)
             || contentType.StartsWith("font/", StringComparison.Ordinal)
-            ? MediaCacheControl
-            : DefaultCacheControl;
+            ? _cacheOptions.Media
+            : _cacheOptions.Default;
     }
 
     internal static bool AcceptsBrotli(StringValues acceptEncoding)
@@ -252,12 +263,8 @@ internal sealed class SiteFileMiddleware
     /// which a server may do for any range request it does not support, such as several ranges.
     /// Safari only plays video from servers that answer ranges.
     /// </summary>
-    /// <param name="lastModified">
-    /// The time a date in <c>If-Range</c> must match, or <see langword="null"/> when a date does
-    /// not identify the bytes sent, so only an entity tag can.
-    /// </param>
     private static (long Offset, long Count)? GetRange(
-        RequestHeaders requestHeaders, EntityTagHeaderValue etag, DateTimeOffset? lastModified, long length, out bool unsatisfiable)
+        RequestHeaders requestHeaders, EntityTagHeaderValue etag, DateTimeOffset lastModified, long length, out bool unsatisfiable)
     {
         unsatisfiable = false;
         var range = requestHeaders.Range;
@@ -273,7 +280,7 @@ internal sealed class SiteFileMiddleware
         {
             var matches = ifRange.EntityTag is { } tag
                 ? tag.Compare(etag, useStrongComparison: true)
-                : lastModified is not null && ifRange.LastModified == lastModified;
+                : ifRange.LastModified == lastModified;
             if (!matches)
             {
                 return null;

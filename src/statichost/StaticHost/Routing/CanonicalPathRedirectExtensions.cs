@@ -13,4 +13,16 @@ public static class CanonicalPathRedirectExtensions
         app.UseMiddleware<CanonicalPathRedirectMiddleware>();
         return app;
     }
+
+    /// <summary>
+    /// Sends <c>Cache-Control: no-store</c> with every redirect, so no cache keeps one.
+    /// Call first, before any middleware or endpoint that can redirect.
+    /// </summary>
+    public static IApplicationBuilder UseNoStoreRedirects(this IApplicationBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        app.UseMiddleware<NoStoreRedirectMiddleware>();
+        return app;
+    }
 }

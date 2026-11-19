@@ -2,6 +2,7 @@ using System.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -38,7 +39,8 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
 
     public static async Task<AgentReadinessTestServer> StartAsync(
         Action<TempWebRoot>? seed = null,
-        PathString pathBase = default)
+        PathString pathBase = default,
+        IReadOnlyDictionary<string, string?>? configuration = null)
     {
         var wwwroot = new TempWebRoot();
         try
@@ -47,6 +49,13 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
 
             var hostBuilder = Host.CreateDefaultBuilder()
                 .ConfigureLogging(static logging => logging.ClearProviders())
+                .ConfigureAppConfiguration(config =>
+                {
+                    if (configuration is not null)
+                    {
+                        config.AddInMemoryCollection(configuration);
+                    }
+                })
                 .ConfigureWebHost(web =>
                 {
                     web.UseTestServer();
@@ -59,8 +68,9 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
                             app.UsePathBase(pathBase);
                         }
 
-                        // Match production order: canonical redirects and
-                        // agent-readiness BEFORE default files (see Program.cs).
+                        // Match production order: no-store redirects first, then canonical
+                        // redirects and agent-readiness BEFORE default files (see Program.cs).
+                        app.UseNoStoreRedirects();
                         app.UseCanonicalPathRedirects();
                         app.UseAgentReadiness();
                         app.UseDefaultFiles();

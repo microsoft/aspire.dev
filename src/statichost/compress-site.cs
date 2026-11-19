@@ -29,8 +29,11 @@ var files = File.ReadLines(filesPath)
 
 var published = new ConcurrentBag<string>();
 var compressed = 0;
+var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-Parallel.ForEach(files, file =>
+// Brotli is single-threaded per stream, so one file per core keeps every core busy.
+var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+Parallel.ForEach(files, parallelOptions, file =>
 {
     // Reuse a copy stamped with its source's exact time, so an unchanged site compresses once.
     // "Newer than the source" is not enough: a cache restore or an archive extraction gives
@@ -43,9 +46,13 @@ Parallel.ForEach(files, file =>
         var temporary = target + ".tmp";
         using (var input = File.OpenRead(file.Source))
         using (var output = File.Create(temporary))
-        // Optimal is brotli quality 4, which the SDK used at publish (_BlazorBrotliCompressionLevel).
-        // SmallestSize (11) saves about a sixth more but compresses about 100 times slower.
-        using (var brotli = new BrotliStream(output, CompressionLevel.Optimal))
+        // SmallestSize is brotli quality 11. On the site's HTML it writes about a tenth less than
+        // quality 4-5 (16.4% of the original against 18.5%), and on /_astro's JS and CSS 22.8%
+        // against 24.9%, at about 90 ms a page instead of 4. The copies are written once per
+        // change and served many times, so the time is spent here rather than on every request.
+        // Site.targets names the output directory after the quality, so copies written at
+        // another quality are not reused.
+        using (var brotli = new BrotliStream(output, CompressionLevel.SmallestSize))
         {
             input.CopyTo(brotli);
         }
@@ -63,5 +70,5 @@ Parallel.ForEach(files, file =>
 });
 
 File.WriteAllLines(publishedPath, published.Order(StringComparer.Ordinal));
-Console.WriteLine($"Site: {files.Count} files to compress, {compressed} compressed now, {published.Count} brotli copies published.");
+Console.WriteLine($"Site: {files.Count} files to compress, {compressed} compressed now in {stopwatch.Elapsed.TotalSeconds:F0} s on {parallelOptions.MaxDegreeOfParallelism} threads, {published.Count} brotli copies published.");
 return 0;

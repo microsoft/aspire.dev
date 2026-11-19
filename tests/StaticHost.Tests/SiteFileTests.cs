@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using StaticHost.SiteFiles;
 
@@ -91,7 +92,7 @@ public sealed class SiteFileTests
 
             Assert.Equal(HttpStatusCode.NotModified, response.StatusCode);
             Assert.Equal(etag.Tag, response.Headers.ETag?.Tag);
-            Assert.Equal("no-cache", response.Headers.CacheControl?.ToString());
+            Assert.Equal(SiteFileCacheOptions.DefaultValue, response.Headers.NonValidated["Cache-Control"].ToString());
             Assert.Empty(await response.Content.ReadAsByteArrayAsync());
         }
     }
@@ -159,21 +160,43 @@ public sealed class SiteFileTests
     }
 
     [Fact]
-    public async Task If_range_date_does_not_apply_a_range_to_the_brotli_copy()
+    public async Task Range_requests_never_get_the_brotli_copy()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root => SeedCompressedPage(root, "docs/page"));
         using var first = await server.Client.GetAsync("/docs/page/");
         var lastModified = first.Content.Headers.LastModified!.Value;
 
-        foreach (var (acceptEncoding, status) in new[] { ("identity", HttpStatusCode.PartialContent), ("br", HttpStatusCode.OK) })
+        foreach (var range in new[] { "bytes=0-1", "bytes=0-1, 4-5", "bytes=1000-" })
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, "/docs/page/");
-            request.Headers.AcceptEncoding.ParseAdd(acceptEncoding);
-            request.Headers.TryAddWithoutValidation("Range", "bytes=0-1");
-            request.Headers.IfRange = new System.Net.Http.Headers.RangeConditionHeaderValue(lastModified);
-            using var response = await server.Client.SendAsync(request);
+            foreach (var ifRange in new[] { false, true })
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, "/docs/page/");
+                request.Headers.AcceptEncoding.ParseAdd("gzip, deflate, br");
+                request.Headers.TryAddWithoutValidation("Range", range);
+                if (ifRange)
+                {
+                    request.Headers.IfRange = new System.Net.Http.Headers.RangeConditionHeaderValue(lastModified);
+                }
 
-            Assert.Equal(status, response.StatusCode);
+                using var response = await server.Client.SendAsync(request);
+
+                Assert.Empty(response.Content.Headers.ContentEncoding);
+                Assert.Contains("Accept-Encoding", response.Headers.Vary);
+                Assert.Equal(ETagOf(Encoding.UTF8.GetBytes(Page)), response.Headers.ETag?.Tag);
+                if (response.StatusCode == HttpStatusCode.PartialContent)
+                {
+                    Assert.Equal($"bytes 0-1/{Encoding.UTF8.GetByteCount(Page)}", response.Content.Headers.ContentRange?.ToString());
+                }
+                else if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+                {
+                    Assert.Equal($"bytes */{Encoding.UTF8.GetByteCount(Page)}", response.Content.Headers.ContentRange?.ToString());
+                }
+                else
+                {
+                    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                    Assert.Equal(Page, await response.Content.ReadAsStringAsync());
+                }
+            }
         }
     }
 
@@ -206,15 +229,19 @@ public sealed class SiteFileTests
     }
 
     [Theory]
-    [InlineData("/_astro/index.Bx1y2z3.js", SiteFileMiddleware.ImmutableCacheControl)]
-    [InlineData("/_astro/logo.Bx1y2z3.png", SiteFileMiddleware.ImmutableCacheControl)]
-    [InlineData("/favicon.svg", SiteFileMiddleware.MediaCacheControl)]
-    [InlineData("/images/hero.webp", SiteFileMiddleware.MediaCacheControl)]
-    [InlineData("/fonts/site.woff2", SiteFileMiddleware.MediaCacheControl)]
-    [InlineData("/casts/demo.mp4", SiteFileMiddleware.MediaCacheControl)]
-    [InlineData("/docs/page/index.html", SiteFileMiddleware.DefaultCacheControl)]
-    [InlineData("/docs/page.md", SiteFileMiddleware.DefaultCacheControl)]
-    [InlineData("/pagefind/pagefind.js", SiteFileMiddleware.DefaultCacheControl)]
+    [InlineData("/_astro/index.Bx1y2z3.js", SiteFileCacheOptions.ImmutableValue)]
+    [InlineData("/_astro/logo.Bx1y2z3.png", SiteFileCacheOptions.ImmutableValue)]
+    [InlineData("/favicon.svg", SiteFileCacheOptions.MediaValue)]
+    [InlineData("/images/hero.webp", SiteFileCacheOptions.MediaValue)]
+    [InlineData("/fonts/site.woff2", SiteFileCacheOptions.MediaValue)]
+    [InlineData("/casts/demo.mp4", SiteFileCacheOptions.MediaValue)]
+    [InlineData("/docs/page/index.html", SiteFileCacheOptions.DefaultValue)]
+    [InlineData("/docs/page.md", SiteFileCacheOptions.DefaultValue)]
+    [InlineData("/llms.txt", SiteFileCacheOptions.DefaultValue)]
+    [InlineData("/sitemap-index.xml", SiteFileCacheOptions.DefaultValue)]
+    [InlineData("/reference/api/sidebar.json", SiteFileCacheOptions.DefaultValue)]
+    [InlineData("/pagefind/pagefind.js", SiteFileCacheOptions.DefaultValue)]
+    [InlineData("/_astroid/page.html", SiteFileCacheOptions.DefaultValue)]
     public async Task Cache_control_depends_on_the_path_and_the_type(string path, string expected)
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile(path, "x"));
@@ -224,6 +251,76 @@ public sealed class SiteFileTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         // HttpClient reorders the directives it parses; compare what the server sent.
         Assert.Equal(expected, response.Headers.NonValidated["Cache-Control"].ToString());
+    }
+
+    [Theory]
+    [InlineData("/reference/api/sidebar.json?v=3f2a9c", SiteFileCacheOptions.ImmutableValue)]
+    [InlineData("/locale-fallback/fr.json?lang=fr&v=3f2a9c", SiteFileCacheOptions.ImmutableValue)]
+    [InlineData("/images/hero.webp?v=1", SiteFileCacheOptions.ImmutableValue)]
+    [InlineData("/reference/api/sidebar.json?v=", SiteFileCacheOptions.DefaultValue)]
+    [InlineData("/reference/api/sidebar.json?version=3f2a9c", SiteFileCacheOptions.DefaultValue)]
+    public async Task Versioned_urls_are_immutable(string url, string expected)
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(root =>
+        {
+            root.WriteFile("reference/api/sidebar.json", "{}");
+            root.WriteFile("locale-fallback/fr.json", "{}");
+            root.WriteFile("images/hero.webp", "x");
+        });
+
+        using var response = await server.Client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expected, response.Headers.NonValidated["Cache-Control"].ToString());
+    }
+
+    [Fact]
+    public async Task Cache_control_comes_from_configuration()
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(
+            root =>
+            {
+                root.WriteFile("docs/page/index.html", Page);
+                root.WriteFile("images/hero.webp", "x");
+                root.WriteFile("_astro/index.Bx1y2z3.js", "x");
+                root.WriteFile("pagefind/pagefind.js", "x");
+                root.WriteFile("data.json", "{}");
+            },
+            configuration: new Dictionary<string, string?>
+            {
+                ["SiteFiles:CacheControl:Default"] = "no-cache",
+                ["SiteFiles:CacheControl:Media"] = "public, max-age=60",
+                ["SiteFiles:CacheControl:Immutable"] = "public, max-age=600, immutable",
+                // The configured prefixes replace the default: /_astro is no longer immutable.
+                ["SiteFiles:CacheControl:ImmutablePathPrefixes"] = "/pagefind; /images/fixed",
+                ["SiteFiles:CacheControl:VersionQueryParameter"] = "build",
+            });
+
+        foreach (var (url, expected) in new[]
+        {
+            ("/docs/page/", "no-cache"),
+            ("/images/hero.webp", "public, max-age=60"),
+            ("/pagefind/pagefind.js", "public, max-age=600, immutable"),
+            ("/_astro/index.Bx1y2z3.js", "no-cache"),
+            ("/data.json?build=1", "public, max-age=600, immutable"),
+            ("/data.json?v=1", "no-cache"),
+        })
+        {
+            using var response = await server.Client.GetAsync(url);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(expected, response.Headers.NonValidated["Cache-Control"].ToString());
+        }
+    }
+
+    [Theory]
+    [InlineData("SiteFiles:CacheControl:Default", " ")]
+    [InlineData("SiteFiles:CacheControl:ImmutablePathPrefixes", "_astro")]
+    [InlineData("SiteFiles:CacheControl:ImmutablePathPrefixes", "/_astro;/pagefind/")]
+    public async Task Invalid_cache_configuration_fails_at_startup(string key, string value)
+    {
+        await Assert.ThrowsAsync<OptionsValidationException>(() => AgentReadinessTestServer.StartAsync(
+            configuration: new Dictionary<string, string?> { [key] = value }));
     }
 
     [Fact]
