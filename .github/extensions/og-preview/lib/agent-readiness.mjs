@@ -33,6 +33,9 @@ async function probe(url, opts = {}) {
             timeoutMs: 7000,
             maxRedirects: 4,
             maxBytes: 256 * 1024,
+            // Presence, headers, and the leading bytes are what the checks read, so
+            // an oversized response is cut short rather than reported as missing.
+            onLimit: "truncate",
             ...opts,
         });
         return {
@@ -42,6 +45,7 @@ async function probe(url, opts = {}) {
             contentType: r.contentType || "",
             body: r.body,
             bytes: r.body ? r.body.length : 0,
+            truncated: Boolean(r.truncated),
             finalUrl: r.url,
         };
     } catch {
@@ -67,10 +71,10 @@ function isJsonish(r) {
     return head.startsWith("{") || head.startsWith("[");
 }
 
-function fmtBytes(n) {
+function fmtBytes(n, truncated = false) {
     if (!n) return "0 B";
-    if (n < 1024) return `${n} B`;
-    return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
+    const size = n < 1024 ? `${n} B` : `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
+    return truncated ? `${size}+` : size;
 }
 
 function missDetail(r) {
@@ -172,7 +176,7 @@ export async function checkAgentReadiness(rawUrl, policy = {}) {
                     label: "robots.txt",
                     status: scored(hasRobots, true),
                     detail: hasRobots
-                        ? `Found · ${fmtBytes(robots.bytes)}${sitemapInRobots ? " · declares Sitemap" : ""}`
+                        ? `Found · ${fmtBytes(robots.bytes, robots.truncated)}${sitemapInRobots ? " · declares Sitemap" : ""}`
                         : missDetail(robots),
                 },
                 {
@@ -202,7 +206,7 @@ export async function checkAgentReadiness(rawUrl, policy = {}) {
                     label: "llms.txt",
                     status: scored(hasLlms, true),
                     detail: hasLlms
-                        ? `Found · ${fmtBytes(llms.bytes)}${hasLlmsFull ? " · llms-full.txt too" : ""}`
+                        ? `Found · ${fmtBytes(llms.bytes, llms.truncated)}${hasLlmsFull ? " · llms-full.txt too" : ""}`
                         : missDetail(llms),
                 },
                 {

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
 import http from "node:http";
 import https from "node:https";
 import dns from "node:dns/promises";
+import { setTimeout as delay } from "node:timers/promises";
 import { authorizePreview, fetchUrl, normalizeUrl } from "../lib/http-fetch.mjs";
 
 function transport(t, library = http, responses = [{}]) {
@@ -152,4 +153,100 @@ test("a public resource cannot redirect back to an otherwise authorized local or
     const requests = transport(t, http, [{ status: 302, headers: { location: "http://127.0.0.1/" } }]);
     await assert.rejects(fetchUrl("http://8.8.8.8/", await authorizePreview("http://127.0.0.1/")), /authorized/);
     assert.equal(requests.length, 1);
+});
+
+// The size-cap tests use a real loopback server: the mocked transport above has
+// no `destroy`, which is exactly what a capped response needs.
+async function withServer(handler, run) {
+    const server = http.createServer(handler);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    try {
+        await run(url, await authorizePreview(url, false));
+    } finally {
+        server.closeAllConnections();
+        await new Promise((resolve) => server.close(resolve));
+    }
+}
+
+function within(promise, message, ms = 5000) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+const page = Buffer.from("0123456789".repeat(300));
+const deliveries = {
+    "one chunk": (res) => res.end(page),
+    "several chunks": async (res) => {
+        for (let offset = 0; offset < page.length && !res.destroyed; offset += 600) {
+            res.write(page.subarray(offset, offset + 600));
+            await delay(20);
+        }
+        res.end();
+    },
+};
+
+for (const [shape, send] of Object.entries(deliveries)) {
+    const serve = (req, res) => {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        send(res);
+    };
+
+    test(`a body over the byte cap is rejected by default (${shape})`, async () => {
+        await withServer(serve, async (url, policy) => {
+            await assert.rejects(fetchUrl(url, { ...policy, maxBytes: 1000 }), /exceeded the 1000-byte limit/);
+            await assert.rejects(
+                fetchUrl(url, { ...policy, maxBytes: 1000, onLimit: "error" }),
+                /exceeded the 1000-byte limit/,
+            );
+        });
+    });
+
+    test(`truncate mode keeps exactly the first maxBytes bytes (${shape})`, async () => {
+        await withServer(serve, async (url, policy) => {
+            const result = await fetchUrl(url, { ...policy, maxBytes: 1000, onLimit: "truncate" });
+            assert.equal(result.status, 200);
+            assert.equal(result.contentType, "text/html");
+            assert.equal(result.truncated, true);
+            assert.equal(result.body.length, 1000);
+            assert.ok(result.body.equals(page.subarray(0, 1000)));
+        });
+    });
+}
+
+for (const onLimit of ["error", "truncate"]) {
+    test(`a body at or under the cap is returned whole in ${onLimit} mode`, async () => {
+        await withServer((req, res) => res.end(page), async (url, policy) => {
+            for (const maxBytes of [page.length, page.length + 1]) {
+                const result = await fetchUrl(url, { ...policy, maxBytes, onLimit });
+                assert.equal(result.truncated, false);
+                assert.ok(result.body.equals(page));
+            }
+        });
+    });
+}
+
+test("truncate mode closes the connection instead of draining the rest of the body", async () => {
+    const closed = Promise.withResolvers();
+    const endless = (req, res) => {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        const timer = setInterval(() => res.write(Buffer.alloc(1024, "a")), 1);
+        res.on("close", () => {
+            clearInterval(timer);
+            closed.resolve();
+        });
+    };
+    await withServer(endless, async (url, policy) => {
+        const result = await within(
+            fetchUrl(url, { ...policy, maxBytes: 4096, onLimit: "truncate" }),
+            "The capped response never resolved.",
+        );
+        assert.equal(result.truncated, true);
+        assert.equal(result.body.length, 4096);
+        await within(closed.promise, "The upstream connection stayed open.");
+    });
 });

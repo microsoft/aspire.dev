@@ -225,10 +225,22 @@ function skeletonDiagnostics() {
     $("#diagnostics").replaceChildren(el("div", { class: "sk-diaglist" }, rows));
 }
 
+function skeletonPrompt() {
+    promptState.view = null;
+    const chips = [];
+    for (let i = 0; i < 8; i += 1) chips.push(sk("sk-chip"));
+    $("#prompt").replaceChildren(
+        sk("sk-line", "width:55%"),
+        el("div", { class: "sk-chips" }, chips),
+        sk("sk-block"),
+    );
+}
+
 function renderSkeleton() {
     skeletonPreviews();
     skeletonRaw();
     skeletonDiagnostics();
+    skeletonPrompt();
 }
 
 /** Auto-include a scheme: http:// for localhost/loopback, https:// otherwise. */
@@ -1565,6 +1577,8 @@ function agentAiPrompt(check, help, url, repo) {
 // file an issue and hand it to the Copilot agent. Both round-trip through the
 // extension's loopback API, which asks the host chat session to do the work.
 function diagAiFooter(check, prompt, url, repo, opts) {
+    // The prompt may be a getter so a live-edited prompt is read at click time.
+    const getPrompt = typeof prompt === "function" ? prompt : () => prompt;
     const foot = el("div", { class: "diag-ai-foot" });
     if (!repo || !repo.owner || !repo.repo) {
         foot.classList.add("diag-ai-foot-empty");
@@ -1590,13 +1604,14 @@ function diagAiFooter(check, prompt, url, repo, opts) {
     ]);
 
     const openBtn = diagActionButton("Open in Copilot", "copilot", (btn) => {
-        copyText(prompt);
-        postAction("/api/open-session", { repo: slug, url, prompt, title }, btn, "Opening…", "Session requested");
+        const text = getPrompt();
+        copyText(text);
+        postAction("/api/open-session", { repo: slug, url, prompt: text, title }, btn, "Opening…", "Session requested");
     });
     openBtn.title = `Copy the prompt and open a Copilot session for ${slug}`;
 
     const issueBtn = diagActionButton("Create issue", "issue-opened", (btn) => {
-        postAction("/api/create-issue", { repo: slug, url, prompt, title }, btn, "Filing…", "Issue requested");
+        postAction("/api/create-issue", { repo: slug, url, prompt: getPrompt(), title }, btn, "Filing…", "Issue requested");
     });
     issueBtn.title = `Open an issue on ${slug} and assign it to Copilot`;
 
@@ -2005,21 +2020,299 @@ async function refreshAgentReadiness(data) {
         body.replaceChildren(el("div", { class: "ar-error", text: "No URL to analyze." }));
         return;
     }
+    let report = null;
     try {
         const res = await fetch(apiUrl("/api/agent-readiness?u=" + encodeURIComponent(targetUrl)));
         const ar = await res.json();
         if (seq !== arSeq) return; // a newer load superseded this probe
         if (!res.ok || ar.error) throw new Error(ar.error || `Request failed (${res.status})`);
         renderAgentReadiness(body, ar, data.repository);
+        report = ar;
     } catch (err) {
         if (seq !== arSeq) return;
         body.replaceChildren(
             el("div", { class: "ar-error" }, [
-                el("span", { text: `Couldn't run agent-readiness checks: ${err.message}` }),
+                el("span", { text: failureMessage("Couldn't run agent-readiness checks", err) }),
             ]),
         );
     }
+    setPromptAgentReadiness(data, report);
 }
+
+/* ---------------- Prompt composer ----------------
+   Builds an AI-ready prompt (a JSON snapshot of the page's SEO data plus task
+   modules) with the same module the get_prompt action uses, so the tab and the
+   action can't drift apart. The module loads lazily: if it fails, every other
+   tab keeps working. */
+
+const PROMPT_MODULES_KEY = "og-preview:prompt-modules";
+const PROMPT_NOTES_KEY = "og-preview:prompt-instructions";
+const PROMPT_AR_TEXT = {
+    loading: "Checking agent readiness…",
+    ready: "Agent readiness included",
+    error: "Agent readiness unavailable",
+};
+
+const promptState = {
+    builder: null,
+    data: null,
+    modules: null, // hydrated from storage by the first render
+    instructions: "",
+    agentReadiness: null,
+    arState: "idle", // idle | loading | ready | error
+    capturedAt: null,
+    payload: null,
+    prompt: "",
+    view: null, // live nodes of the rendered form; null while a skeleton shows
+};
+
+let promptBuilderPromise = null;
+
+function loadPromptBuilder() {
+    if (!promptBuilderPromise) {
+        promptBuilderPromise = import("./build-prompt.mjs").catch((err) => {
+            promptBuilderPromise = null; // let the next load retry
+            throw err;
+        });
+    }
+    return promptBuilderPromise;
+}
+
+function readStored(key) {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function writeStored(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        /* storage unavailable */
+    }
+}
+
+// Read once; after that the in-memory state is the source of truth.
+function hydratePromptPrefs(builder) {
+    if (promptState.modules) return;
+    let modules = builder.DEFAULT_MODULE_IDS.slice();
+    try {
+        const saved = JSON.parse(readStored(PROMPT_MODULES_KEY));
+        if (Array.isArray(saved)) modules = builder.normalizeModuleIds(saved).ids;
+    } catch {
+        /* corrupt value: keep the defaults */
+    }
+    promptState.modules = modules;
+    promptState.instructions = (readStored(PROMPT_NOTES_KEY) || "").slice(0, builder.MAX_INSTRUCTIONS_CHARS);
+}
+
+// The payload only changes on load or when agent readiness arrives; edits to the
+// tasks or notes just recompose the text around it.
+function composeCurrentPrompt(rebuildPayload) {
+    const { builder, data } = promptState;
+    if (rebuildPayload || !promptState.payload) {
+        promptState.payload = builder.buildPayload({
+            data,
+            agentReadiness: promptState.agentReadiness,
+            now: promptState.capturedAt,
+        });
+    }
+    promptState.prompt = builder.composePrompt({
+        payload: promptState.payload,
+        moduleIds: promptState.modules,
+        instructions: promptState.instructions,
+    });
+}
+
+// Status and notices depend on the payload, so they repaint only when it changes
+// (this also keeps the spinner from restarting on every keystroke).
+function paintPromptPayloadInfo() {
+    const { view, payload, arState } = promptState;
+    view.ar.hidden = arState === "idle";
+    const parts = [];
+    if (arState === "loading") parts.push(el("span", { class: "ar-spinner", "aria-hidden": "true" }));
+    parts.push(PROMPT_AR_TEXT[arState] || "");
+    view.ar.replaceChildren(...parts);
+
+    const notes = [];
+    if (payload.http && payload.http.bodyTruncated) {
+        notes.push("The page HTML was larger than the fetch limit, so only its first part is included.");
+    }
+    if (payload.truncated && payload.truncated.length) {
+        notes.push(`Capped to keep the prompt small: ${payload.truncated.join(", ")}.`);
+    }
+    view.notices.replaceChildren(...notes.map((text) => el("p", { class: "prompt-note", text })));
+}
+
+function paintPrompt() {
+    const { view, builder, prompt } = promptState;
+    view.body.textContent = prompt;
+    view.size.textContent = `${prompt.length.toLocaleString()} characters · ~${builder
+        .estimateTokens(prompt)
+        .toLocaleString()} tokens`;
+}
+
+function refreshPrompt(rebuildPayload) {
+    if (!promptState.view) return;
+    composeCurrentPrompt(rebuildPayload);
+    if (rebuildPayload) paintPromptPayloadInfo();
+    paintPrompt();
+}
+
+// Called when the agent-readiness probe settles. The data check drops results
+// that belong to a page the tab no longer shows.
+function setPromptAgentReadiness(data, report) {
+    if (!promptState.view || promptState.data !== data) return;
+    promptState.agentReadiness = report;
+    promptState.arState = report ? "ready" : "error";
+    refreshPrompt(true);
+}
+
+function promptCopyButton(label, variant, getText) {
+    const btn = el("button", { class: `btn ${variant} btn-sm`, type: "button", text: label, "aria-live": "polite" });
+    let timer = null;
+    btn.addEventListener("click", async () => {
+        const ok = await copyText(getText());
+        if (!ok) {
+            setStatus("error", "Clipboard blocked — the get_prompt action returns the same prompt.");
+            return;
+        }
+        btn.textContent = "Copied!";
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            btn.textContent = label;
+        }, 1200);
+    });
+    return btn;
+}
+
+function promptModuleChip(builder, module, boxes) {
+    const box = el("input", { type: "checkbox", value: module.id });
+    box.checked = promptState.modules.includes(module.id);
+    const chip = el("label", { class: "prompt-module" }, [
+        box,
+        el("span", { class: "prompt-module-text" }, [
+            el("span", { class: "prompt-module-label", text: module.label }),
+            el("span", { class: "prompt-module-hint", text: module.hint }),
+        ]),
+    ]);
+    chip.classList.toggle("on", box.checked);
+    box.addEventListener("change", () => {
+        chip.classList.toggle("on", box.checked);
+        promptState.modules = builder.normalizeModuleIds(
+            [...boxes].filter(([, b]) => b.checked).map(([id]) => id),
+        ).ids;
+        writeStored(PROMPT_MODULES_KEY, JSON.stringify(promptState.modules));
+        refreshPrompt(false);
+    });
+    boxes.set(module.id, box);
+    return chip;
+}
+
+function mountPrompt(host, data, builder) {
+    hydratePromptPrefs(builder);
+    Object.assign(promptState, {
+        builder,
+        data,
+        agentReadiness: null,
+        arState: data.requestedUrl ? "loading" : "idle",
+        capturedAt: new Date(),
+        payload: null,
+    });
+
+    const boxes = new Map();
+    const chips = builder.PROMPT_MODULES.map((module) => promptModuleChip(builder, module, boxes));
+
+    const notes = el("textarea", {
+        id: "prompt-notes",
+        class: "prompt-notes",
+        rows: "3",
+        maxlength: String(builder.MAX_INSTRUCTIONS_CHARS),
+        placeholder: "e.g. We use Astro and deploy to Azure Static Web Apps. Keep the changes small.",
+    });
+    notes.value = promptState.instructions;
+    notes.addEventListener("input", () => {
+        promptState.instructions = notes.value;
+        writeStored(PROMPT_NOTES_KEY, notes.value);
+        refreshPrompt(false);
+    });
+
+    const view = {
+        size: el("span", { class: "prompt-size" }),
+        ar: el("span", { class: "prompt-ar", role: "status" }),
+        notices: el("div", { class: "prompt-notices" }),
+        body: el("pre", {
+            class: "diag-ai-body prompt-body",
+            tabindex: "0",
+            role: "group",
+            "aria-label": "Composed prompt",
+        }),
+    };
+
+    const site = prettyDomain((data.resolved && data.resolved.hostname) || data.requestedUrl || "this page");
+    const card = el("div", { class: "diag-ai prompt-card" }, [
+        el("div", { class: "diag-ai-head" }, [
+            el("span", { class: "diag-ai-ico", "aria-hidden": "true" }, [octicon("copilot", 14)]),
+            el("span", { class: "diag-ai-title", text: "Composed prompt" }),
+            promptCopyButton("Copy JSON", "btn-ghost", () => JSON.stringify(promptState.payload, null, 2)),
+            promptCopyButton("Copy prompt", "btn-primary", () => promptState.prompt),
+        ]),
+        view.body,
+        diagAiFooter({ id: "prompt" }, () => promptState.prompt, data.requestedUrl, data.repository, {
+            title: `SEO and metadata review: ${site}`,
+        }),
+    ]);
+
+    host.replaceChildren(
+        el("p", {
+            class: "prompt-intro",
+            text: "Compose a prompt for an AI assistant. It includes a JSON snapshot of this page's SEO data.",
+        }),
+        el("fieldset", { class: "prompt-modules-set" }, [
+            el("legend", { class: "prompt-h", text: "Tasks to include" }),
+            el("div", { class: "prompt-modules" }, chips),
+        ]),
+        el("div", { class: "prompt-notes-set" }, [
+            el("label", { class: "prompt-h", for: "prompt-notes", text: "Your instructions (optional)" }),
+            notes,
+        ]),
+        el("div", { class: "prompt-meta" }, [view.size, view.ar]),
+        view.notices,
+        card,
+    );
+    promptState.view = view;
+    refreshPrompt(true);
+}
+
+function renderPrompt(data, builder) {
+    const host = $("#prompt");
+    promptState.view = null;
+    // A failure here must not stop the diagnostics and footer from rendering, so
+    // it is contained to this tab.
+    try {
+        if (!builder) {
+            host.replaceChildren(
+                el("div", {
+                    class: "ar-error",
+                    role: "alert",
+                    text: "Couldn't load the prompt builder. Refresh to try again.",
+                }),
+            );
+            return;
+        }
+        mountPrompt(host, data, builder);
+    } catch (err) {
+        promptState.view = null;
+        host.replaceChildren(
+            el("div", { class: "ar-error", role: "alert", text: `Couldn't build the prompt: ${err.message}` }),
+        );
+    }
+}
+
+// Warm the module so the first load doesn't wait on it.
+loadPromptBuilder().catch(() => {});
 
 /* ---------------- Footer (page info) ---------------- */
 
@@ -2100,6 +2393,12 @@ function setFooterOpen(open) {
 }
 
 /* ---------------- Status + load ---------------- */
+
+/* Server errors are already complete sentences ("Couldn't load metadata. …"),
+   so only add context to messages that lack it, such as network failures. */
+function failureMessage(prefix, err) {
+    return /^Couldn't/.test(err.message) ? err.message : `${prefix}: ${err.message}`;
+}
 
 function setStatus(kind, message) {
     if (!kind) {
@@ -2187,16 +2486,20 @@ async function load(rawUrl, opts) {
         document.title = data.requestedUrl
             ? `OG · ${(data.resolved && data.resolved.hostname) || data.requestedUrl}`
             : "OpenGraph Preview";
+        const builder = await loadPromptBuilder().catch(() => null);
         // Cross-fade skeletons -> content with a View Transition.
         withTransition(() => {
             renderPreviews(data);
             renderRaw(data);
+            // Before the diagnostics: that starts the agent-readiness probe the
+            // prompt tab listens for.
+            renderPrompt(data, builder);
             renderDiagnostics(data);
             renderFooter(data);
         });
         setStatus(null);
     } catch (err) {
-        setStatus("error", `Couldn't load metadata: ${err.message}`);
+        setStatus("error", failureMessage("Couldn't load metadata", err));
         $("#footer-summary").textContent = `Failed to load ${url}`;
     } finally {
         finishProgress();
@@ -2305,7 +2608,7 @@ if (luckyEmpty) {
 }
 
 const TAB_KEY = "og-preview:tab";
-const TAB_ICONS = { previews: "image", raw: "code", diagnostics: "checklist", browse: "globe" };
+const TAB_ICONS = { previews: "image", raw: "code", diagnostics: "checklist", prompt: "copilot", browse: "globe" };
 
 function activateTab(name) {
     const tab = document.querySelector(`.tab[data-tab="${name}"]`);
@@ -2328,7 +2631,7 @@ function activateTab(name) {
     if (name === "browse") syncBrowseFrame(pendingBrowseUrl || input.value);
 }
 
-const TAB_ORDER = ["browse", "previews", "raw", "diagnostics"];
+const TAB_ORDER = ["browse", "previews", "raw", "diagnostics", "prompt"];
 
 document.querySelectorAll(".tab").forEach((tab) => {
     const iconName = TAB_ICONS[tab.dataset.tab];
