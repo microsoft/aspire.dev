@@ -1,6 +1,6 @@
 namespace StaticHost.Routing;
 
-public static class CanonicalPathRedirectExtensions
+public static class StaticRoutingExtensions
 {
     private const string IndexPropertyKey = "StaticHost.Routing.StaticWebRootIndex";
 

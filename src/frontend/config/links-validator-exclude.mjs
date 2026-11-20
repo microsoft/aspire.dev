@@ -29,12 +29,12 @@ function isCustomPath(link) {
 }
 
 /**
- * Whether the default-locale docs page for a route exists as content.
+ * Whether a docs page for a route exists as content.
  *
- * @param {string} path Route path without locale prefix, hash, or query.
+ * @param {string} path Route path without hash or query.
  * @param {string} docsDir
  */
-function hasDefaultLocalePage(path, docsDir) {
+function hasDocsPage(path, docsDir) {
   const slug = path.replace(/^\/+|\/+$/g, '');
   const base = slug === '' ? 'index' : slug;
   return ['.md', '.mdx', '/index.md', '/index.mdx'].some((suffix) =>
@@ -45,7 +45,8 @@ function hasDefaultLocalePage(path, docsDir) {
 /**
  * Links to untranslated locale routes (e.g. `/de/docs/`) point at pages that
  * aren't built: StaticHost serves the English page in place. Skip those only
- * when the English target exists, so broken links are still reported.
+ * when the page isn't translated and the English target exists, so broken
+ * links and translated anchors are still reported.
  *
  * @param {string} link
  * @param {string} [docsDir]
@@ -60,5 +61,6 @@ export function isExcludedFromLinkValidation(link, docsDir = defaultDocsDir) {
   const unlocalizedLink = `${unlocalized}${link.slice(match[0].length)}`;
   if (isCustomPath(unlocalizedLink)) return true;
 
-  return hasDefaultLocalePage(unlocalized, docsDir);
+  if (hasDocsPage(`/${match[1]}${unlocalized}`, docsDir)) return false;
+  return hasDocsPage(unlocalized, docsDir);
 }

@@ -1,5 +1,6 @@
 // @ts-check
 import { locales } from './locales.ts';
+import { redirects } from './redirects.mjs';
 import { getTranslatedPaths } from './translated-paths.mjs';
 
 const localeSegments = Object.keys(locales)
@@ -14,9 +15,11 @@ const localeSegments = Object.keys(locales)
  *
  * @param {string} pathname
  * @param {ReadonlySet<string>} translatedPaths
+ * @param {ReadonlySet<string>} [redirectSources] Lowercased configured redirect
+ *   sources; Astro handles those itself, as StaticHost leaves existing paths alone.
  * @returns {string | undefined}
  */
-export function getLocaleFallbackDevPath(pathname, translatedPaths) {
+export function getLocaleFallbackDevPath(pathname, translatedPaths, redirectSources = new Set()) {
   const match = pathname.match(/^\/([^/]+)(\/.*)$/);
   if (!match) return undefined;
 
@@ -33,7 +36,10 @@ export function getLocaleFallbackDevPath(pathname, translatedPaths) {
   // trailing slash are left for the dev server to redirect.
   if (!unlocalizedPath.endsWith('/') && !isMarkdown) return undefined;
   const pagePath = isMarkdown ? `${pathname.slice(0, -'.md'.length)}/` : pathname;
-  if (translatedPaths.has(pagePath.toLowerCase())) return undefined;
+  const normalizedPagePath = pagePath.toLowerCase();
+  if (translatedPaths.has(normalizedPagePath) || redirectSources.has(normalizedPagePath)) {
+    return undefined;
+  }
 
   return unlocalizedPath;
 }
@@ -45,6 +51,11 @@ export function getLocaleFallbackDevPath(pathname, translatedPaths) {
  * @returns {import('astro').AstroIntegration}
  */
 export function localeFallbackDevIntegration() {
+  const redirectSources = new Set(
+    Object.keys(redirects).map((source) =>
+      (source.endsWith('/') ? source : `${source}/`).toLowerCase()
+    )
+  );
   return {
     name: 'aspire-locale-fallback-dev',
     hooks: {
@@ -55,7 +66,7 @@ export function localeFallbackDevIntegration() {
           const rewrittenPath = localeSegments.some((locale) =>
             url.pathname.toLowerCase().startsWith(`/${locale}/`)
           )
-            ? getLocaleFallbackDevPath(url.pathname, new Set(getTranslatedPaths()))
+            ? getLocaleFallbackDevPath(url.pathname, new Set(getTranslatedPaths()), redirectSources)
             : undefined;
           if (rewrittenPath) {
             req.url = `${rewrittenPath}${url.search}`;

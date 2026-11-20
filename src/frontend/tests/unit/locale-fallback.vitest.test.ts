@@ -118,6 +118,7 @@ describe('isExcludedFromLinkValidation', () => {
     'docs.mdx',
     'get-started/install-cli.mdx',
     'dashboard/index.md',
+    'ja/get-started/install-cli.mdx',
   ]) {
     mkdirSync(join(docsDir, file, '..'), { recursive: true });
     writeFileSync(join(docsDir, file), '---\ntitle: T\n---\n');
@@ -141,6 +142,7 @@ describe('isExcludedFromLinkValidation', () => {
     '/xx/docs/',
     '/docs/',
     '/get-started/install-cli/',
+    '/ja/get-started/install-cli/#install',
     'https://example.com/de/docs/',
   ])('validates %s', (link) => {
     expect(isExcludedFromLinkValidation(link, docsDir)).toBe(false);
@@ -169,6 +171,16 @@ describe('translated paths', () => {
     ]) {
       expect(getLocaleFallbackDevPath(pathname, translated)).toBeUndefined();
     }
+  });
+
+  test('getLocaleFallbackDevPath leaves configured redirect sources to Astro', () => {
+    const redirectSources = new Set(['/ja/app-host/persistent-containers/']);
+    expect(
+      getLocaleFallbackDevPath('/ja/app-host/persistent-containers/', new Set(), redirectSources)
+    ).toBeUndefined();
+    expect(
+      getLocaleFallbackDevPath('/de/app-host/persistent-containers/', new Set(), redirectSources)
+    ).toBe('/app-host/persistent-containers/');
   });
 
   test('getTranslatedPaths lists locale docs as route paths', () => {

@@ -70,6 +70,31 @@ public sealed class LocaleFallbackTests
     }
 
     [Fact]
+    public void Manifest_appearing_during_scan_triggers_a_rescan()
+    {
+        using var root = new TempWebRoot();
+        var scans = 0;
+        var index = new StaticHost.Routing.StaticWebRootIndex(root.Path, path =>
+        {
+            var resolver = new StaticHost.Routing.CanonicalPathResolver(path);
+            if (++scans == 1)
+            {
+                // The site finishes unpacking after this scan enumerated the web root.
+                root.WriteFile("get-started/install-cli/index.html", EnglishHtml);
+                root.WriteFile("locale-fallback/locales.json", """{"locales":["de"]}""");
+            }
+
+            return resolver;
+        });
+
+        var snapshot = index.Current;
+
+        Assert.Equal(2, scans);
+        Assert.True(snapshot.Final);
+        Assert.True(snapshot.Paths.TryGetExistingPath("/get-started/install-cli/", out _));
+    }
+
+    [Fact]
     public async Task Translated_locale_route_is_served_unchanged()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(SeedSite);

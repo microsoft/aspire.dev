@@ -11,8 +11,13 @@ namespace StaticHost.Routing;
 /// most once per <see cref="RetryInterval"/>, for up to <see cref="RetryWindow"/>; production
 /// ships the manifest, so it is built once.
 /// </remarks>
-internal sealed class StaticWebRootIndex(string webRootPath)
+internal sealed class StaticWebRootIndex(string webRootPath, Func<string, CanonicalPathResolver> scan)
 {
+    public StaticWebRootIndex(string webRootPath)
+        : this(webRootPath, static path => new CanonicalPathResolver(path))
+    {
+    }
+
     internal static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan RetryWindow = TimeSpan.FromMinutes(5);
 
@@ -43,8 +48,17 @@ internal sealed class StaticWebRootIndex(string webRootPath)
                     return snapshot;
                 }
 
-                var paths = new CanonicalPathResolver(webRootPath);
-                var hasManifest = File.Exists(Path.Combine(webRootPath, LocaleFallbackResolver.ManifestPath));
+                // Check for the manifest before scanning: it can be renamed into place mid-scan,
+                // and a scan that started without it may have missed files. Rescan in that case.
+                var manifestPath = Path.Combine(webRootPath, LocaleFallbackResolver.ManifestPath);
+                var hasManifest = File.Exists(manifestPath);
+                var paths = scan(webRootPath);
+                if (!hasManifest && File.Exists(manifestPath))
+                {
+                    hasManifest = true;
+                    paths = scan(webRootPath);
+                }
+
                 snapshot = new Snapshot(
                     paths,
                     new LocaleFallbackResolver(paths, LocaleFallbackResolver.ReadLocales(webRootPath)),
