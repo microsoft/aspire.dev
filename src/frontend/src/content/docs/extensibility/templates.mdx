@@ -1,0 +1,271 @@
+---
+title: Create and customize Aspire app templates
+description: Fork an Aspire template, customize its files and prompts, test the generated app locally, and share a reviewed Git revision with your team.
+---
+
+An application template gives your team a reusable starting point with the services, configuration, and conventions you choose. Start by forking a template close to the application you want, make a small change, and test the generated app before sharing your fork.
+
+Aspire uses the [.NET template engine](https://learn.microsoft.com/dotnet/core/tools/templates) to process template files. Templates can contain applications in any language, AppHosts, workflows, and documentation; they don't need to contain a .NET project.
+
+## Prerequisites
+
+- [Aspire CLI 17.0 or later](/get-started/install-cli/)
+- Git and a GitHub account for creating and sharing a fork
+- The language tools required by your chosen template
+
+The example below uses the FastAPI and React template from [microsoft/aspire-templates](https://github.com/microsoft/aspire-templates). Install Node.js and [uv](https://docs.astral.sh/uv/getting-started/installation/) to run its generated app. For Azure-focused starting points, see [Azure/aspire-templates](https://github.com/Azure/aspire-templates).
+
+Run a supported [container runtime](/get-started/prerequisites/#install-an-oci-compliant-container-runtime) for the Redis part of the walkthrough. This starter uses a TypeScript AppHost, `apphost.mts`, and a Python backend, `app/main.py`.
+
+## Fork a template and try it locally
+
+Fork `microsoft/aspire-templates` into your GitHub account, then clone your fork. Replace `YOUR-ACCOUNT` with its owner:
+
+```bash title="Clone your template repository"
+git clone https://github.com/YOUR-ACCOUNT/aspire-templates.git
+cd aspire-templates
+```
+
+Each directory under `templates` is a separately selectable template. For this walkthrough, use `templates/aspire-py-starter`:
+
+```text title="Files you will work with"
+templates/aspire-py-starter/
+  .template.config/
+    template.json
+    aspirecli.host.json
+  app/
+  frontend/
+  apphost.mts
+  aspire.config.json
+```
+
+Generate a baseline from that directory:
+
+```bash title="Try the unmodified template"
+aspire new --template-path ./templates/aspire-py-starter --name BaselineApp --output ../BaselineApp
+```
+
+Follow the prompts, leaving Redis and `.dev.localhost` URLs disabled for this first run. Review any separately offered configuration source before accepting it.
+
+Keep generated apps outside the template repository. You can compare them with later generations without accidentally copying them into your template.
+
+## Customize your starting point
+
+Start with an application change before editing template conditions. The Python starter already includes optional Redis caching, disabled by default, so you can customize that feature rather than add another database.
+
+In `templates/aspire-py-starter/app/main.py`, find `cache_ttl = 5` and change it to:
+
+```python title="app/main.py: customize the cache duration"
+    cache_ttl = 30  # Cache weather forecasts for 30 seconds.
+```
+
+This is an ordinary source edit. Whenever the generated app includes the caching code, it uses your new duration. You don't need a new template parameter for every application setting.
+
+Add a `README.md` inside `templates/aspire-py-starter` with your team's local run instructions. Files in that directory become part of the generated app.
+
+The configuration files have different responsibilities:
+
+| File                                   | Purpose                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `.template.config/template.json`       | Standard engine metadata, parameters, replacements, and conditional file selection               |
+| `.template.config/aspirecli.host.json` | Aspire CLI prompt labels and visibility, plus Aspire-specific version and configuration behavior |
+| `aspire.config.json`                   | Configuration for the generated application, not for the template wizard                         |
+
+In `template.json`, give your fork a distinct `identity`, `name`, `shortName`, and `description`. For example, use `MyCompany.Templates.FastApi`, `MyCompany FastAPI starter`, and `mycompany-fastapi` for the first three fields. Keep the existing symbols and file-processing rules.
+
+`identity` distinguishes the template from others, `name` is its display name, and `shortName` is its template-engine identifier. Changing the short name doesn't register a new built-in `aspire new` subcommand: select your directory with `--template-path`.
+
+To insert the project name into your new README, write `TemplateApp` where the name should appear and add `"sourceName": "TemplateApp"` at the top level of `template.json`. The engine replaces this marker in file contents and paths with the supplied name. Keep the template's existing name-derived symbols, which may handle other naming requirements.
+
+Use distinctive replacement markers and inspect the output. Replacements are text transformations, not escaping for JSON, source code, or shell commands.
+
+## Generate and run the Redis-enabled app
+
+Generate into a fresh output directory:
+
+```bash title="Generate from your customized template"
+aspire new --template-path ./templates/aspire-py-starter --name TeamApp --output ../TeamApp
+```
+
+Choose **Yes** for **Use Redis for caching** and leave `.dev.localhost` URLs disabled. Review the generated files, then run the app:
+
+```bash title="Run the generated application"
+cd ../TeamApp
+aspire run
+```
+
+Open the generated `TeamApp/apphost.mts`. It declares the Redis `cache` resource and connects the Python app with `.withReference(cache)` and `.waitFor(cache)`. These are ordinary, unconditional AppHost statements in the generated app. The Python hosting integration passes the Redis URI as `CACHE_URI`, which `app/main.py` reads to create its client.
+
+In the dashboard, wait for `cache`, `app`, and `frontend` to be healthy. Open the frontend and refresh its weather data within 30 seconds. The API should return the same forecast, including its dates, while the cached value is valid.
+
+To confirm that Redis is being used rather than the API's fallback behavior, use a Redis client to check that the `weatherforecast` key exists and has a positive time to live no greater than 30 seconds. Check the backend's console logs for connection errors if the forecast changes on every request.
+
+Stop the app before continuing, then return to your template repository. You now have a working application change. Next, inspect how the template makes the entire resource optional.
+
+## Make the resource optional
+
+The starter already implements this option. Work through its existing rules rather than adding a second `UseRedisCache` symbol or duplicate Redis code.
+
+### Define the input and prompt
+
+In `.template.config/template.json`, the existing `symbols` object contains:
+
+```json title="template.json: existing Redis parameter"
+{
+  "UseRedisCache": {
+    "type": "parameter",
+    "datatype": "bool",
+    "defaultValue": "false",
+    "description": "Use Redis for caching. Requires a supported container runtime."
+  }
+}
+```
+
+The default keeps Redis out unless the user chooses it. To offer caching by default in your fork, change `defaultValue` to `"true"`; users can still decline it.
+
+The matching entry in `.template.config/aspirecli.host.json` labels the wizard prompt:
+
+```json title="aspirecli.host.json: existing Redis prompt"
+{
+  "UseRedisCache": {
+    "displayName": "Use Redis for caching"
+  }
+}
+```
+
+The boolean is a standard template-engine parameter. Its display label is an Aspire host extension. Preserve the host file's other entries, particularly hidden version parameters and their value sources.
+
+### Include the resource and its references together
+
+In `apphost.mts`, the resource declaration is surrounded by template directives:
+
+```typescript title="apphost.mts: existing conditional resource"
+//#if (UseRedisCache)
+// Add a Redis cache for the app to use.
+const cache = await builder.addRedis('cache');
+
+//#endif
+```
+
+The existing Python resource's builder chain also wraps `.withReference(cache)` and `.waitFor(cache)` in the same condition. Both the resource and these references must disappear when caching is disabled.
+
+These are generation-time directives, not TypeScript runtime checks. When the option is enabled, the engine keeps the code and removes the directives. When disabled, it removes the whole block.
+
+### Include the Python code and dependencies
+
+In `app/main.py`, the same option controls imports, client setup, cache reads and writes, and the health check. For example, the cache-write block is:
+
+```python title="app/main.py: existing conditional cache write"
+# #if (UseRedisCache)
+    # Cache the data
+    if redis_client:
+        try:
+            redis_client.setex(cache_key, cache_ttl, json.dumps(forecast))
+        except Exception as e:
+            logger.warning(f"Redis cache write error: {e}")
+
+# #endif
+```
+
+Keep your `cache_ttl = 30` edit inside the existing caching branch. The engine includes it only when that branch is selected.
+
+Where the function signature differs, the template uses opposite conditions: `UseRedisCache` keeps the version that depends on `get_redis_client`, while `!UseRedisCache` keeps the version without that dependency. Don't leave an unconditional import or reference to a symbol that the disabled variant removes.
+
+In `app/pyproject.toml`, the dependencies use the same condition:
+
+```toml title="app/pyproject.toml: existing conditional dependencies"
+# #if (UseRedisCache)
+    "opentelemetry-instrumentation-redis>=0.59b0",
+    "redis>=6.4.0",
+# #endif
+```
+
+The template's `specialCustomOperations` entries in `template.json` teach the engine to recognize `# #if` and `# #endif` in Python and TOML files. Keep those rules when forking this template. Don't assume TypeScript's `//#if` spelling works in every file type.
+
+Finally, `aspire.config.json` conditionally includes the Redis hosting package. Its version symbol is enabled by the same input:
+
+```json title="template.json: existing Redis version parameter"
+{
+  "HostingRedisVersion": {
+    "type": "parameter",
+    "datatype": "string",
+    "isRequired": true,
+    "isEnabled": "UseRedisCache",
+    "description": "The version of Aspire.Hosting.Redis.",
+    "replaces": "{{hostingRedisVersion}}"
+  }
+}
+```
+
+This keeps a disabled resource from requiring a package-version lookup. The Aspire host file supplies that version when enabled.
+
+Use the same pattern for a resource you add yourself: first get the generated app working, then apply one condition consistently across its AppHost wiring, application code, and dependencies. See the [template-engine reference](https://github.com/dotnet/templating/wiki/Reference-for-template.json) for other parameter types and conditional file rules.
+
+## Test both generated variants
+
+From the template repository, generate again into a different directory:
+
+```bash title="Generate without Redis"
+aspire new --template-path ./templates/aspire-py-starter --name WithoutCacheApp --output ../WithoutCacheApp
+```
+
+Decline Redis this time. Compare the output with `TeamApp`:
+
+| Redis enabled                                                                     | Redis disabled                                       |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| AppHost declares `cache` and the Python resource references it                    | No Redis resource or references                      |
+| Python includes client setup, cache reads and writes, and your 30-second duration | Python contains no Redis imports or cache operations |
+| Python and AppHost configuration include Redis dependencies                       | Redis dependencies are absent                        |
+
+Check that neither variant contains template directives or unresolved replacement markers, and that your README uses the generated app name. Run the disabled variant too: the backend and frontend should still work, with no `cache` resource in the dashboard.
+
+For local and Git templates, Aspire 17.0 presents custom parameters through the wizard rather than adding arbitrary command-line flags. For unattended generation, every enabled input needs a default or a host-supplied value:
+
+```bash title="Check default generation without optional setup"
+aspire new --template-path ./templates/aspire-py-starter --name DefaultApp --output ../DefaultApp --non-interactive --suppress-agent-init --use-config-source false
+```
+
+This command declines a separate configuration source and skips agent setup. It still uses the template directory you selected.
+
+Repeat these checks for every application option you change. File generation alone doesn't prove that a template produces a working app.
+
+The existing host metadata injects the running Aspire SDK identity and resolves integration-package versions. Keep version ranges appropriate to the SDK and APIs your template supports; don't assume that the newest package is compatible. If resolution fails, check both the range and the generated app's effective NuGet sources before changing either.
+
+## Share your fork
+
+Commit and push your changes, preserving the upstream license and attribution. Share the repository, template path, tested tool versions, and a reviewed revision.
+
+Users can generate directly from your fork without registering it globally. Replace the account and ref below; use a full commit SHA when you want the same template files you reviewed:
+
+```bash title="Generate from a reviewed Git revision"
+aspire new --template-repository https://github.com/YOUR-ACCOUNT/aspire-templates --template-repository-ref YOUR-COMMIT-SHA --template-path templates/aspire-py-starter --name SharedApp --output ./SharedApp
+```
+
+Pinning a commit fixes the template content, not floating dependency versions. For collections used regularly, link your team to [`aspire template source add`](/reference/cli/commands/aspire-template-source-add/); it registers a source globally for discovery in the `aspire new` picker.
+
+Only use sources you trust. Review generated scripts, workflows, and dependency configuration before execution. Private repositories need Git credentials in the user's environment; don't embed credentials in URLs or template files.
+
+## Start from scratch
+
+If no existing template fits, begin with a working Aspire application and add `.template.config/template.json` at its root:
+
+```json title=".template.config/template.json"
+{
+  "$schema": "https://json.schemastore.org/template",
+  "identity": "MyCompany.Templates.TeamApp",
+  "name": "MyCompany team application",
+  "shortName": "mycompany-team",
+  "description": "A starting point for the team's Aspire applications.",
+  "sourceName": "TemplateApp"
+}
+```
+
+Use `TemplateApp` as the original application name or choose a `sourceName` that matches your files. Start with fixed, tested package versions; dynamic package resolution and host metadata aren't required for a basic template.
+
+Exclude local secrets, build output, and dependency directories from generated apps. Preserve intended hidden files such as `.gitignore` and `.github` workflows, and verify that workflow expressions survive generation. Test with `--template-path` as above before adding more parameters.
+
+## See also
+
+- [`aspire new` command reference](/reference/cli/commands/aspire-new/)
+- [Template source commands](/reference/cli/commands/aspire-template-source/)
+- [.NET template authoring reference](https://learn.microsoft.com/dotnet/core/tools/templates)
