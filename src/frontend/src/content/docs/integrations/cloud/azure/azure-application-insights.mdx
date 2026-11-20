@@ -18,7 +18,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Application Insights integration. It covers the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Application Insights resource in your [`AppHost`](/get-started/app-host/) project, as well as how to configure the Application Insights SDK in consuming apps.
+This article is the reference for the Aspire Azure Application Insights integration. It covers the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Application Insights resource in your [`AppHost`](/get-started/app-host/) project, as well as how to configure the Application Insights SDK in consuming apps.
 
 [Azure Application Insights](https://azure.microsoft.com/services/monitor/) is an extensible Application Performance Management (APM) service for developers and DevOps professionals. The Aspire Azure Application Insights integration enables you to provision Application Insights resources for collecting telemetry data from your applications.
 
@@ -75,6 +75,27 @@ This updates your `aspire.config.json` with the Azure Application Insights hosti
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-application-insights
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Application Insights hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.ApplicationInsights": "*"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Add Azure Application Insights resource
@@ -88,7 +109,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var appInsights = builder.AddAzureApplicationInsights("app-insights");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(appInsights);
 
 // After adding all resources, run the app...
@@ -108,6 +129,28 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+appInsights := builder.AddAzureApplicationInsights("app-insights")
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(appInsights)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -142,7 +185,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
 var appInsights = builder.AddAzureApplicationInsights("app-insights", logAnalytics);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(appInsights);
 
 // After adding all resources, run the app...
@@ -163,6 +206,30 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+logAnalytics := builder.AddAzureLogAnalyticsWorkspace("log-analytics")
+appInsights := builder.AddAzureApplicationInsights("app-insights").
+	WithLogAnalyticsWorkspace(logAnalytics)
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(appInsights)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -186,7 +253,7 @@ var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
 var appInsights = builder.AddAzureApplicationInsights("app-insights")
     .WithLogAnalyticsWorkspace(logAnalytics);
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(appInsights);
 
 // After adding all resources, run the app...
@@ -208,6 +275,30 @@ await builder.addNodeApp("api", "./api", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+logAnalytics := builder.AddAzureLogAnalyticsWorkspace("log-analytics")
+appInsights := builder.AddAzureApplicationInsights("app-insights").
+	WithLogAnalyticsWorkspace(logAnalytics)
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(appInsights)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -277,7 +368,7 @@ var appInsights = builder.AddAzureApplicationInsights("app-insights")
         insights.Tags.Add("environment", "production");
     });
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(appInsights);
 
 // After adding all resources, run the app...

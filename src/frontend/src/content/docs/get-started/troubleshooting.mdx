@@ -1,6 +1,6 @@
 ---
 title: Aspire troubleshooting guide
-description: Solutions to common problems when getting started with Aspire — Docker issues, port conflicts, certificate trust, dashboard authentication, and dev container quirks.
+description: Solutions to common Aspire setup problems, including container runtime issues, port conflicts, certificate trust, dashboard authentication, and dev container quirks.
 ---
 
 import { Aside, Code, Steps } from '@astrojs/starlight/components';
@@ -11,11 +11,13 @@ import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 Having issues getting started with Aspire? This page covers solutions to the most common problems developers encounter.
 
-## Docker Desktop not running
+## Container runtime not running
 
 **Symptoms**: `aspire run` hangs or shows "waiting for container runtime" messages.
 
-**Solution**: Start Docker Desktop (or Podman) before running `aspire run`. Check your system tray to confirm Docker is running with a green status indicator.
+**Solution**: Start your selected [container runtime](/get-started/prerequisites/#install-an-oci-compliant-container-runtime) before running `aspire run`. Supported options are Docker, Podman, and WSLc. WSLc is available only on Windows for local development.
+
+Run [`aspire doctor`](/reference/cli/commands/aspire-doctor/) to check runtime availability and health.
 
 <Aside type="caution">
   Aspire uses containers for databases, caches, and other resources. Without a
@@ -76,7 +78,7 @@ Having issues getting started with Aspire? This page covers solutions to the mos
 **Solution**: Make sure you're using <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitFor" /> in your AppHost:
 
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.WebFrontend>("frontend")
+builder.AddDotnetProject("frontend", "../WebFrontend/WebFrontend.csproj")
     .WithReference(apiService)
     .WaitFor(apiService);  // Add this line!
 ```
@@ -93,7 +95,7 @@ In your AppHost:
 
 ```csharp title="AppHost.cs"
 var db = builder.AddPostgres("db");
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(db);  // This injects the connection string
 ```
 
@@ -150,7 +152,7 @@ docker pull redis:latest
 
 ```csharp title="AppHost.cs"
 // In AppHost
-var api = builder.AddProject<Projects.Api>("apiservice");  // Name is "apiservice"
+var api = builder.AddDotnetProject("apiservice", "../Api/Api.csproj");  // Name is "apiservice"
 ```
 
 ```csharp title="Program.cs"
@@ -167,6 +169,22 @@ Also verify:
   For a deeper understanding of how service discovery works in Aspire, see
   [Service discovery](/fundamentals/service-discovery/).
 </LearnMore>
+
+## `dotnet run --operation publish` fails in publish mode
+
+**Symptoms**: Running `dotnet run --operation publish` on an AppHost, or otherwise starting it with `dotnet run` in publish mode, fails with an error similar to:
+
+```text title="Output"
+The AppHost is in publish mode and cannot be started with 'aspire run'. Use 'aspire publish' instead.
+```
+
+**Cause**: When the AppHost uses the Aspire CLI bundle, [`dotnet run` hands the AppHost to `aspire run`](/get-started/aspire-sdk/#running-with-dotnet-run), which waits for the dashboard to become ready. Publish mode never starts the dashboard, so the AppHost rejects the request instead of waiting indefinitely.
+
+**Solution**: Use [`aspire publish`](/reference/cli/commands/aspire-publish/) to generate deployment artifacts:
+
+```bash title="Publish the AppHost"
+aspire publish --apphost ./MyApp.AppHost/MyApp.AppHost.csproj
+```
 
 ## `aspire add` finds no packages with an Azure Artifacts feed
 

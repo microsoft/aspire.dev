@@ -156,7 +156,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddAzureStorage("storage");
 var blobs = storage.AddBlobs("blobs");
 
-builder.AddProject<Projects.WebApp>("webapp")
+builder.AddDotnetProject("webapp", "../WebApp/WebApp.csproj")
        .WithReference(blobs);
 
 // After adding all resources, run the app...
@@ -175,6 +175,32 @@ await builder.addNodeApp("webapp", "./webapp", "index.js")
     .withReference(blobs);
 
 // After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	storage := builder.AddAzureStorage("storage")
+	blobs := storage.AddBlobs("blobs")
+
+	webapp := builder.AddNodeApp("webapp", "./webapp", "index.js")
+	webapp.WithReference(blobs)
+
+	// After adding all resources, run the app...
+}
 ```
 </TabItem>
 </Tabs>
@@ -364,5 +390,6 @@ Enable detailed logging:
 
 - [Azure integrations overview](/integrations/cloud/azure/overview/)
 - [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Microsoft Entra ID integration](/integrations/security/microsoft-entra-id/)
 - [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
 - [`aspire resource` command reference](/reference/cli/commands/aspire-resource/)

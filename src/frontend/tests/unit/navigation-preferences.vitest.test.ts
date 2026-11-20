@@ -2,14 +2,22 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { expect, test, vi } from 'vitest';
 
+const script = readFileSync(
+  new URL('../../src/scripts/apphost-preferences.inline.js', import.meta.url),
+  'utf8'
+);
 const head = readFileSync(
   new URL('../../src/components/starlight/Head.astro', import.meta.url),
   'utf8'
 );
-const script = [...head.matchAll(/<script is:inline>([\s\S]*?)<\/script>/g)].find((match) =>
-  match[1].includes('var appHostLangLabels')
-)?.[1];
-if (!script) throw new Error('Navigation preference initializer not found.');
+
+test('Head loads the preference initializer as a blocking external script', () => {
+  expect(head).toContain(
+    "import appHostPreferencesScriptUrl from '@scripts/apphost-preferences.inline.js?url';"
+  );
+  expect(head).toContain('<script is:inline src={appHostPreferencesScriptUrl}></script>');
+  expect(head).not.toContain('var appHostLangLabels');
+});
 
 function root() {
   const attributes = new Map<string, string>();
@@ -54,6 +62,7 @@ test('restores destination preferences before sidebar initialization without dup
 
   for (const [path, language, apiCollapsed, topicCollapsed] of [
     ['/reference/api/typescript/', 'csharp', true, false],
+    ['/reference/api/go/', 'csharp', true, false],
     ['/get-started/app-host/?aspire-lang=typescript', 'typescript', false, true],
     ['/reference/api/csharp/', 'typescript', true, false],
   ] as const) {

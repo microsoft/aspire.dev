@@ -438,6 +438,44 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure API Management',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-get-started',
+                },
+                {
+                  label: 'APIs and operations',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-apis',
+                },
+                {
+                  label: 'OpenAPI import',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-openapi',
+                },
+                {
+                  label: 'Backends and pools',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-backends',
+                },
+                {
+                  label: 'Policies and named values',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-policies',
+                },
+                {
+                  label: 'Products and subscriptions',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-products',
+                },
+                {
+                  label: 'Service configuration',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-service',
+                },
+                {
+                  label: 'Networking',
+                  slug: 'integrations/cloud/azure/azure-api-management/azure-api-management-networking',
+                },
+              ],
+            },
+            {
               label: 'Azure App Configuration',
               collapsed: true,
               items: [
@@ -1478,9 +1516,13 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'Set up C# apps by path in the AppHost',
               slug: 'integrations/frameworks/dotnet/dotnet-host',
             },
-            { label: 'Project resources', slug: 'integrations/dotnet/project-resources' },
             { label: 'C# file-based apps', slug: 'integrations/dotnet/csharp-file-based-apps' },
             { label: 'Launch profiles', slug: 'integrations/dotnet/launch-profiles' },
+            {
+              label: 'Migrate to DotnetProjectResource',
+              slug: 'integrations/dotnet/migrate-dotnet-project-resource',
+            },
+            { label: 'Legacy project resources', slug: 'integrations/dotnet/project-resources' },
             { label: '.NET tool resources', slug: 'integrations/dotnet/dotnet-tool-resources' },
             {
               label: 'Blazor',
@@ -1889,6 +1931,48 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         { label: 'Keycloak', slug: 'integrations/security/keycloak' },
+        {
+          label: 'Microsoft Entra ID',
+          collapsed: true,
+          items: [
+            {
+              label: 'Overview',
+              slug: 'integrations/security/microsoft-entra-id',
+            },
+            {
+              label: 'Secure a web app and API',
+              slug: 'integrations/security/microsoft-entra-id/secure-web-and-api',
+            },
+            {
+              label: 'Redirect URIs and sign-in',
+              slug: 'integrations/security/microsoft-entra-id/redirect-uris-and-sign-in',
+            },
+            {
+              label: 'Client credentials',
+              slug: 'integrations/security/microsoft-entra-id/client-credentials',
+            },
+            {
+              label: 'Expose and call APIs',
+              slug: 'integrations/security/microsoft-entra-id/expose-and-call-apis',
+            },
+            {
+              label: 'Application roles',
+              slug: 'integrations/security/microsoft-entra-id/app-roles',
+            },
+            {
+              label: 'Existing registrations',
+              slug: 'integrations/security/microsoft-entra-id/existing-registrations',
+            },
+            {
+              label: 'Customize infrastructure',
+              slug: 'integrations/security/microsoft-entra-id/customize-infrastructure',
+            },
+            {
+              label: 'Lifecycle and permissions',
+              slug: 'integrations/security/microsoft-entra-id/lifecycle-and-permissions',
+            },
+          ],
+        },
         {
           label: 'Logto',
           collapsed: true,

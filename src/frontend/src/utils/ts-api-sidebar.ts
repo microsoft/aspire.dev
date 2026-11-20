@@ -3,6 +3,30 @@
 /* ------------------------------------------------------------------ */
 
 import { tsModuleSlug, getTsModules } from './ts-modules';
+import { getTsItemSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems, type TsApiDocumentRouteLike } from './ts-api-routes';
+import type { CompactSidebarNode } from './api-sidebar';
+
+/**
+ * Serialize a module's full catalog (grouped like the module overview) for the
+ * client-side loader. Hrefs are relative to the module root.
+ * Emitted once per module by `[module]/sidebar.json.ts`.
+ */
+export function buildCompactTsModuleSidebarTree(doc: TsApiDocumentRouteLike): CompactSidebarNode[] {
+  const all = getTsTopLevelRouteItems(doc);
+  const group = (label: string, items: TsApiDocumentRouteLike['functions']): CompactSidebarNode[] => {
+    const nodes = (items ?? [])
+      .map((item): CompactSidebarNode => [item.name, `${getTsItemSlug(item, all)}/`])
+      .filter(([, href]) => href !== '/')
+      .sort(([a], [b]) => a.localeCompare(b));
+    return nodes.length > 0 ? [[label, nodes]] : [];
+  };
+  return [
+    ['Overview', ''],
+    ...group('Types', [...(doc.handleTypes ?? []), ...(doc.dtoTypes ?? [])]),
+    ...group('Functions', getTsStandaloneFunctions(doc)),
+    ...group('Enums', doc.enumTypes),
+  ];
+}
 
 interface SidebarLinkItem {
   label: string;
@@ -51,8 +75,8 @@ function buildModuleSidebarEntry(options: TsApiSidebarOptions): SidebarGroupItem
     currentItems = pageItems;
   }
 
-  // The catalog lives on the module overview; other pages link to it rather
-  // than embedding its full tree again. Section links reuse the page's headings.
+  // Each page renders only this spine; the full catalog is emitted once per module
+  // (\[module]/sidebar.json\) and swapped in on the client. Section links reuse the page's headings.
   currentItems.push(...options.headings.map(({ slug, text }) => ({
     label: text,
     link: `${currentPath}#${slug}`,

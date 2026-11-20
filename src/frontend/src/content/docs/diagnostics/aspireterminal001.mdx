@@ -1,6 +1,6 @@
 ---
 title: Compiler Warning ASPIRETERMINAL001
-seoTitle: 'ASPIRETERMINAL001: Terminal configuration types and members'
+seoTitle: 'ASPIRETERMINAL001: Experimental terminal types and members'
 description: Learn what causes the Aspire compiler warning ASPIRETERMINAL001 and how to fix it so your AppHost builds cleanly.
 ---
 
@@ -14,16 +14,11 @@ import ApiReference from '@components/ApiReference.astro';
   class:list={'mb-1'}
 />
 
-> Terminal configuration types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+> Terminal types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-This diagnostic warning is reported when using experimental terminal configuration APIs in Aspire, including:
+This diagnostic warning is reported when using experimental terminal APIs in Aspire, including AppHost-owned terminals, terminal interactions, and terminal automation. These include `TerminalService`, `AspireTerminal`, `TerminalLaunchOptions`, `TerminalPlacement`, `TerminalOwner`, `AspireTerminalKey`, `PromptTerminalAsync`, `TerminalInteractionOptions`, and `TerminalContext`.
 
-- <ApiReference name="Aspire.Hosting.TerminalResourceBuilderExtensions.WithTerminal" /> extension method
-- `TerminalOptions`
-
-In Aspire 13.6 preview, the same diagnostic also covers AppHost-owned terminals and terminal interactions, including `TerminalService`, `AspireTerminal`, `TerminalLaunchOptions`, `TerminalPlacement`, `AspireTerminalKey`, `PromptTerminalAsync`, `TerminalInteractionOptions`, and `TerminalContext`.
-
-`WithTerminal` opts a resource into a per-replica interactive terminal session that's attachable from the Aspire CLI and dashboard.
+Starting with Aspire 17.0, <ApiReference name="Aspire.Hosting.TerminalResourceBuilderExtensions.WithTerminal" /> and `TerminalOptions` are no longer experimental and don't report this diagnostic.
 
 ## Example
 
@@ -32,8 +27,11 @@ The following code generates `ASPIRETERMINAL001`:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddContainer("cache", "redis")
-    .WithTerminal();
+var options = new TerminalLaunchOptions
+{
+    Title = "Local shell",
+    Executable = "/bin/sh"
+};
 
 builder.Build().Run();
 ```

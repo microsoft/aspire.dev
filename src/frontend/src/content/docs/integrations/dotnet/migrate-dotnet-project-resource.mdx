@@ -1,0 +1,286 @@
+---
+title: Migrate to the new DotnetProjectResource
+description: Migrate from AddProject, AddCSharpApp, and Aspire.AppHost.Sdk to AddDotnetProject in Aspire 17, including project paths, launch options, resource types, and builds.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import ApiReference from '@components/ApiReference.astro';
+
+Starting in Aspire 17, use <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.AddDotnetProject" /> from `Aspire.Hosting.Dotnet` to add .NET projects and C# file-based apps to your AppHost. It replaces `AddProject` and `AddCSharpApp`, which are obsolete. In a TypeScript AppHost, use `addDotnetProject` instead of `addProject` or `addCSharpApp`.
+
+The new API creates a `DotnetProjectResource`, also known as **project resource v2**. This guide applies to Aspire 17.0 and later, and explains how to migrate existing resources without losing their configuration. It also covers [removing the obsolete AppHost SDK](#remove-the-obsolete-apphost-sdk) from C# AppHosts.
+
+## Migrate with an agent skill
+
+The [Aspire project migration skill](https://github.com/microsoft/aspire-skills/tree/main/skills/aspire-project-v2-migration), named `aspire-project-v2-migration`, can assess an existing C# or TypeScript AppHost and propose resource-by-resource edits. It requires approval of the exact changes before applying them and retains unsupported or ambiguous patterns for review.
+
+Follow [Aspire skills](/get-started/aspire-skills/) to install the skill for your agent host. Ask the agent to assess the AppHost, resolve its Aspire version and project paths, and identify any behavior that can't be preserved before approving edits. The skill doesn't upgrade Aspire for you, and its compatibility checks can be more restrictive than the current API.
+
+## Why migrate?
+
+The original project resource uses a project-specific launch model. In C# AppHosts, its generic API also depends on MSBuild project references and generated `Projects.*` metadata. The new resource uses the executable-based model used to launch applications across Aspire's hosting integrations.
+
+This change gives you:
+
+- **Consistent registration across AppHost languages**: C#, TypeScript, and Go AppHosts add services by path. A project-based C# AppHost can use the same API as a file-based AppHost.
+- **Fewer orchestration-only project references**: You can register a service without adding it as a build dependency of the AppHost or generating a metadata type for it.
+- **Coordinated builds**: Aspire builds services before launching them. Compatible projects share restore and build groups, while file-based apps have coordinated direct builds. Build diagnostics are available before a dependent IDE launch.
+- **One entry point for .NET apps**: The same API accepts SDK-style C#, F#, and Visual Basic projects, as well as C# file-based apps. Resources created with it also support .NET SDK container publishing.
+
+Legacy calls remain available and keep their implementation. Migrating selects the new resource model; suppressing an obsolete warning doesn't migrate the resource.
+
+:::caution[Check workflows before migrating]
+Coordinated builds, the Rebuild command, and IDE debugging don't imply watch support. The new service/AppHost watcher and `aspire run --watch` integration aren't yet implemented for this resource model. If your workflow depends on watch, keep the affected resources on the legacy model until that workflow is supported.
+:::
+
+## Add the .NET hosting integration
+
+Upgrade your AppHost to Aspire 17.0 before following this guide. Updating the CLI alone doesn't update the AppHost's packages. See [Upgrade Aspire](/whats-new/upgrade-aspire/).
+
+From the AppHost directory, add the integration:
+
+```bash title="Add the .NET hosting integration"
+aspire add Aspire.Hosting.Dotnet
+```
+
+Keep the integrations used by the rest of your app. Replacing a resource doesn't require changing the AppHost's file format. Removing the obsolete `Aspire.AppHost.Sdk` is a separate step that you can do before or after migrating resources; see [Remove the obsolete AppHost SDK](#remove-the-obsolete-apphost-sdk).
+
+For TypeScript and Go AppHosts, use the normal [integration acquisition and SDK generation workflow](/reference/cli/commands/aspire-add/). Don't edit generated `.aspire/modules/` files.
+
+## Replace resource registrations
+
+Keep each resource's name and supported configuration, including references, dependencies, health checks, endpoints, environment variables, and application arguments.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+In an existing AppHost, replace:
+
+```typescript title="apphost.mts — before"
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withExternalHttpEndpoints();
+```
+
+Use the .NET integration's path-based API:
+
+```typescript twoslash title="apphost.mts — after"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
+await api.withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+The same replacement applies to `addCSharpApp`. Keep the existing `.cs`, project-file, or directory path after checking that it resolves to the intended app.
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+In an existing AppHost, replace:
+
+```csharp title="AppHost.cs — before"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+```
+
+Find the actual project path in the AppHost's `ProjectReference` or generated metadata, then pass that path:
+
+```csharp title="AppHost.cs — after"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+Don't derive a path from the generated type name: `AspireProjectMetadataTypeName` can override that name. There is no generic `AddDotnetProject<TProject>` overload.
+
+For path-based `AddProject` and `AddCSharpApp` calls, keep the existing path after checking that it resolves to the intended app. If you use named arguments, change `projectPath:` to `path:`.
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+Go AppHosts already use the path-based API. The equivalent registration is:
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithExternalHttpEndpoints()
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
+</Tabs>
+
+Paths are relative to the AppHost directory unless absolute. Supported inputs are `.csproj`, `.fsproj`, `.vbproj`, and `.cs` files, or a directory containing exactly one supported project. Specify the project filename when a directory contains multiple projects. Projects must be SDK-style; F# scripts aren't supported. C# file-based apps require .NET 10 or later.
+
+<LearnMore>
+  See [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/) for
+  `.cs` app directives and file-based AppHost examples.
+</LearnMore>
+
+## Preserve launch options
+
+The replacement API doesn't take the old string launch-profile argument. C# uses a configuration callback with `ProjectResourceOptions`; TypeScript uses a flat `DotnetProjectOptions` object.
+
+| Existing configuration                           | Replacement configuration                                                            |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| C# `AddProject` with no profile argument         | Omit the configuration callback to keep default profile selection                    |
+| C# `launchProfileName: "https"`                  | `options => options.LaunchProfileName = "https"`                                     |
+| C# `launchProfileName: null`                     | `options => options.ExcludeLaunchProfile = true`                                     |
+| C# `Action<ProjectResourceOptions>` callback     | Keep supported option values in the new callback                                     |
+| TypeScript `{ launchProfileOrOptions: "https" }` | `{ launchProfileName: "https" }`                                                     |
+| TypeScript omitted or null legacy profile option | Omit the new options argument to keep default selection                              |
+| Existing exclusion of launch profiles            | Set `ExcludeLaunchProfile` in C#, or `excludeLaunchProfile` in TypeScript, to `true` |
+| Existing exclusion of Kestrel endpoint discovery | Preserve `ExcludeKestrelEndpoints` in C#, or `excludeKestrelEndpoints` in TypeScript |
+
+:::caution[An explicit null isn't always the default]
+The legacy C# string overload uses `launchProfileName: null` to disable launch profiles. Setting `LaunchProfileName` to `null` on the new options uses default selection instead. Use `ExcludeLaunchProfile = true` to preserve the old behavior.
+:::
+
+Don't nest TypeScript options under an `options` property. A legacy `ProjectResourceOptions` handle isn't a plain object; translate its known configuration rather than spreading it into the new DTO. `excludeKestrelEndpoints` only controls endpoint discovery in Aspire's model, not the service's own Kestrel configuration.
+
+See [Configure options](/integrations/frameworks/dotnet/dotnet-host/#configure-options) for current examples.
+
+## Update resource types and customizations
+
+The returned builder is `IResourceBuilder<DotnetProjectResource>`, not `IResourceBuilder<ProjectResource>` or `IResourceBuilder<CSharpAppResource>`. Update explicit local types and resource lookups associated with migrated registrations.
+
+In C#, `DotnetProjectResource` is in the `Aspire.Hosting.Dotnet` namespace. The builder extensions remain in `Aspire.Hosting`, and `IResourceBuilder<T>` is in `Aspire.Hosting.ApplicationModel`.
+
+Review helper return types, generic constraints, casts, and queries that depend on the original resource type. A method constrained to `ProjectResource` won't automatically accept the new resource. Use the capability your helper actually requires rather than broadly replacing every type constraint.
+
+Don't replace specialized APIs such as `AddAzureFunctionsProject`, `AddMauiProject`, or `AddSqlProject` with `AddDotnetProject`. Blazor gateways have a separate <ApiReference name="Aspire.Hosting.BlazorGatewayExtensions.AddDotnetProjectBlazorGateway" /> API; review the [Blazor hosting guidance](/integrations/dotnet/blazor-hosting/) before migrating a gateway or changing its publishing configuration.
+
+## Review project references and builds
+
+Remove an AppHost `ProjectReference` or file-based `#:project` directive only if it exists exclusively for migrated resources and no generated metadata consumer remains.
+
+Keep references needed for:
+
+- Code or library dependencies
+- Resources you haven't migrated
+- EF migration metadata, Blazor WebAssembly metadata, or specialized integrations
+- Testing APIs such as `DistributedApplicationTestingBuilder.CreateAsync<Projects.MyAppHost>()`
+- Build-only behavior whose purpose you haven't established
+
+Don't remove service-to-library references inside application projects. Don't set `ReferenceOutputAssembly="false"` as a substitute for checking whether an AppHost reference can be removed; that reference still participates in builds.
+
+Keep runtime `WithEnvironment` values at runtime. Use <ApiReference name="Aspire.Hosting.DotnetProjectHostingExtensions.WithBuildEnvironment" /> only for an intentional build-time setting on a supported project. File-based `.cs` apps don't support build-only environment variables. Review [IDE build and debugging behavior](/integrations/frameworks/dotnet/dotnet-host/#launch-from-an-ide) if you customize builds.
+
+## Remove the obsolete AppHost SDK
+
+In Aspire 17, the `Aspire.AppHost.Sdk` used by C# AppHosts is also obsolete and reports warning [ASPIRE012](/diagnostics/aspire012/). It still works, so you can remove it and migrate resources in either order. Running `aspire update` doesn't remove the SDK.
+
+C# AppHosts now use the standard `Microsoft.NET.Sdk` with two explicit packages: `Aspire.Hosting.AppHost` supplies the AppHost build targets, and `Aspire.Hosting.Dotnet` supplies `AddDotnetProject`. The dashboard and developer control plane (DCP) come from the [Aspire CLI bundle](/get-started/aspire-sdk/#use-the-aspire-cli-bundle-for-orchestration-dependencies), which C# AppHosts require.
+
+<Tabs syncKey='sdk'>
+<TabItem label='Project file'>
+
+Replace the SDK in the AppHost project file and add the packages:
+
+```xml title="MyApp.AppHost.csproj — before"
+<Project Sdk="Aspire.AppHost.Sdk/%ASPIRE_VERSION%">
+```
+
+```xml title="MyApp.AppHost.csproj — after"
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Keep your existing properties, such as UserSecretsId -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="%ASPIRE_VERSION%" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" Version="%ASPIRE_VERSION%" />
+  </ItemGroup>
+
+</Project>
+```
+
+If the project uses a nested `<Sdk Name="Aspire.AppHost.Sdk" ... />` element instead, remove that element. If you use Central Package Management, omit the `Version` attributes and add matching `PackageVersion` items to `Directory.Packages.props`; otherwise restore reports `NU1008`.
+
+</TabItem>
+<TabItem label='File-based app'>
+
+Replace the SDK directive with package directives:
+
+```csharp title="apphost.cs — before"
+#:sdk Aspire.AppHost.Sdk@%ASPIRE_VERSION%
+```
+
+```csharp title="apphost.cs — after"
+#:package Aspire.Hosting.AppHost@%ASPIRE_VERSION%
+#:package Aspire.Hosting.Dotnet@%ASPIRE_VERSION%
+```
+
+Keep your other directives, run configuration, and user secrets.
+
+</TabItem>
+</Tabs>
+
+The SDK automatically turned every AppHost `ProjectReference` into a resource reference that generated `Projects.*` metadata. `Microsoft.NET.Sdk` doesn't, so check each reference after switching:
+
+- **Migrated to `AddDotnetProject`**: Remove the reference unless something else needs it. See [Review project references and builds](#review-project-references-and-builds).
+- **Still using `AddProject` or another API that needs `Projects.*` metadata**: Mark the reference explicitly. Without these attributes, the generated type is missing and the build reports `CS0234`.
+
+  ```xml title="MyApp.AppHost.csproj"
+  <ProjectReference Include="..\MyService\MyService.csproj"
+                    IsAspireProjectResource="true"
+                    ReferenceOutputAssembly="false" />
+  ```
+
+- **Shared library**: Keep it as an ordinary `ProjectReference`.
+
+If you need more time, suppress the warning temporarily by setting `SuppressAspireAppHostSdkObsoleteWarning` to `true` or adding `ASPIRE012` to `NoWarn`. Suppressing `ASPIRE012` doesn't suppress the `CS0618` warnings for legacy resource APIs.
+
+## Verify publishing and runtime behavior
+
+Resources added through `AddDotnetProject` are configured for .NET SDK container publishing automatically. You don't need to retain an obsolete API just to publish a project.
+
+Preserve supported container settings and publisher customizations. Review custom publishers, image managers, and code that directly constructs resource types separately; the resource's type alone doesn't configure the publishing pipeline.
+
+For file-based apps, publishing preserves the SDK's defaults, including Native AOT. Native AOT can't cross-compile between operating systems. If you publish a Linux container from Windows or macOS, choose whether to publish on the target operating system or intentionally change the app's publishing settings. See [Publishing](/integrations/frameworks/dotnet/dotnet-host/#publishing).
+
+After migrating, compare resource names, startup behavior, selected launch profiles, environment variables, endpoints, references, health checks, and any deployment artifacts with the original app. Check IDE debugging and build customizations if you use them. A successful local run alone doesn't verify publishing.
+
+## Remove obsolete suppressions
+
+In Aspire 17, retained `AddProject` and `AddCSharpApp` calls report `CS0618`. If warnings are errors, a retained legacy call can still prevent your AppHost from building.
+
+After migrating, remove suppressions for `ASPIRECSHARPAPPS001` that are no longer needed. `AddDotnetProject` and `DotnetProjectResource` don't require `ASPIREDOTNETPROJECT001` suppressions. Other APIs used by your app can still have their own experimental diagnostics; don't remove those suppressions without checking their callers.
+
+## See also
+
+- [.NET hosting reference](/integrations/frameworks/dotnet/dotnet-host/)
+- [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/)
+- [Upgrade Aspire](/whats-new/upgrade-aspire/)
+- [Aspire 17 breaking changes](/whats-new/aspire-17/#breaking-changes)

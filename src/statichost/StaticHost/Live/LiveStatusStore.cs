@@ -91,7 +91,7 @@ internal sealed class RedisLiveStatusStore(
                             RedisChannel.Literal(LiveStatusRedisKeys.UpdatesChannel),
                             nextPayload).ConfigureAwait(false);
                     }
-                    catch (RedisException exception)
+                    catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
                     {
                         logger.LogWarning(
                             exception,

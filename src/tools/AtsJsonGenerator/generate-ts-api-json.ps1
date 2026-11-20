@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Generates TypeScript API reference JSON files by running `aspire sdk dump --format json`
+    Generates TypeScript or Go API reference JSON files by running `aspire sdk dump --format json`
     for each Aspire or Community Toolkit hosting integration that has ATS capabilities.
 
 .DESCRIPTION
@@ -12,7 +12,7 @@
     For each eligible package, this script:
     1. Runs `aspire sdk dump --format json` to generate raw ATS capabilities JSON
     2. Runs the AtsJsonGenerator tool to transform it into docs-site JSON
-    3. Outputs to src/frontend/src/data/ts-modules/
+    3. Outputs to src/frontend/src/data/ts-modules/ (src/frontend/src/data/go-modules/ with -Language go)
 
 .PARAMETER AspireRepoPath
     Path to a local microsoft/aspire repository clone. Discovers projects with
@@ -25,7 +25,8 @@
 
 .PARAMETER OutputDir
     The directory to write the generated JSON files to.
-    Defaults to <repo-root>/src/frontend/src/data/ts-modules.
+    Defaults to <repo-root>/src/frontend/src/data/ts-modules, or
+    <repo-root>/src/frontend/src/data/go-modules with -Language go.
 
 .PARAMETER PackageFilter
     Optional wildcard filter to process only specific packages (e.g. "*Redis*").
@@ -34,6 +35,10 @@
     Path to a local Aspire.Cli.csproj to use instead of the globally installed
     `aspire` CLI. Useful for testing local CLI changes. When set, the script
     invokes `dotnet run --no-launch-profile --project <path> --` instead of `aspire`.
+
+.PARAMETER Language
+    The API reference language to generate: `typescript` (the default) or `go`.
+    Each run generates one language; run the script once per language.
 
 .ENVIRONMENT_VARIABLE ASPIRE_CLI_PATH
     Path to the installed Aspire CLI executable. Used when -AspireCliProject is
@@ -49,6 +54,9 @@
 
     # Filter to specific packages
     ./generate-ts-api-json.ps1 -AspireRepoPath D:\GitHub\aspire -PackageFilter "*Redis*"
+
+    # Generate the Go API reference instead of the TypeScript one
+    ./generate-ts-api-json.ps1 -Language go
 #>
 
 [CmdletBinding()]
@@ -61,7 +69,10 @@ param(
 
     [string]$PackageFilter,
 
-    [string]$AspireCliProject
+    [string]$AspireCliProject,
+
+    [ValidateSet("typescript", "go")]
+    [string]$Language = "typescript"
 )
 
 Set-StrictMode -Version Latest
@@ -107,11 +118,14 @@ $MaxToolAttempts = 3
 $CliTimeoutSeconds = 600
 $ToolTimeoutSeconds = 300
 
+$LanguageDisplayName = if ($Language -eq "go") { "Go" } else { "TypeScript" }
+
 $FinalOutputDir = if ($OutputDir) {
     [System.IO.Path]::GetFullPath($OutputDir)
 }
 else {
-    Join-Path $RepoRoot "src\frontend\src\data\ts-modules"
+    $defaultModulesDirectory = if ($Language -eq "go") { "go-modules" } else { "ts-modules" }
+    Join-Path $RepoRoot "src\frontend\src\data\$defaultModulesDirectory"
 }
 $OutputDir = Join-Path ([System.IO.Path]::GetDirectoryName($FinalOutputDir)) (
     ".$([System.IO.Path]::GetFileName($FinalOutputDir))-staging-$([Guid]::NewGuid().ToString('N'))")
@@ -171,7 +185,7 @@ function Remove-EmptyTsModuleFile {
     )
 
     if (-not (Test-Path $OutputFile)) {
-        throw "Cannot inspect missing TypeScript module file at $OutputFile"
+        throw "Cannot inspect missing $LanguageDisplayName module file at $OutputFile"
     }
 
     $json = Get-Content $OutputFile -Raw | ConvertFrom-Json
@@ -180,7 +194,7 @@ function Remove-EmptyTsModuleFile {
     }
 
     Remove-Item $OutputFile -Force
-    Write-Host "  Omitted empty TypeScript module for $PackageName" -ForegroundColor DarkYellow
+    Write-Host "  Omitted empty $LanguageDisplayName module for $PackageName" -ForegroundColor DarkYellow
     return $true
 }
 
@@ -518,7 +532,7 @@ if (-not $AspireRepoPath -and -not $hasExplicitNuGetPackageVersion) {
     $hostingPackages = @($generatedPackageMetadata)
 
     if ($hostingPackages.Count -eq 0) {
-        Write-Error "No TypeScript SDK package JSON files found in src/frontend/src/data/pkgs"
+        Write-Error "No $LanguageDisplayName SDK package JSON files found in src/frontend/src/data/pkgs"
         return
     }
 
@@ -527,18 +541,18 @@ if (-not $AspireRepoPath -and -not $hasExplicitNuGetPackageVersion) {
         $details = $duplicatePackages | ForEach-Object {
             "$($_.Name): $((@($_.Group) | ForEach-Object { "$($_.Version) [$($_.Path)]" }) -join ', ')"
         }
-        throw "Multiple generated C# package versions prevent deterministic TypeScript API generation:`n  $($details -join "`n  ")"
+        throw "Multiple generated C# package versions prevent deterministic $LanguageDisplayName API generation:`n  $($details -join "`n  ")"
     }
 
     # Build Name@Version entries directly from the generated C# package data.
     $NuGetPackageVersion = @($hostingPackages | ForEach-Object { "$($_.Name)@$($_.Version)" })
 
     if ($NuGetPackageVersion.Count -eq 0) {
-        Write-Error "No versioned TypeScript SDK package JSON files found in $packageJsonDir"
+        Write-Error "No versioned $LanguageDisplayName SDK package JSON files found in $packageJsonDir"
         return
     }
 
-    Write-Host "  Found $($NuGetPackageVersion.Count) TypeScript SDK packages to process" -ForegroundColor DarkGray
+    Write-Host "  Found $($NuGetPackageVersion.Count) $LanguageDisplayName SDK packages to process" -ForegroundColor DarkGray
 }
 
 # ── Helpers: generate one package ──────────────────────────────────────────────
@@ -705,7 +719,8 @@ function Invoke-TsModulePackage {
             Start-Sleep -Seconds (10 * $attempt)
         }
 
-        # Step 2: Resolve canonical enum definitions for generated exports
+        # Step 2: Resolve canonical enum definitions for generated exports. Enum values are
+        # language-neutral, so the Go pass reuses the TypeScript export.
         if ($Package.ContainsKey("HasGeneratedExports") -and $Package.HasGeneratedExports) {
             $exportFile = Join-Path $workDirectory "$name.canonical.json"
             $exportArgs = @("sdk", "export", "--language", "typescript", "--package", "$name@$version", "--non-interactive", "--nologo")
@@ -738,7 +753,8 @@ function Invoke-TsModulePackage {
             $Settings.TransformerPath,
             "--input", $dumpFile,
             "--output", $outputFile,
-            "--package-name", $name
+            "--package-name", $name,
+            "--language", $Settings.Language
         )
         if ($Package.SourceRepository) {
             $transformArgs += @("--source-repo", $Package.SourceRepository)
@@ -769,6 +785,9 @@ function Invoke-TsModulePackage {
             }
             elseif ($line -match "^(Generated|Unchanged):") {
                 Write-PackageLog "  $line" Success
+            }
+            elseif ($line.StartsWith("Skipped ", [System.StringComparison]::Ordinal)) {
+                Write-PackageLog "  $line" Detail
             }
         }
         if ($dumpReportedDiagnostics -and $tolerated.Count -eq 0) {
@@ -859,7 +878,7 @@ if ($AspireRepoPath) {
         }
     }
 
-    # Only hosting packages expose ATS capabilities for the TypeScript SDK.
+    # Only hosting packages expose ATS capabilities for the polyglot SDKs.
     # Client/component packages (e.g. Aspire.Azure.Data.Tables) are not applicable.
     $hostingDirs = Get-ChildItem -Path $SrcDir -Directory -Filter "Aspire.Hosting.*" | Where-Object {
         $_.Name -notmatch "(Analyzers|CodeGeneration|RemoteHost|Tests)"
@@ -893,7 +912,7 @@ if ($AspireRepoPath) {
 }
 
 # ── Route 2: Name@Version NuGet package references ────────────────────────────
-# Only Aspire.Hosting.* packages expose ATS capabilities for the TypeScript SDK.
+# Only Aspire.Hosting.* packages expose ATS capabilities for the polyglot SDKs.
 # Client/component packages (e.g. Aspire.Azure.Data.Tables) are not applicable.
 if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
     foreach ($spec in $NuGetPackageVersion) {
@@ -944,6 +963,20 @@ foreach ($pkg in $Packages | Where-Object { $_.Name -eq "Aspire.Hosting.Radius" 
     }
 }
 
+# The generated Azure.Provisioning proxy packages (Aspire.Hosting.Azure.Provisioning.<Service>)
+# project every Azure.Provisioning type into Go: ~72 MB and tens of thousands of member pages,
+# against ~6 MB for every other package combined. The Go reference omits them; the base
+# Aspire.Hosting.Azure.Provisioning package is kept.
+if ($Language -eq "go") {
+    $omittedPackageNames = @($Packages | Where-Object {
+        $_.Name.StartsWith("Aspire.Hosting.Azure.Provisioning.", [System.StringComparison]::OrdinalIgnoreCase)
+    } | ForEach-Object { $_.Name })
+    if ($omittedPackageNames.Count -gt 0) {
+        Write-Host "Omitting $($omittedPackageNames.Count) Azure Provisioning proxy packages from the Go reference." -ForegroundColor DarkGray
+        $Packages = @($Packages | Where-Object { $omittedPackageNames -notcontains $_.Name })
+    }
+}
+
 if ($PackageFilter) {
     $Packages = @($Packages | Where-Object { $_.Name -like $PackageFilter })
 }
@@ -963,7 +996,7 @@ if (-not $AspireRepoPath) {
     $aspireCliWorkingDirectory = New-TemporaryNuGetConfigDirectory -RestoreSources $restoreSources
 
     if ($officialFeed.IsRelease) {
-        Write-Host "Release branch detected ($($officialFeed.BranchName)). TypeScript module generation will resolve official Aspire packages from $($officialFeed.DisplayName)." -ForegroundColor Cyan
+        Write-Host "Release branch detected ($($officialFeed.BranchName)). $LanguageDisplayName module generation will resolve official Aspire packages from $($officialFeed.DisplayName)." -ForegroundColor Cyan
     }
 }
 
@@ -1019,6 +1052,7 @@ $settings = @{
     CliTimeoutSeconds    = $CliTimeoutSeconds
     ToolTimeoutSeconds   = $ToolTimeoutSeconds
     Parallelism          = $Parallelism
+    Language             = $Language
 }
 
 # Core Aspire.Hosting runs first so integrations can exclude its APIs. Packages

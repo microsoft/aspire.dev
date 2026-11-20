@@ -23,11 +23,11 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
   icon: 'rocket',
   items: [
     {
-      label: 'Aspire Deployment',
+      label: 'Aspire deployment',
       translations: {
         da: 'Aspire-udrulning',
         de: 'Aspire-Bereitstellung',
-        en: 'Aspire Deployment',
+        en: 'Aspire deployment',
         es: 'Despliegue de Aspire',
         fr: 'Déploiement Aspire',
         hi: 'Aspire तैनाती',
@@ -106,6 +106,27 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           label: 'Deployment state caching',
           slug: 'deployment/deployment-state-caching',
         },
+        {
+          label: 'Detect output drift',
+          translations: {
+            da: 'Registrer afvigelser i output',
+            de: 'Abweichungen in der Ausgabe erkennen',
+            en: 'Detect output drift',
+            es: 'Detectar desviaciones en la salida',
+            fr: 'Détecter la dérive de la sortie',
+            hi: 'आउटपुट ड्रिफ्ट का पता लगाएं',
+            id: 'Deteksi penyimpangan output',
+            it: "Rileva la deriva dell'output",
+            ja: '出力のドリフトを検出',
+            ko: '출력 드리프트 감지',
+            'pt-BR': 'Detectar desvios na saída',
+            ru: 'Обнаружение расхождений в выходных данных',
+            tr: 'Çıktı sapmasını algılama',
+            uk: 'Виявлення розбіжностей у вихідних даних',
+            'zh-CN': '检测输出偏差',
+          },
+          slug: 'deployment/output-diffing',
+        },
       ],
     },
     {
@@ -125,6 +146,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
     {
       label: 'JavaScript apps',
       slug: 'deployment/javascript-apps',
+    },
+    {
+      label: 'Go apps',
+      slug: 'deployment/go-apps',
     },
     {
       label: 'Docker Compose',

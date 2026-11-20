@@ -53,6 +53,16 @@ export default [
     files: ['tests/e2e/**/*.ts'],
     ...tseslint.configs.disableTypeChecked,
   },
+  // Classic browser scripts loaded verbatim with `<script is:inline src>` (see Head.astro).
+  {
+    files: ['src/scripts/**/*.inline.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
   {
     files: ['tests/unit/**/*.ts', 'tests/typecheck/**/*.ts'],
     rules: {

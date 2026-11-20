@@ -165,3 +165,25 @@ describe('production sidebars', () => {
     expect(getCollection).not.toHaveBeenCalled();
   });
 });
+
+test('the module tree lists every item page once, grouped like the module overview', async () => {
+  const { buildCompactTsModuleSidebarTree } = await import('../../src/utils/ts-api-sidebar');
+  const tree = buildCompactTsModuleSidebarTree({
+    handleTypes: [{ name: 'VirtualNetworkProxy', fullName: 'A.VirtualNetworkProxy' }],
+    dtoTypes: [{ name: 'NetworkOptions', fullName: 'A.NetworkOptions' }],
+    enumTypes: [{ name: 'AddressPrefixType', fullName: 'A.AddressPrefixType' }],
+    functions: [
+      { name: 'addVirtualNetwork', qualifiedName: 'addVirtualNetwork', parameters: [] },
+      // Methods qualified by their handle are documented on the handle page.
+      { name: 'withProperties', qualifiedName: 'VirtualNetworkProxy.withProperties', parameters: [] },
+    ],
+  });
+
+  expect(tree).toEqual([
+    ['Overview', ''],
+    ['Types', [['NetworkOptions', 'networkoptions/'], ['VirtualNetworkProxy', 'virtualnetworkproxy/']]],
+    ['Functions', [['addVirtualNetwork', 'addvirtualnetwork/']]],
+    ['Enums', [['AddressPrefixType', 'addressprefixtype/']]],
+  ]);
+  expect(getCollection).not.toHaveBeenCalled();
+});

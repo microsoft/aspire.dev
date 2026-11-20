@@ -2,7 +2,14 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
-import { measureOutput, sampleCompression } from '../../scripts/measure-build-output.mjs';
+import {
+  checkBudget,
+  DEFAULT_DIST_SIZE_BUDGET_BYTES,
+  formatSizeReport,
+  measureOutput,
+  readBudget,
+  sampleCompression,
+} from '../../scripts/measure-build-output.mjs';
 import buildTiming from '../../config/build-timing.mjs';
 
 const directories: string[] = [];
@@ -107,8 +114,57 @@ test('CPU, timing, output inventories and diagnostic uploads are opt-in only', a
   expect(workflow).toContain("BUILD_TIMING: ${{ inputs.profile_build && '1' || '0' }}");
   expect(workflow).toMatch(/if \[\[ "\$PROFILE_BUILD" == "true" \]\]; then\n\s+mkdir -p/);
   expect(workflow).toMatch(/else\n\s+bun run build:production\n\s+fi/);
-  expect(workflow).toContain('name: Measure frontend output\n        if: ${{ inputs.profile_build }}');
   expect(workflow).toContain('name: Upload build diagnostics\n        if: ${{ always() && inputs.profile_build }}');
+});
+
+test('every build measures dist against a configurable size budget', async () => {
+  const workflow = (await readFile(new URL('../../../../.github/workflows/frontend-build.yml', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const measureStep = workflow.match(/- name: Measure frontend output\n([\s\S]*?)(?=\n {6}- name:)/)?.[1];
+  expect(measureStep).toBeDefined();
+  expect(measureStep).toContain("if: ${{ !cancelled() && hashFiles('src/frontend/dist/index.html') != '' }}");
+  expect(measureStep).toContain('DIST_SIZE_BUDGET_BYTES: ${{ vars.FRONTEND_DIST_BUDGET_BYTES }}');
+  expect(measureStep).toContain('DIST_SIZE_BUDGET_MODE: ${{ vars.FRONTEND_DIST_BUDGET_MODE }}');
+});
+
+test('size report covers HTML, top-level and API directories', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'aspire-output-report-'));
+  directories.push(directory);
+  await mkdir(join(directory, 'ja', 'get-started'), { recursive: true });
+  await mkdir(join(directory, 'reference', 'api', 'csharp'), { recursive: true });
+  await writeFile(join(directory, 'index.html'), 'a'.repeat(10));
+  await writeFile(join(directory, 'ja', 'get-started', 'index.html'), 'a'.repeat(30));
+  await writeFile(join(directory, 'reference', 'api', 'csharp', 'index.html'), 'a'.repeat(100));
+  await writeFile(join(directory, 'reference', 'api', 'csharp', 'type.md'), 'a'.repeat(5));
+  await writeFile(join(directory, 'reference', 'index.html'), 'a'.repeat(20));
+  const output = await measureOutput(directory);
+  expect(output).toMatchObject({ totalBytes: 165, htmlFiles: 4, htmlBytes: 160, medianHtmlBytes: 25 });
+  expect(output.topLevel.map(({ path, bytes }) => [path, bytes])).toEqual([
+    ['reference', 125], ['ja', 30], ['(root)', 10],
+  ]);
+  const budget = readBudget({});
+  const report = formatSizeReport(output, budget, checkBudget(output.totalBytes, budget));
+  expect(report).toContain('| HTML pages | 4 |');
+  expect(report).toContain('| Median HTML page | 25 B |');
+  expect(report).toContain('| `ja` | 30 B | 18.2% | 1 | 1 |');
+  expect(report).toContain('| `reference/api/csharp` | 105 B |');
+});
+
+test('size budget defaults to warning and can be switched to a hard failure', () => {
+  expect(readBudget({})).toEqual({ bytes: DEFAULT_DIST_SIZE_BUDGET_BYTES, mode: 'warn' });
+  expect(readBudget({ DIST_SIZE_BUDGET_BYTES: '', DIST_SIZE_BUDGET_MODE: '' }).mode).toBe('warn');
+  const warnings: string[] = [];
+  const collect = (message: string) => warnings.push(message);
+  expect(readBudget({ DIST_SIZE_BUDGET_BYTES: '10GB' }, collect)).toEqual({ bytes: DEFAULT_DIST_SIZE_BUDGET_BYTES, mode: 'warn' });
+  expect(readBudget({ DIST_SIZE_BUDGET_MODE: 'fail' }, collect).mode).toBe('warn');
+  expect(warnings).toEqual([expect.stringMatching(/positive integer/), expect.stringMatching(/'warn' or 'error'/)]);
+
+  expect(checkBudget(100, { bytes: 100, mode: 'warn' })).toMatchObject({ exceeded: false, fail: false, annotation: undefined });
+  const warn = checkBudget(101, { bytes: 100, mode: 'warn' });
+  expect(warn).toMatchObject({ exceeded: true, fail: false });
+  expect(warn.annotation).toMatch(/^::warning title=Frontend dist size budget::/);
+  const error = checkBudget(101, readBudget({ DIST_SIZE_BUDGET_BYTES: '100', DIST_SIZE_BUDGET_MODE: 'error' }));
+  expect(error).toMatchObject({ exceeded: true, fail: true });
+  expect(error.annotation).toMatch(/^::error /);
 });
 
 test('Astro build source does not receive workflow credentials', async () => {

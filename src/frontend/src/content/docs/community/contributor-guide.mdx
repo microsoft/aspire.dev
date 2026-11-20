@@ -278,7 +278,13 @@ og: false
 ---
 ```
 
+Generated image URLs and site-relative `ogImage` overrides use the `site` URL in `astro.config.mjs`. An absolute `ogImage` URL is used unchanged.
+
 Pages that intentionally have no description (such as the home page or splash landing pages) fall back to the site-wide marketing description. Translated pages reuse the site-wide `og-image.png` so the same imagery is shown across locales.
+
+The [support policy page](/support/) uses a data-driven card instead of the generic one. Its `ogImage` frontmatter points at `/og/support.png`, which `src/pages/og/support.png.ts` renders at build time from the tables on the page. The card shows the supported version, its latest patch, when support ends, the newest out-of-support version, and the "Last updated" date. Because the card reads `support.mdx` directly, there is no second copy of the dates to update.
+
+Keep the "Supported versions" and "Out of support versions" headings, the table column names, and the "Last updated: Month D, YYYY" badge recognizable. `parseSupportLifecycle` in `src/utils/support-lifecycle.ts` matches on them, and `tests/unit/support-lifecycle.vitest.test.ts` fails if the page stops parsing.
 
 ### Headings
 
@@ -386,7 +392,7 @@ Use triple backticks with a language identifier for syntax highlighting:
 ````md title="src/content/docs/example.md"
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
-builder.AddProject<Projects.ApiService>("apiservice");
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 ```
 ````
 
@@ -394,7 +400,7 @@ Renders as:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
-builder.AddProject<Projects.ApiService>("apiservice");
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 ```
 
 To add a title to a code block, use this syntax:
@@ -402,7 +408,7 @@ To add a title to a code block, use this syntax:
 ````md title="src/content/docs/example.md"
 ```csharp title="Program.cs"
 var builder = DistributedApplication.CreateBuilder(args);
-builder.AddProject<Projects.ApiService>("apiservice");
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 ```
 ````
 
@@ -410,7 +416,7 @@ Renders as:
 
 ```csharp title="Program.cs"
 var builder = DistributedApplication.CreateBuilder(args);
-builder.AddProject<Projects.ApiService>("apiservice");
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 ```
 
 ### Blockquotes
@@ -546,7 +552,11 @@ The `aspire.dev` site supports several Markdown extensions to enhance your docum
 
 ### Mermaid diagrams
 
-You can write mermaid diagrams as code blocks:
+You can write Mermaid diagrams as code blocks. Pele renders these diagrams to SVG during page generation, and their colors follow the selected site theme without browser-side re-rendering. Architecture diagrams support the `logos`, `iconoir`, and custom `aspire` icon packs.
+
+Use technology-specific icons for named resources, such as `logos:redis`, `logos:postgresql`, or `logos:rabbitmq-icon`. Use role icons for language-neutral concepts: `iconoir:network` for AppHost, `iconoir:puzzle` for hosting integrations, `iconoir:server-connection` for client integrations, and `iconoir:code` for applications. Keep built-in icons such as `server` and `database` for unspecified infrastructure or technologies without a suitable bundled logo.
+
+Reuse existing product artwork from `src/assets/icons/` through the local `aspire` pack when the `logos` pack has no suitable logo, such as `aspire:microsoft-foundry` or `aspire:azure-key-vault`. The renderer embeds these assets and preserves their aspect ratios, including light and dark variants where available. Choose conceptual icons by meaning: `iconoir:sparks` for AI models and deployments, `iconoir:key` for secrets, and `iconoir:folder` for workspaces. Use current product names in labels without changing API or package identifiers.
 
 ````md title="src/content/docs/example.md"
 ```mermaid
@@ -802,7 +812,7 @@ const builder = await createBuilder();
 
 const cache = await builder.addRedis("cache");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 
 await builder.build().run();
@@ -816,7 +826,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache);
 
 builder.Build().Run();

@@ -38,7 +38,7 @@ internal sealed class LiveStatusSynchronizer(
                     subscribed = true;
                     break;
                 }
-                catch (RedisException exception)
+                catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
                 {
                     logger.LogWarning(
                         exception,
@@ -95,7 +95,7 @@ internal sealed class LiveStatusSynchronizer(
                 {
                     await subscriber.UnsubscribeAsync(redisChannel, handler).ConfigureAwait(false);
                 }
-                catch (RedisException exception)
+                catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
                 {
                     logger.LogDebug(exception, "Could not unsubscribe from Redis during shutdown.");
                 }
@@ -138,7 +138,7 @@ internal sealed class LiveStatusSynchronizer(
         {
             state = await store.GetAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (RedisException exception)
+        catch (Exception exception) when (exception is RedisException or RedisTimeoutException)
         {
             logger.LogWarning(
                 exception,
