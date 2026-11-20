@@ -42,7 +42,7 @@ test('type pages server-render a small spine and load the package tree once per 
   expect(ssrSidebar).toContain(`href="${typePath}properties/"`);
   expect(ssrSidebar).not.toContain(`href="${packagePath}kubernetesresource/"`);
   const treeSrc = html.match(/data-api-sidebar-tree="([^"]+)"/)?.[1];
-  expect(treeSrc).toMatch(new RegExp(`^${packagePath.replace(/\./g, '\\.')}sidebar\\.json\\?v=[\\w-]+$`));
+  expect(treeSrc).toMatch(new RegExp(`^${packagePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}sidebar\\.json\\?v=[\\w-]+$`));
 
   const treeResponse = await request.get(treeSrc!);
   expect(treeResponse.ok()).toBe(true);
