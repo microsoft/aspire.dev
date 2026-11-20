@@ -270,6 +270,24 @@ public sealed class SiteFileTests
         Assert.Equal(expected, response.Headers.NonValidated["Cache-Control"].ToString());
     }
 
+    [Theory]
+    [InlineData("/reference/api/csharp/pkg/sidebar.json?v=abc123", SiteFileMiddleware.ImmutableCacheControl)]
+    [InlineData("/locale-fallback/de.json?v=0123456789ab", SiteFileMiddleware.ImmutableCacheControl)]
+    [InlineData("/reference/api/csharp/pkg/sidebar.json", SiteFileMiddleware.DefaultCacheControl)]
+    [InlineData("/reference/api/csharp/pkg/sidebar.json?v=", SiteFileMiddleware.DefaultCacheControl)]
+    [InlineData("/reference/api/csharp/pkg/sidebar.json?version=abc123", SiteFileMiddleware.DefaultCacheControl)]
+    [InlineData("/docs/page/index.html?v=abc123", SiteFileMiddleware.DefaultCacheControl)]
+    public async Task Versioned_json_is_immutable(string url, string expected)
+    {
+        var path = url.Split('?')[0];
+        await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile(path, "{}"));
+
+        using var response = await server.Client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expected, response.Headers.NonValidated["Cache-Control"].ToString());
+    }
+
     [Fact]
     public async Task Markdown_is_served_as_text_markdown()
     {

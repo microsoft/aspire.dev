@@ -47,6 +47,8 @@ internal sealed class SiteFileMiddleware
 
     private static readonly PathString s_immutablePrefix = "/_astro";
 
+    private const string VersionQueryParameter = "v";
+
     private readonly RequestDelegate _next;
     private readonly IFileProvider _fileProvider;
     private readonly SiteFileETags _etags;
@@ -115,7 +117,7 @@ internal sealed class SiteFileMiddleware
         var requestHeaders = request.GetTypedHeaders();
 
         var headers = response.Headers;
-        headers.CacheControl = GetCacheControl(request.Path, contentType);
+        headers.CacheControl = GetCacheControl(request.Path, request.Query, contentType);
         headers.ETag = etag;
         headers.LastModified = HeaderUtilities.FormatDate(lastModified);
         if (hasCompressed)
@@ -170,9 +172,18 @@ internal sealed class SiteFileMiddleware
         await response.SendFileAsync(served, offset, count, context.RequestAborted);
     }
 
-    internal static string GetCacheControl(PathString path, string contentType)
+    internal static string GetCacheControl(PathString path, IQueryCollection query, string contentType)
     {
         if (path.StartsWithSegments(s_immutablePrefix, StringComparison.Ordinal))
+        {
+            return ImmutableCacheControl;
+        }
+
+        // The site requests its JSON data (sidebar.json, locale fallback dictionaries) with a
+        // content hash in ?v=, so a new version gets a new URL. Limited to JSON so a page link
+        // that happens to carry ?v= is never cached as immutable.
+        if (contentType.StartsWith("application/json", StringComparison.Ordinal)
+            && !string.IsNullOrEmpty(query[VersionQueryParameter]))
         {
             return ImmutableCacheControl;
         }
