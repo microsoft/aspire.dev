@@ -1639,8 +1639,8 @@ describe('custom Astro component render coverage', () => {
 
     // The primary "View on GitHub" CTA in the hero uses the Starlight `github`
     // icon on the left of the label and no longer ships the external-link
-    // icon on the right. Match the unique github SVG path fragment.
-    const githubIconPath = 'M12 .3a12 12 0 0 0-3.8 23.38';
+    // icon on the right. Match its reference into the shared icon sprite.
+    const githubIconPath = '.sprite.svg#i-github';
     expect(html).toContain(githubIconPath);
     const primaryCtaStart = html.search(/class="sample-action primary\b/);
     const primaryCtaEnd = html.indexOf('</a>', primaryCtaStart);
@@ -2032,17 +2032,22 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain('aria-haspopup="dialog"');
   });
 
-  it('renders OsAwareTabs activation logic without anchor-only tab assumptions', async () => {
+  it('renders OsAwareTabs as a marker for the shared activation module', async () => {
     const html = normalizeHtml(
       await renderComponent(OsAwareTabs, {
         props: { syncKey: 'terminal' },
         slots: { unix: 'echo unix', windows: 'Write-Host windows' },
       })
     );
-    const inlineScript = html.split('<script>').at(-1) ?? '';
+    const activation = await readFile(
+      new URL('../../src/scripts/os-aware-tabs.ts', import.meta.url),
+      'utf8'
+    );
 
-    expect(inlineScript).toContain('tab.textContent?.trim() === label');
-    expect(inlineScript).not.toContain('HTMLAnchorElement');
+    expect(html).toContain('data-os-aware-tabs-sync-key="terminal"');
+    expect(html).not.toContain('const syncKey = "terminal"');
+    expect(activation).toContain('tab.textContent?.trim() === label');
+    expect(activation).not.toContain('HTMLAnchorElement');
   });
 
   it('renders SiteTour bootstrap data with translated copy', async () => {
