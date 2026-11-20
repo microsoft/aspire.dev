@@ -1,5 +1,5 @@
 diff --git a/components/Search.astro b/components/Search.astro
-index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..0a35ace9530404d2469ae11ed87688766d75e8bd 100644
+index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..90895db5f455ccebbbef855894a74d0c62d9e0a1 100644
 --- a/components/Search.astro
 +++ b/components/Search.astro
 @@ -59,7 +59,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
@@ -51,13 +51,17 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..0a35ace9530404d2469ae11ed8768876
  
  			// Listen for `ctrl + k` and `cmd + k` keyboard shortcuts.
  			window.addEventListener('keydown', (e) => {
-@@ -121,7 +126,16 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+@@ -121,41 +126,91 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
  					dialog.open ? closeModal() : openModal();
  					e.preventDefault();
  				}
 -			});
 +			}, { signal });
-+
+ 
+-			let translations = {};
+-			try {
+-				translations = JSON.parse(this.dataset.translations || '{}');
+-			} catch {}
 +			this.cleanup = () => {
 +				controller.abort();
 +				if (dialog.open) {
@@ -66,10 +70,26 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..0a35ace9530404d2469ae11ed8768876
 +				}
 +				pagefindUI?.destroy();
 +			};
++
++			// Read when Pagefind initializes: the page can localize `data-translations` first.
++			const readTranslations = () => {
++				try {
++					return JSON.parse(this.dataset.translations || '{}');
++				} catch {
++					return {};
++				}
++			};
++			// The page sets `data-translations-pending` while it localizes them, then
++			// removes it and dispatches `translationsready`.
++			const translationsReady = () =>
++				this.hasAttribute('data-translations-pending')
++					? new Promise<void>((resolve) => {
++							this.addEventListener('translationsready', () => resolve(), { once: true, signal });
++							signal.addEventListener('abort', () => resolve(), { once: true });
++						})
++					: Promise.resolve();
  
- 			let translations = {};
- 			try {
-@@ -132,15 +146,18 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 			const shouldStrip = this.dataset.stripTrailingSlash !== undefined;
  			const stripTrailingSlash = (path: string) => path.replace(/(.)\/(#.*)?$/, '$1$2');
  			const formatURL = shouldStrip ? stripTrailingSlash : (path: string) => path;
  
@@ -82,19 +102,53 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..0a35ace9530404d2469ae11ed8768876
  					// @ts-expect-error — Missing types for @pagefind/default-ui package.
  					const { PagefindUI } = await import('@pagefind/default-ui');
 -					new PagefindUI({
+-						...pagefindUserConfig,
+-						element: '#starlight__search',
+-						baseUrl: import.meta.env.BASE_URL,
+-						bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
+-						showImages: false,
+-						translations,
+-						showSubResults: true,
+-						processResult: (result: { url: string; sub_results: Array<{ url: string }> }) => {
+-							result.url = formatURL(result.url);
+-							result.sub_results = result.sub_results.map((sub_result) => {
+-								sub_result.url = formatURL(sub_result.url);
+-								return sub_result;
+-							});
+-						},
+-					});
++					await translationsReady();
 +					// Navigation can detach this instance while the module is loading.
 +					if (signal.aborted) return;
-+					pagefindUI = new PagefindUI({
- 						...pagefindUserConfig,
--						element: '#starlight__search',
-+						element: this.querySelector('#starlight__search'),
- 						baseUrl: import.meta.env.BASE_URL,
- 						bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
- 						showImages: false,
-@@ -154,8 +171,19 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
- 							});
- 						},
- 					});
++					// Pagefind picks its built-in UI strings from `<html lang>` while mounting and its
++					// search index later, on first use. `data-ui-lang` localizes the UI only.
++					const root = document.documentElement;
++					const pageLang = root.getAttribute('lang');
++					const uiLang = this.dataset.uiLang;
++					if (uiLang) root.setAttribute('lang', uiLang);
++					try {
++						pagefindUI = new PagefindUI({
++							...pagefindUserConfig,
++							element: this.querySelector('#starlight__search'),
++							baseUrl: import.meta.env.BASE_URL,
++							bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
++							showImages: false,
++							translations: readTranslations(),
++							showSubResults: true,
++							processResult: (result: { url: string; sub_results: Array<{ url: string }> }) => {
++								result.url = formatURL(result.url);
++								result.sub_results = result.sub_results.map((sub_result) => {
++									sub_result.url = formatURL(sub_result.url);
++									return sub_result;
++								});
++							},
++						});
++					} finally {
++						if (uiLang) {
++							if (pageLang === null) root.removeAttribute('lang');
++							else root.setAttribute('lang', pageLang);
++						}
++					}
 +					if (dialog.open) this.querySelector('input')?.focus();
  				});
 -			});
@@ -113,7 +167,7 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..0a35ace9530404d2469ae11ed8768876
  	}
  	customElements.define('site-search', SiteSearch);
 diff --git a/components/SidebarSublist.astro b/components/SidebarSublist.astro
-index 457ab20fd3583f521bd756cd2acb5cc57643d60b..b6c81a9520418c03b14e3053c46edc9541556e03 100644
+index 457ab20fd3583f521bd756cd2acb5cc57643d60b..f384d361dcc9d7b252a605b9a8c7dbf185fda32c 100644
 --- a/components/SidebarSublist.astro
 +++ b/components/SidebarSublist.astro
 @@ -1,7 +1,6 @@
@@ -162,7 +216,7 @@ index 457ab20fd3583f521bd756cd2acb5cc57643d60b..b6c81a9520418c03b14e3053c46edc95
  		a {
  			display: block;
 diff --git a/utils/routing/index.ts b/utils/routing/index.ts
-index c4af65f6c1c711399b58a984a3301ff56e39e2d5..042e435c4cbc0aabe300f5f42ee359630d8aa0c6 100644
+index c4af65f6c1c711399b58a984a3301ff56e39e2d5..a56582378a8514b88d5c188484d87a565b5e46c0 100644
 --- a/utils/routing/index.ts
 +++ b/utils/routing/index.ts
 @@ -96,7 +96,9 @@ export function getRouteBySlugParam(slugParam: string | undefined): Route | unde

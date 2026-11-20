@@ -13,7 +13,8 @@ import {
  * the site chrome to the requested locale, shows the untranslated-content
  * notice, and keeps navigation links in the locale. The page content stays
  * English, so `<html lang>` stays `en` (it also selects the Pagefind index);
- * translated chrome gets its own `lang` attribute.
+ * translated chrome gets its own `lang` attribute, and search gets localized
+ * Pagefind UI strings before it initializes.
  */
 
 const dictionaries = new Map<string, Promise<LocaleFallbackDictionary | undefined>>();
@@ -65,14 +66,39 @@ function translateTextNodes(root: Element, dictionary: LocaleFallbackDictionary)
   }
 }
 
+type TooltipReference = Element & {
+  _tippy?: { props: { content: unknown }; popper: Element; setContent(content: string): void };
+};
+
 function translateAttributes(dictionary: LocaleFallbackDictionary): void {
   const selector = translatedAttributes.map((name) => `[${name}]`).join(',');
-  for (const element of document.body.querySelectorAll(selector)) {
+  for (const element of document.body.querySelectorAll<TooltipReference>(selector)) {
     if (element.closest(skipSelector) && !element.closest(contentChromeSelector)) continue;
+    let translatedAny = false;
     for (const name of translatedAttributes) {
       const value = element.getAttribute(name);
       const translated = value ? translateUiText(value, dictionary.strings) : undefined;
-      if (translated !== undefined) element.setAttribute(name, translated);
+      if (translated === undefined) continue;
+      element.setAttribute(name, translated);
+      translatedAny = true;
+    }
+
+    // `tooltips.ts` moves `title` into a Tippy instance and clears the attribute,
+    // so a dictionary that arrives later must update the instance.
+    const tooltip = element._tippy;
+    const content = tooltip?.props.content;
+    const translatedTooltip =
+      typeof content === 'string' ? translateUiText(content, dictionary.strings) : undefined;
+    if (tooltip && translatedTooltip !== undefined) {
+      tooltip.setContent(translatedTooltip);
+      tooltip.popper.setAttribute('lang', dictionary.lang);
+      translatedAny = true;
+    }
+
+    // Icon-only controls have no text for `translateTextNodes` to mark; elements
+    // with visible text keep its language.
+    if (translatedAny && !element.textContent?.trim()) {
+      element.setAttribute('lang', dictionary.lang);
     }
   }
 }
@@ -119,6 +145,33 @@ function showNotice(dictionary: LocaleFallbackDictionary): void {
   }
 }
 
+// The patched Starlight search waits for `data-translations-pending` to clear
+// before it initializes Pagefind, so it picks up the localized strings.
+const searchTimeoutMs = 2000;
+let searchTimer: number | undefined;
+
+function holdSearch(): void {
+  for (const search of document.querySelectorAll('site-search')) {
+    search.setAttribute('data-translations-pending', '');
+  }
+  window.clearTimeout(searchTimer);
+  // Like the chrome, never keep search waiting on a slow or missing dictionary.
+  searchTimer = window.setTimeout(() => releaseSearch(), searchTimeoutMs);
+}
+
+function releaseSearch(dictionary?: LocaleFallbackDictionary): void {
+  window.clearTimeout(searchTimer);
+  for (const search of document.querySelectorAll<HTMLElement>('site-search')) {
+    if (dictionary) {
+      search.dataset.translations = JSON.stringify(dictionary.search);
+      search.dataset.uiLang = dictionary.lang;
+    }
+    if (!search.hasAttribute('data-translations-pending')) continue;
+    search.removeAttribute('data-translations-pending');
+    search.dispatchEvent(new Event('translationsready'));
+  }
+}
+
 function applyDictionary(dictionary: LocaleFallbackDictionary): void {
   const root = document.documentElement;
   if (root.dataset.localeFallback !== dictionary.locale) return;
@@ -131,6 +184,7 @@ function applyDictionary(dictionary: LocaleFallbackDictionary): void {
   localizeLinks(dictionary.locale);
   selectLanguage(dictionary.locale);
   showNotice(dictionary);
+  releaseSearch(dictionary);
   root.dataset.localeReady = '';
 }
 
@@ -144,11 +198,14 @@ async function localizePage(): Promise<void> {
   root.dataset.localeFallback = locale;
 
   // A cached dictionary applies synchronously, before a swapped-in page paints.
-  const dictionary = loadedDictionaries.get(locale) ?? (await loadDictionary(locale));
+  const cached = loadedDictionaries.get(locale);
+  if (!cached) holdSearch();
+  const dictionary = cached ?? (await loadDictionary(locale));
   if (dictionary) {
     applyDictionary(dictionary);
   } else {
     // Show the English chrome rather than leaving it hidden.
+    releaseSearch();
     root.dataset.localeReady = '';
   }
 }

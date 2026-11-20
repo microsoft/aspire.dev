@@ -30,6 +30,8 @@ export interface LocaleFallbackDictionary {
   notice: string;
   /** English UI text mapped to its localized text. */
   strings: Record<string, string>;
+  /** Localized Pagefind UI strings, in the shape of `site-search[data-translations]`. */
+  search: Record<string, string>;
 }
 
 export interface LocaleFallbackManifest {

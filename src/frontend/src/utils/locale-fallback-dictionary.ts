@@ -62,7 +62,8 @@ async function buildDictionary(locale: string): Promise<LocaleFallbackDictionary
   const lang = localeLangs[locale] ?? locale;
   const english = useTranslations(defaultLang);
   const toEnglish = english as unknown as Translate;
-  const toLocale = useTranslations(lang) as unknown as Translate;
+  const localized = useTranslations(lang);
+  const toLocale = localized as unknown as Translate;
 
   const uiStrings: Record<string, string> = {};
   for (const key of flattenKeys(english.all())) {
@@ -78,6 +79,16 @@ async function buildDictionary(locale: string): Promise<LocaleFallbackDictionary
     locale,
     lang,
     notice: String(toLocale('i18n.untranslatedContent')),
+    // Mirrors Starlight's `Search.astro`; `site-search[data-ui-lang]` adds Pagefind's
+    // own strings for the locale while it keeps searching the English index.
+    search: {
+      placeholder: String(toLocale('search.label')),
+      ...Object.fromEntries(
+        flattenKeys(localized.all())
+          .filter((key) => key.startsWith('pagefind.'))
+          .map((key) => [key.slice('pagefind.'.length), String(toLocale(key))])
+      ),
+    },
     // Page titles and sidebar labels take precedence over generic UI strings.
     strings: {
       ...uiStrings,
