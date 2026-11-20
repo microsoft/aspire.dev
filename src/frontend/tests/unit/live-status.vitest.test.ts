@@ -121,7 +121,7 @@ describe('live-status module', () => {
       const document = Object.assign(new EventTarget(), {
         readyState: 'complete',
         visibilityState: 'visible',
-        querySelectorAll: () => [],
+        querySelectorAll: vi.fn<() => unknown[]>(() => []),
       });
       const window = Object.assign(new EventTarget(), {
         location: { pathname: '/docs/', protocol, host: 'localhost:4321' },
@@ -138,6 +138,27 @@ describe('live-status module', () => {
       const live = await import('../../src/components/live-status.ts');
       return { document, window, sockets: MockWebSocket.instances, seed, fetch, warn, live };
     }
+
+    it('keeps the visible live label aligned with its accessible name across state changes', async () => {
+      const { document, sockets, live } = await setup();
+      const idle = live.getCurrent();
+      const label = { textContent: '' };
+      const button = {
+        dataset: {},
+        querySelector: () => label,
+        setAttribute: vi.fn(),
+      };
+      document.querySelectorAll.mockReturnValue([button]);
+
+      sockets[0].send({ type: 'state', data: liveSnapshot });
+      expect(label.textContent).toBe('Aspire is live — watch now');
+      expect(button.setAttribute).toHaveBeenCalledWith('aria-label', label.textContent);
+
+      button.setAttribute.mockClear();
+      sockets[0].send({ type: 'state', data: { ...idle, updatedAt: '2026-09-08T12:00:02Z' } });
+      expect(label.textContent).toBe('Watch Aspire live streams');
+      expect(button.setAttribute).toHaveBeenCalledWith('aria-label', label.textContent);
+    });
 
     it.each([
       ['http:', 'ws://localhost:4321/api/live/ws'],

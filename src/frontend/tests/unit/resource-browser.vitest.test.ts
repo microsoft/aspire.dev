@@ -47,7 +47,8 @@ describe('resource browser rendering', () => {
       const html = await renderComponent(ResourceCard, { props: { resource: { ...base, type: kind.id } } });
       expect(html).toContain(`data-resource-type="${kind.id}"`);
       expect(html).toContain('href="/get-started/first-app/"');
-      expect(html).toContain('aria-labelledby="resource-guide%3Asample"');
+      expect(html).toContain('<h3 id="resource-guide%3Asample"');
+      expect(html).not.toContain('aria-labelledby=');
       expect(html).toContain(kind.label);
       expect(html).toContain('browse-card-preview');
       expect(html).toContain('browse-artwork-symbol');

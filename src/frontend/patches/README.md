@@ -17,6 +17,10 @@ Starlight's compiled components now live under `dist/`. Regenerate patches again
 published files, and keep `scopedStyleStrategy: 'where'` in `astro.config.mjs` to preserve the
 site's CSS specificity.
 
+The search patch derives the button's accessible name from its localized label and visible
+keyboard shortcut. Axe 4.14 also checks that stateful controls include their visible text in
+their accessible names. Keep those labels synchronized, including version counts and live status.
+
 TypeScript 7 is installed as `typescript-native`; invoke its compiler explicitly with
 `node node_modules/typescript-native/bin/tsc`. The standard `typescript` dependency remains
 on 5.9 because two-slash and typed ESLint require its JavaScript compiler and language-service
@@ -26,3 +30,6 @@ peer ranges rather than overriding them or disabling typed linting.
 Lunaria uses `lunaria.config.mts` and its instance-based API. A shallow checkout needs full
 history to calculate translation status; the dashboard fetches history without changing HEAD,
 so PR commits remain part of the comparison.
+
+Lunaria 0.3 provides a focusable scroll region around its file-status table. Apply the dashboard's
+scroll styles to that wrapper instead of adding another region with the same accessible name.

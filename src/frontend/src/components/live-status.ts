@@ -113,6 +113,8 @@ function syncDom(): void {
     btn.dataset.liveDismissed = notificationDismissed ? 'true' : 'false';
     btn.dataset.source = sourceAttr;
     const label = current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire live streams';
+    const textLabel = btn.querySelector<HTMLElement>('[data-live-label]');
+    if (textLabel) textLabel.textContent = label;
     btn.setAttribute('aria-label', label);
     btn.setAttribute('title', label);
   });

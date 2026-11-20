@@ -971,6 +971,9 @@ test('filters and cards remain accessible in both themes', async ({ page }) => {
     await page.goto('/hub/browse/?type=sample');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
     await expect(results(page).first()).toBeVisible();
+    const sampleCard = page.locator('.browse-card[aria-describedby]').first();
+    await expect(sampleCard).toHaveAccessibleDescription(/^Languages: /);
+    await expect(sampleCard).not.toHaveAccessibleName(/Languages:/);
     for (const name of ['language', 'sort']) {
       await openFacet(page, name);
       const scan = await new AxeBuilder({ page }).include('resource-browser').analyze();
