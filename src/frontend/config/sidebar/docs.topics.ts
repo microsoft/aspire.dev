@@ -841,6 +841,10 @@ export const docsTopics = {
           },
           items: [
             {
+              label: 'Database patterns',
+              slug: 'fundamentals/database-patterns',
+            },
+            {
               label: 'Persist data with volumes',
               slug: 'fundamentals/persist-data-volumes',
               translations: {
