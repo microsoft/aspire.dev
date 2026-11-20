@@ -10,6 +10,7 @@
 
 using System.Collections.Concurrent;
 using System.IO.Compression;
+using System.Security.Cryptography;
 
 if (args.Length != 4)
 {
@@ -32,14 +33,23 @@ var compressed = 0;
 
 Parallel.ForEach(files, file =>
 {
-    // Reuse a copy stamped with its source's exact time, so an unchanged site compresses once.
-    // "Newer than the source" is not enough: a cache restore or an archive extraction gives
-    // new content an older time, and the copy of the old content would be published.
+    // Reuse a copy whose source has the same content, so an unchanged site compresses once. The
+    // SHA-256 of the source the copy was written from is kept next to it (".br.sha256", which is
+    // not published). A time, even an exact one, is not enough: a cache restore or an archive
+    // extraction can give new content the old time, and the copy of the old content would be published.
     var target = Path.Combine(outputDirectory, file.SitePath + ".br");
-    var sourceTime = File.GetLastWriteTimeUtc(file.Source);
-    if (!File.Exists(target) || File.GetLastWriteTimeUtc(target) != sourceTime)
+    var stamp = target + ".sha256";
+    string sourceHash;
+    using (var source = File.OpenRead(file.Source))
+    {
+        sourceHash = Convert.ToHexString(SHA256.HashData(source));
+    }
+
+    if (!File.Exists(target) || !File.Exists(stamp) || File.ReadAllText(stamp) != sourceHash)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        // Without a stamp, a copy left half-updated by an interrupted run is written again.
+        File.Delete(stamp);
         var temporary = target + ".tmp";
         using (var input = File.OpenRead(file.Source))
         using (var output = File.Create(temporary))
@@ -50,8 +60,8 @@ Parallel.ForEach(files, file =>
             input.CopyTo(brotli);
         }
 
-        File.SetLastWriteTimeUtc(temporary, sourceTime);
         File.Move(temporary, target, overwrite: true);
+        File.WriteAllText(stamp, sourceHash);
         Interlocked.Increment(ref compressed);
     }
 

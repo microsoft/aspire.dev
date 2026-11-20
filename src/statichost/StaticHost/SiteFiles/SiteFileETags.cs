@@ -10,12 +10,23 @@ namespace StaticHost.SiteFiles;
 /// in memory.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The hash is XxHash128: an ETag only has to tell versions of a file apart, which needs no
 /// cryptographic hash. A content hash, unlike the length and last-modified time
 /// <c>UseStaticFiles</c> uses, stays the same across deployments for files that did not change,
 /// though CI writes every file again. An entry is recomputed when the file's length or
 /// last-modified time changes, which covers a web root that is replaced while StaticHost runs
 /// (CI unpacks the site after StaticHost starts).
+/// </para>
+/// <para>
+/// Length and time do not identify the bytes, though: a restore can replace a file with one of
+/// the same length and time. A cached ETag is therefore only used where a stale one is harmless,
+/// on a response that sends the file. A request with a precondition, which a stale ETag could
+/// answer with a 304 for bytes the client does not have, hashes the file again
+/// (<c>revalidate</c>). Watching the web root for changes would cost an inotify watch per
+/// directory on Linux, and .NET does not expose the inode or change time that would tell a
+/// replaced file apart.
+/// </para>
 /// </remarks>
 internal sealed class SiteFileETags
 {
@@ -36,14 +47,18 @@ internal sealed class SiteFileETags
     /// The file's path in the web root, the key when the provider gives no physical path.
     /// </param>
     /// <param name="file">The file to hash.</param>
+    /// <param name="revalidate">Hash the file even when an entry matches its length and time.</param>
     /// <param name="cancellationToken">Cancels the hashing.</param>
-    public async ValueTask<string> GetAsync(string path, IFileInfo file, CancellationToken cancellationToken)
+    public async ValueTask<string> GetAsync(string path, IFileInfo file, bool revalidate, CancellationToken cancellationToken)
     {
         var key = file.PhysicalPath ?? path;
         var length = file.Length;
         var lastModified = file.LastModified;
 
-        if (_entries.TryGetValue(key, out var entry) && entry.Length == length && entry.LastModified == lastModified)
+        if (!revalidate
+            && _entries.TryGetValue(key, out var entry)
+            && entry.Length == length
+            && entry.LastModified == lastModified)
         {
             return entry.ETag;
         }
