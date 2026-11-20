@@ -514,7 +514,10 @@ test('video platforms remain searchable metadata without a dedicated filter', as
   await page.goto('/hub/browse/?platform=twitch');
   expect(await results(page).locator('h3').allTextContents()).toEqual(initialResults);
   await page.getByRole('searchbox', { name: 'Search resources...' }).fill('twitch');
-  await expect(results(page).getByRole('link', { name: 'Aspire on Twitch', exact: true })).toHaveAttribute('href', 'https://www.twitch.tv/aspiredotdev');
+  const twitchCard = results(page).filter({
+    has: page.getByRole('heading', { name: 'Aspire on Twitch', exact: true }),
+  });
+  await expect(twitchCard.getByRole('link')).toHaveAttribute('href', 'https://www.twitch.tv/aspiredotdev');
   await expect(page).not.toHaveURL(/platform=/);
 });
 
