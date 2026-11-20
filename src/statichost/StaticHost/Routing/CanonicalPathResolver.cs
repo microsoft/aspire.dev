@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace StaticHost.Routing;
 
 internal sealed class CanonicalPathResolver(IEnumerable<string> canonicalPaths)
@@ -38,6 +40,16 @@ internal sealed class CanonicalPathResolver(IEnumerable<string> canonicalPaths)
 
         canonicalPath = new PathString(resolvedPath);
         return true;
+    }
+
+    /// <summary>
+    /// Finds the exact-casing path of an existing file or directory route
+    /// (<c>/foo</c> and <c>/foo/</c> for a directory with a default file).
+    /// </summary>
+    public bool TryGetExistingPath(string requestPath, [NotNullWhen(true)] out string? existingPath)
+    {
+        existingPath = null;
+        return _canonicalPaths.TryGetValue(requestPath, out existingPath) && existingPath is not null;
     }
 
     private static Dictionary<string, string?> CreateLookup(

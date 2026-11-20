@@ -471,10 +471,16 @@ jobs:
           name: frontend-site
           path: ${{ runner.temp }}
 
+      # StaticHost treats the locale manifest as the sign that the web root is
+      # complete and stops re-indexing it, so the manifest lands last.
       - name: Unpack site archive
         run: |
           set -euo pipefail
-          zstd -d -T0 -q -c "$RUNNER_TEMP/site.tar.zst" | tar -C ../statichost/StaticHost/wwwroot -xf -
+          wwwroot=../statichost/StaticHost/wwwroot
+          manifest="$wwwroot/locale-fallback/locales.json"
+          zstd -d -T0 -q -c "$RUNNER_TEMP/site.tar.zst" \
+            | tar -C "$wwwroot" -xf - --transform='s,^\./locale-fallback/locales\.json$,./locale-fallback/locales.json.pending,'
+          mv "$manifest.pending" "$manifest"
           rm -f "$RUNNER_TEMP/site.tar.zst"
 
       - name: Wait for StaticHost
