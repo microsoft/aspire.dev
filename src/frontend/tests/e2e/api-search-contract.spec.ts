@@ -249,7 +249,13 @@ test('API clear remains available when text is entered before controller mountin
   let releaseController!: () => void;
   const controllerGate = new Promise<void>(resolve => { releaseController = resolve; });
   await page.route('**/*', async route => {
-    if (route.request().resourceType() === 'script') await controllerGate;
+    // Hold back the API search controller (module scripts) only. The tiny classic pre-paint
+    // bootstrap in <head> (`*.inline.js`) blocks parsing, so holding it would keep the input
+    // from ever existing.
+    const request = route.request();
+    if (request.resourceType() === 'script' && !/\.inline\.[^/]*js(?:\?|$)/.test(request.url())) {
+      await controllerGate;
+    }
     await route.continue();
   });
   await page.goto('/reference/api/typescript/?versions=&keep=1', { waitUntil: 'commit' });

@@ -14,6 +14,7 @@ import { aspireVersionPlaceholdersIntegration } from './config/aspire-version-pl
 import { remarkAspireVersionPlaceholders } from './config/remark-aspire-version-placeholders.mjs';
 import { remarkTypeScriptFirstAppHostTabs } from './config/remark-typescript-first-apphost-tabs.mjs';
 import { remarkMermaid } from './config/remark-mermaid.mjs';
+import { starlightIconSprite } from './config/starlight-icon-sprite.mjs';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
 import mdx from '@astrojs/mdx';
@@ -69,6 +70,15 @@ export default defineConfig({
   cacheDir: './node_modules/.astro',
   ...(outDir ? { outDir } : {}),
   vite: {
+    plugins: [starlightIconSprite()],
+    build: {
+      // Astro inlines processed <script>s (and Vite inlines `?url` scripts as data: URLs) when
+      // they're under this limit. Shared scripts are repeated on every one of ~38k pages, so
+      // always emit JavaScript (and the shared icon sprite) as cacheable /_astro/ files; other
+      // assets keep Vite's default.
+      assetsInlineLimit: (filePath) =>
+        /\.[cm]?[jt]s(?:\?|$)|\.sprite\.svg(?:\?|$)/.test(filePath) ? false : undefined,
+    },
     define: {
       // Resolve filesystem-backed redirects before prerender modules are bundled.
       __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
@@ -252,6 +262,9 @@ export default defineConfig({
   ],
   build: {
     concurrency: buildConcurrency,
+    // Every docs page shares the same component stylesheets, so ship them as cached files
+    // instead of re-inlining the same ~13-18 KB of CSS into each of the ~38k pages.
+    inlineStylesheets: 'never',
   },
   experimental: {
     parallelPrerender: { workers: prerenderWorkers },
