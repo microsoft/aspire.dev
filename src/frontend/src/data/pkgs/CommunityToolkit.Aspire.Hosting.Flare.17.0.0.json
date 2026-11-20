@@ -1,0 +1,1273 @@
+{
+  "package": {
+    "name": "CommunityToolkit.Aspire.Hosting.Flare",
+    "version": "17.0.0",
+    "targetFramework": "net10.0",
+    "sourceRepository": "https://github.com/CommunityToolkit/Aspire",
+    "sourceCommit": "2f40b6ddfb664ca38623b830964efa6a4abaaa45"
+  },
+  "types": [
+    {
+      "name": "FlareBuilderExtensions",
+      "fullName": "Aspire.Hosting.FlareBuilderExtensions",
+      "namespace": "Aspire.Hosting",
+      "kind": "class",
+      "accessibility": "public",
+      "isStatic": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Provides extension methods for adding Flare resources to the application model. "
+          }
+        ]
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+      "sourceLines": "12-12",
+      "members": [
+        {
+          "name": "AddFlare",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<FlareResource> FlareBuilderExtensions.AddFlare(this IDistributedApplicationBuilder builder, string name, IResourceBuilder<ClickHouseServerResource> clickhouse, IResourceBuilder<RedisResource> redis, int? dashboardPort = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.IDistributedApplicationBuilder",
+              "modifier": "this"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "clickhouse",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ClickHouseServerResource>"
+            },
+            {
+              "name": "redis",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.RedisResource>"
+            },
+            {
+              "name": "dashboardPort",
+              "type": "int?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds a Flare observability stack to the application model: an OTLP ingest service (the returned resource), the query API, the alert worker and the dashboard. Containers are used for local development. The default images are "
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "text",
+                "text": ", "
+              },
+              {
+                "kind": "text",
+                "text": " and "
+              },
+              {
+                "kind": "text",
+                "text": ", all with the tag "
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " The Flare images create and migrate their own ClickHouse schema on startup. "
+              },
+              {
+                "kind": "text",
+                "text": " Add Flare to the application model and send a project's telemetry to it. "
+              },
+              {
+                "kind": "codeblock",
+                "text": "\n             var builder = DistributedApplication.CreateBuilder(args);\n            \n             var clickhouse = builder.AddClickHouse(\"clickhouse\");\n             var redis = builder.AddRedis(\"redis\");\n             var flare = builder.AddFlare(\"flare\", clickhouse, redis);\n            \n             builder.AddProject<Projects.Api>(\"api\")\n                 .WithOtlpExporter(flare)\n                 .WaitFor(flare);\n            \n             builder.Build().Run();\n             ",
+                "language": "csharp"
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The "
+                },
+                {
+                  "kind": "cref",
+                  "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ],
+              "clickhouse": [
+                {
+                  "kind": "text",
+                  "text": "The ClickHouse server Flare stores its telemetry in. Flare adds its own database to it."
+                }
+              ],
+              "dashboardPort": [
+                {
+                  "kind": "text",
+                  "text": "The host port for the Flare dashboard."
+                }
+              ],
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
+                }
+              ],
+              "redis": [
+                {
+                  "kind": "text",
+                  "text": "The Redis instance Flare uses to buffer telemetry before it is written to ClickHouse."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+          "sourceLines": "71-147"
+        },
+        {
+          "name": "WithApiKey",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<FlareResource> FlareBuilderExtensions.WithApiKey(this IResourceBuilder<FlareResource> builder, IResourceBuilder<ParameterResource> apiKey)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "apiKey",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Requires an API key on the ingest service. OTLP clients must send it as "
+              },
+              {
+                "kind": "code",
+                "text": "Authorization: Bearer <key>"
+              },
+              {
+                "kind": "text",
+                "text": ", for example through "
+              },
+              {
+                "kind": "code",
+                "text": "OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <key>"
+              },
+              {
+                "kind": "text",
+                "text": ". Resources wired with "
+              },
+              {
+                "kind": "cref",
+                "value": "M:Aspire.Hosting.FlareBuilderExtensions.WithOtlpExporter``1(Aspire.Hosting.ApplicationModel.IResourceBuilder{``0},Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.FlareResource},Aspire.Hosting.OtlpProtocol)"
+              },
+              {
+                "kind": "text",
+                "text": " send it automatically. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "apiKey": [
+                {
+                  "kind": "text",
+                  "text": "The parameter holding the API key."
+                }
+              ],
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+          "sourceLines": "222-229"
+        },
+        {
+          "name": "WithDataVolume",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<FlareResource> FlareBuilderExtensions.WithDataVolume(this IResourceBuilder<FlareResource> builder, string? name = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "name",
+              "type": "string?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Persists Flare's identity database (dashboard users, sessions and ingest API keys) in a volume shared by the ingest service and the query API. Without it, both keep a private identity database that is lost when their containers are recreated. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " ClickHouse and Redis keep their own data volumes; configure them on those resources. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource builder."
+                }
+              ],
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the volume. Defaults to a name derived from the application and resource name."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+          "sourceLines": "167-176"
+        },
+        {
+          "name": "WithFlareImageTag",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<FlareResource> FlareBuilderExtensions.WithFlareImageTag(this IResourceBuilder<FlareResource> builder, string tag)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "tag",
+              "type": "string"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Sets the image tag of all four Flare containers (ingest, API, alert worker and dashboard). "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource builder."
+                }
+              ],
+              "tag": [
+                {
+                  "kind": "text",
+                  "text": "The image tag, for example "
+                },
+                {
+                  "kind": "code",
+                  "text": "0.6"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+          "sourceLines": "284-295"
+        },
+        {
+          "name": "WithIngestPorts",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<FlareResource> FlareBuilderExtensions.WithIngestPorts(this IResourceBuilder<FlareResource> builder, int? grpcPort = null, int? httpPort = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "grpcPort",
+              "type": "int?",
+              "isNullable": true,
+              "isOptional": true
+            },
+            {
+              "name": "httpPort",
+              "type": "int?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Sets the host ports of the ingest service's OTLP endpoints. By default they are the conventional 4317 (gRPC) and 4318 (HTTP). "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource builder."
+                }
+              ],
+              "grpcPort": [
+                {
+                  "kind": "text",
+                  "text": "The host port for OTLP/gRPC, or "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": " to leave it unchanged."
+                }
+              ],
+              "httpPort": [
+                {
+                  "kind": "text",
+                  "text": "The host port for OTLP/HTTP, or "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": " to leave it unchanged."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+          "sourceLines": "193-205"
+        },
+        {
+          "name": "WithOtlpExporter",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<T> FlareBuilderExtensions.WithOtlpExporter<T>(this IResourceBuilder<T> builder, IResourceBuilder<FlareResource> flare, OtlpProtocol protocol = OtlpProtocol.Grpc)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<T>",
+              "modifier": "this"
+            },
+            {
+              "name": "flare",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>"
+            },
+            {
+              "name": "protocol",
+              "type": "Aspire.Hosting.OtlpProtocol",
+              "isOptional": true,
+              "defaultValue": "0"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "T",
+              "constraints": [
+                "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment"
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
+              "arguments": {
+                "Reason": "Generic receiver; the polyglot overload is withFlareOtlpExporter."
+              }
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Points a resource's OpenTelemetry exporter at a Flare ingest service by setting "
+              },
+              {
+                "kind": "code",
+                "text": "OTEL_EXPORTER_OTLP_ENDPOINT"
+              },
+              {
+                "kind": "text",
+                "text": " and "
+              },
+              {
+                "kind": "code",
+                "text": "OTEL_EXPORTER_OTLP_PROTOCOL"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " The resource's telemetry goes to Flare instead of the Aspire dashboard, so it no longer appears in the dashboard's logs, traces and metrics views. The Aspire dashboard's OTLP API key is removed from "
+              },
+              {
+                "kind": "code",
+                "text": "OTEL_EXPORTER_OTLP_HEADERS"
+              },
+              {
+                "kind": "text",
+                "text": " so it is not sent to Flare; other headers are kept. When the Flare resource has an API key (see "
+              },
+              {
+                "kind": "cref",
+                "value": "M:Aspire.Hosting.FlareBuilderExtensions.WithApiKey(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.FlareResource},Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.ParameterResource})"
+              },
+              {
+                "kind": "text",
+                "text": "), an "
+              },
+              {
+                "kind": "code",
+                "text": "Authorization=Bearer <key>"
+              },
+              {
+                "kind": "text",
+                "text": " header is added. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "flare": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource builder."
+                }
+              ],
+              "protocol": [
+                {
+                  "kind": "text",
+                  "text": " The OTLP protocol to export with. "
+                },
+                {
+                  "kind": "cref",
+                  "value": "F:Aspire.Hosting.OtlpProtocol.Grpc"
+                },
+                {
+                  "kind": "text",
+                  "text": " uses the ingest service's gRPC endpoint; "
+                },
+                {
+                  "kind": "cref",
+                  "value": "F:Aspire.Hosting.OtlpProtocol.HttpProtobuf"
+                },
+                {
+                  "kind": "text",
+                  "text": " and "
+                },
+                {
+                  "kind": "cref",
+                  "value": "F:Aspire.Hosting.OtlpProtocol.HttpJson"
+                },
+                {
+                  "kind": "text",
+                  "text": " use its HTTP endpoint. "
+                }
+              ]
+            },
+            "typeParameters": {
+              "T": [
+                {
+                  "kind": "text",
+                  "text": "The type of the resource that will export telemetry."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+          "sourceLines": "323-338"
+        },
+        {
+          "name": "WithPublicUrls",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<FlareResource> FlareBuilderExtensions.WithPublicUrls(this IResourceBuilder<FlareResource> builder, IResourceBuilder<ParameterResource>? apiUrl = null, IResourceBuilder<ParameterResource>? dashboardUrl = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.FlareResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "apiUrl",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>?",
+              "isNullable": true,
+              "isOptional": true
+            },
+            {
+              "name": "dashboardUrl",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportAttribute"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Sets the URLs a browser uses to reach the query API and the dashboard. By default these are the loopback addresses of the local containers, which only works when the browser runs on the same machine. Set them when the stack is published and reached through other hostnames. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "apiUrl": [
+                {
+                  "kind": "text",
+                  "text": "The parameter holding the public URL of the query API, or "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": " to leave it unchanged."
+                }
+              ],
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource builder."
+                }
+              ],
+              "dashboardUrl": [
+                {
+                  "kind": "text",
+                  "text": " The parameter holding the public URL of the dashboard, or "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": " to leave it unchanged. The query API uses this value verbatim as its allowed CORS origin, so it must be an origin only: "
+                },
+                {
+                  "kind": "code",
+                  "text": "scheme://host[:port]"
+                },
+                {
+                  "kind": "text",
+                  "text": ", with no path and no trailing slash (for example "
+                },
+                {
+                  "kind": "code",
+                  "text": "https://flare.example.com"
+                },
+                {
+                  "kind": "text",
+                  "text": "). "
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareBuilderExtensions.cs",
+          "sourceLines": "251-270"
+        }
+      ]
+    },
+    {
+      "name": "FlareAlertWorkerResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.FlareAlertWorkerResource",
+      "namespace": "Aspire.Hosting.ApplicationModel",
+      "kind": "class",
+      "accessibility": "public",
+      "baseType": "Aspire.Hosting.ApplicationModel.ContainerResource",
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " A resource that represents the alert evaluation worker of a Flare stack. "
+          }
+        ],
+        "parameters": {
+          "name": [
+            {
+              "kind": "text",
+              "text": "The name of the resource."
+            }
+          ],
+          "parent": [
+            {
+              "kind": "text",
+              "text": "The Flare resource this worker belongs to."
+            }
+          ]
+        }
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+      "sourceLines": "94-94",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public FlareAlertWorkerResource.FlareAlertWorkerResource(string name, FlareResource parent)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "parent",
+              "type": "Aspire.Hosting.ApplicationModel.FlareResource"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " A resource that represents the alert evaluation worker of a Flare stack. "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource."
+                }
+              ],
+              "parent": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource this worker belongs to."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "95-101"
+        },
+        {
+          "name": "Parent",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public FlareResource FlareAlertWorkerResource.Parent",
+          "returnType": "Aspire.Hosting.ApplicationModel.FlareResource",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the Flare resource this resource is grouped under. This is a visual grouping only: the resource does not share a lifecycle with it. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "101-101"
+        }
+      ]
+    },
+    {
+      "name": "FlareApiResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.FlareApiResource",
+      "namespace": "Aspire.Hosting.ApplicationModel",
+      "kind": "class",
+      "accessibility": "public",
+      "baseType": "Aspire.Hosting.ApplicationModel.ContainerResource",
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " A resource that represents the query API of a Flare stack. "
+          }
+        ],
+        "parameters": {
+          "name": [
+            {
+              "kind": "text",
+              "text": "The name of the resource."
+            }
+          ],
+          "parent": [
+            {
+              "kind": "text",
+              "text": "The Flare resource this API belongs to."
+            }
+          ]
+        }
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+      "sourceLines": "77-77",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public FlareApiResource.FlareApiResource(string name, FlareResource parent)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "parent",
+              "type": "Aspire.Hosting.ApplicationModel.FlareResource"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " A resource that represents the query API of a Flare stack. "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource."
+                }
+              ],
+              "parent": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource this API belongs to."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "78-86"
+        },
+        {
+          "name": "Parent",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public FlareResource FlareApiResource.Parent",
+          "returnType": "Aspire.Hosting.ApplicationModel.FlareResource",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the Flare resource this resource is grouped under. This is a visual grouping only: the resource does not share a lifecycle with it. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "86-86"
+        }
+      ]
+    },
+    {
+      "name": "FlareDashboardResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.FlareDashboardResource",
+      "namespace": "Aspire.Hosting.ApplicationModel",
+      "kind": "class",
+      "accessibility": "public",
+      "baseType": "Aspire.Hosting.ApplicationModel.ContainerResource",
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " A resource that represents the dashboard of a Flare stack. "
+          }
+        ],
+        "parameters": {
+          "name": [
+            {
+              "kind": "text",
+              "text": "The name of the resource."
+            }
+          ],
+          "parent": [
+            {
+              "kind": "text",
+              "text": "The Flare resource this dashboard belongs to."
+            }
+          ]
+        }
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+      "sourceLines": "109-109",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public FlareDashboardResource.FlareDashboardResource(string name, FlareResource parent)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "parent",
+              "type": "Aspire.Hosting.ApplicationModel.FlareResource"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " A resource that represents the dashboard of a Flare stack. "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource."
+                }
+              ],
+              "parent": [
+                {
+                  "kind": "text",
+                  "text": "The Flare resource this dashboard belongs to."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "110-118"
+        },
+        {
+          "name": "Parent",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public FlareResource FlareDashboardResource.Parent",
+          "returnType": "Aspire.Hosting.ApplicationModel.FlareResource",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the Flare resource this resource is grouped under. This is a visual grouping only: the resource does not share a lifecycle with it. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "118-118"
+        },
+        {
+          "name": "PrimaryEndpoint",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public EndpointReference FlareDashboardResource.PrimaryEndpoint",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReference",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the HTTP endpoint of the dashboard. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "123-123"
+        }
+      ]
+    },
+    {
+      "name": "FlareResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.FlareResource",
+      "namespace": "Aspire.Hosting.ApplicationModel",
+      "kind": "class",
+      "accessibility": "public",
+      "baseType": "Aspire.Hosting.ApplicationModel.ContainerResource",
+      "interfaces": [
+        "Aspire.Hosting.ApplicationModel.IExpressionValue",
+        "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
+        "Aspire.Hosting.ApplicationModel.IValueProvider",
+        "Aspire.Hosting.ApplicationModel.IValueWithReferences"
+      ],
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " A resource that represents a Flare observability stack. The resource itself is the OTLP ingest container; the query API, alert worker and dashboard are added as child resources. "
+          }
+        ]
+      },
+      "attributes": [
+        {
+          "name": "Aspire.Hosting.AspireExportAttribute",
+          "arguments": {
+            "ExposeProperties": "True"
+          }
+        }
+      ],
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+      "sourceLines": "11-11",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public FlareResource.FlareResource(string name)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Initializes a new instance of the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.FlareResource"
+              },
+              {
+                "kind": "text",
+                "text": " class. "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "20-24"
+        },
+        {
+          "name": "AlertWorker",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public FlareAlertWorkerResource FlareResource.AlertWorker",
+          "returnType": "Aspire.Hosting.ApplicationModel.FlareAlertWorkerResource",
+          "hasGet": true,
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
+              "arguments": {
+                "Reason": "Child resources are reached through the resource tree; they are not exported as handles."
+              }
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the alert worker child resource. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs"
+        },
+        {
+          "name": "Api",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public FlareApiResource FlareResource.Api",
+          "returnType": "Aspire.Hosting.ApplicationModel.FlareApiResource",
+          "hasGet": true,
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
+              "arguments": {
+                "Reason": "Child resources are reached through the resource tree; they are not exported as handles."
+              }
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the query API child resource. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs"
+        },
+        {
+          "name": "ConnectionStringExpression",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public ReferenceExpression FlareResource.ConnectionStringExpression",
+          "returnType": "Aspire.Hosting.ApplicationModel.ReferenceExpression",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the connection string expression for the ingest service: the OTLP/gRPC URL, for example "
+              },
+              {
+                "kind": "code",
+                "text": "http://localhost:4317"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "62-62"
+        },
+        {
+          "name": "Dashboard",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public FlareDashboardResource FlareResource.Dashboard",
+          "returnType": "Aspire.Hosting.ApplicationModel.FlareDashboardResource",
+          "hasGet": true,
+          "attributes": [
+            {
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
+              "arguments": {
+                "Reason": "Child resources are reached through the resource tree; they are not exported as handles."
+              }
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the dashboard child resource. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs"
+        },
+        {
+          "name": "OtlpGrpcEndpoint",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public EndpointReference FlareResource.OtlpGrpcEndpoint",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReference",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the OTLP/gRPC endpoint of the ingest service (port 4317 by default). "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "29-29"
+        },
+        {
+          "name": "OtlpHttpEndpoint",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public EndpointReference FlareResource.OtlpHttpEndpoint",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReference",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the OTLP/HTTP endpoint of the ingest service (port 4318 by default). "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Flare/FlareResource.cs",
+          "sourceLines": "34-34"
+        }
+      ]
+    }
+  ]
+}
