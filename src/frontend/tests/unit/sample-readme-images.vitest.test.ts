@@ -1,4 +1,4 @@
-import type { Root, RootContent } from 'mdast';
+import type { RootContent } from 'mdast';
 import { markdownToMdast } from 'satteri';
 import { describe, expect, it } from 'vitest';
 
@@ -20,7 +20,7 @@ import {
 function firstBlock(markdown: string): RootContent {
   const root = markdownToMdast(markdown, {
     features: { gfm: true, frontmatter: false },
-  }) as Root;
+  });
 
   const block = root.children[0];
   if (!block) {

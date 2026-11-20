@@ -68,6 +68,7 @@ const prerenderWorkers = Number(process.env.ASPIRE_PRERENDER_WORKERS) || 4;
 // https://astro.build/config
 export default defineConfig({
   cacheDir: './node_modules/.astro',
+  scopedStyleStrategy: 'where',
   ...(outDir ? { outDir } : {}),
   vite: {
     plugins: [starlightIconSprite()],
@@ -163,7 +164,6 @@ export default defineConfig({
           }),
           lunaria({
             route: '/i18n',
-            sync: false,
           }),
           catppuccin(),
           starlightSidebarTopics(sidebarTopics, {

@@ -13,7 +13,7 @@ const resolveReal = (url) => normalizePath(realpathSync(fileURLToPath(url)));
 export function starlightIconSprite() {
   const wrapper = resolveReal(new URL('../src/components/starlight/Icon.astro', import.meta.url));
   const original = resolveReal(
-    new URL('../node_modules/@astrojs/starlight/user-components/Icon.astro', import.meta.url)
+    new URL('../node_modules/@astrojs/starlight/dist/user-components/Icon.astro', import.meta.url)
   );
 
   return {

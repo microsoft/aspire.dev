@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { Icon } from '@astrojs/starlight/components';
 import { describe, expect, it } from 'vitest';
 
-import { Icons } from '../../node_modules/@astrojs/starlight/components-internals/Icons';
+import { Icons } from '../../node_modules/@astrojs/starlight/dist/components-internals/Icons';
 import { renderIconSprite } from '@utils/icon-sprite';
 import { normalizeHtml, renderComponent } from './astro-test-utils';
 

@@ -514,7 +514,10 @@ test('video platforms remain searchable metadata without a dedicated filter', as
   await page.goto('/hub/browse/?platform=twitch');
   expect(await results(page).locator('h3').allTextContents()).toEqual(initialResults);
   await page.getByRole('searchbox', { name: 'Search resources...' }).fill('twitch');
-  await expect(results(page).getByRole('link', { name: 'Aspire on Twitch', exact: true })).toHaveAttribute('href', 'https://www.twitch.tv/aspiredotdev');
+  const twitchCard = results(page).filter({
+    has: page.getByRole('heading', { name: 'Aspire on Twitch', exact: true }),
+  });
+  await expect(twitchCard.getByRole('link')).toHaveAttribute('href', 'https://www.twitch.tv/aspiredotdev');
   await expect(page).not.toHaveURL(/platform=/);
 });
 
@@ -971,6 +974,9 @@ test('filters and cards remain accessible in both themes', async ({ page }) => {
     await page.goto('/hub/browse/?type=sample');
     await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
     await expect(results(page).first()).toBeVisible();
+    const sampleCard = page.locator('.browse-card[aria-describedby]').first();
+    await expect(sampleCard).toHaveAccessibleDescription(/^Languages: /);
+    await expect(sampleCard).not.toHaveAccessibleName(/Languages:/);
     for (const name of ['language', 'sort']) {
       await openFacet(page, name);
       const scan = await new AxeBuilder({ page }).include('resource-browser').analyze();
