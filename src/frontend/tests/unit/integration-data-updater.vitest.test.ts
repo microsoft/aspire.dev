@@ -228,6 +228,15 @@ function global:bun {
             & node $env:FIXTURE_TSX (Join-Path $PSScriptRoot 'src/frontend/scripts/validate-generated-api-data.ts')
             $global:LASTEXITCODE = $LASTEXITCODE
         }
+        'test:unit' {
+            if ($env:FIXTURE_MODE -eq 'unit-test-failure') {
+                Write-Output "$([char]27)[31m FAIL $([char]27)[39m tests/unit/data.vitest.test.ts > data > matches upstream"
+                $global:LASTEXITCODE = 1
+            }
+            if ($env:FIXTURE_MODE -eq 'unit-test-mutation') {
+                Set-Content (Join-Path $data 'twoslash/aspire.d.ts') 'rewritten by a test'
+            }
+        }
     }
 }
 & "$PSScriptRoot/src/frontend/scripts/update-integration-data.ps1"
@@ -247,6 +256,7 @@ exit $LASTEXITCODE
     'Mocks'
   );
   const output = path.join(root, 'outputs.txt');
+  const bodyFile = path.join(root, 'integration-pr-body.md');
   const result = spawnSync('pwsh', ['-NoProfile', '-File', wrapper], {
     cwd: root,
     encoding: 'utf8',
@@ -263,6 +273,7 @@ exit $LASTEXITCODE
     ...result,
     data,
     outputs: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '',
+    body: fs.existsSync(bodyFile) ? fs.readFileSync(bodyFile, 'utf8') : '',
     failures: JSON.parse(
       fs.readFileSync(path.join(data, 'api-generation-failures.json'), 'utf8')
     ) as ApiGenerationFailure[],
@@ -280,6 +291,26 @@ describe('integration data orchestration', () => {
     expect(run.failures).toHaveLength(2);
     expect(run.failures[0].reason).toContain('NU1102');
     expect(run.outputs).toContain('api_failures_checked<<');
+    // Good moves 1.0.0 -> 2.0.0; the new file is untracked until the workflow stages it.
+    expect(run.body).toContain('| `src/frontend/src/data/pkgs/**` | 1 | 0 | 1 |');
+    expect(run.outputs).toMatch(/auto_merge<<(\S+)\ntrue\n/);
+  });
+
+  test('withholds auto-merge and lists failing unit tests', () => {
+    const run = fixture('unit-test-failure');
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    expect(run.outputs).toMatch(/changed<<(\S+)\ntrue\n/);
+    expect(run.outputs).toMatch(/auto_merge<<(\S+)\nfalse\n/);
+    expect(run.body).toContain('### :x: Unit tests failed');
+    expect(run.body).toContain('- `tests/unit/data.vitest.test.ts > data > matches upstream`');
+    expect(run.body).not.toContain('approved and squash-merged automatically');
+  });
+
+  test('refuses to publish when unit tests rewrite generated data', () => {
+    const run = fixture('unit-test-mutation');
+    expect(run.status, run.stdout + run.stderr).toBe(1);
+    expect(run.stdout + run.stderr).toContain('modified generated data');
+    expect(run.outputs).not.toContain('changed<<');
   });
 
   test('restores a matching C#/TypeScript pair when only the TS generation fails', () => {

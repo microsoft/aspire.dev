@@ -139,12 +139,17 @@ describe('standalone dashboard sample image', () => {
   test('preserves the upstream nightly version pin in both README fields', () => {
     const sample = samples.find((entry) => entry.name === 'standalone-dashboard');
     expect(sample).toBeDefined();
+    // samples.json is synced from upstream, which bumps the pinned major.minor each release.
+    const pinnedImage = sample!.readme.match(
+      /mcr\.microsoft\.com\/aspire\/nightly\/dashboard:\d+\.\d+(?=[\s`])/
+    )?.[0];
+    expect(pinnedImage).toBeDefined();
     for (const field of ['readme', 'readmeRaw'] as const) {
       const source = sample![field];
       const images = source.match(/mcr\.microsoft\.com\/[^\s`]+/g);
-      expect(images).toEqual([versionedNightlyImage, versionedNightlyImage]);
-      expect(source).toContain(`--name aspire-dashboard ${versionedNightlyImage}`);
-      expect(source).toContain(`\`${versionedNightlyImage}\` prerelease image.`);
+      expect(images).toEqual([pinnedImage, pinnedImage]);
+      expect(source).toContain(`--name aspire-dashboard ${pinnedImage}`);
+      expect(source).toContain(`\`${pinnedImage}\` prerelease image.`);
     }
   });
 });
