@@ -13,7 +13,17 @@ import {
   translateUiText,
 } from '../../src/utils/locale-fallback';
 import { hashLocaleFallbackDictionaries } from '../../src/utils/locale-fallback-version';
+import { getPagefindTranslations } from '../../src/utils/pagefind-translations';
 import { isTranslatedPath } from '../../src/utils/translated-routes';
+
+test('getPagefindTranslations reads Pagefind strings for a locale', () => {
+  expect(getPagefindTranslations('de').zero_results).toBe('Keine Ergebnisse für [SEARCH_TERM]');
+  expect(getPagefindTranslations('pt-BR').placeholder).toBe(
+    getPagefindTranslations('pt').placeholder
+  );
+  expect(getPagefindTranslations('zh-CN').placeholder).toBeTruthy();
+  expect(getPagefindTranslations('xx')).toEqual({});
+});
 
 describe('dictionary versioning', () => {
   test('getLocaleFallbackDictionaryPath appends the version only when given', () => {

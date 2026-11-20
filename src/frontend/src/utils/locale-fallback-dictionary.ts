@@ -8,6 +8,7 @@ import {
   type LocaleFallbackDictionary,
 } from './locale-fallback';
 import { hashLocaleFallbackDictionaries } from './locale-fallback-version';
+import { getPagefindTranslations } from './pagefind-translations';
 
 /*
  * Server-only: builds the `/locale-fallback/{locale}.json` dictionaries. The
@@ -79,9 +80,10 @@ async function buildDictionary(locale: string): Promise<LocaleFallbackDictionary
     locale,
     lang,
     notice: String(toLocale('i18n.untranslatedContent')),
-    // Mirrors Starlight's `Search.astro`; `site-search[data-ui-lang]` adds Pagefind's
-    // own strings for the locale while it keeps searching the English index.
+    // Pagefind's own strings for the locale, overridden by Starlight's as in
+    // Starlight's `Search.astro`. Search keeps the English index.
     search: {
+      ...getPagefindTranslations(lang),
       placeholder: String(toLocale('search.label')),
       ...Object.fromEntries(
         flattenKeys(localized.all())

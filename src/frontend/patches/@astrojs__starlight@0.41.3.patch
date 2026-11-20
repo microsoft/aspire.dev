@@ -1,5 +1,5 @@
 diff --git a/components/Search.astro b/components/Search.astro
-index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..90895db5f455ccebbbef855894a74d0c62d9e0a1 100644
+index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..a1ccda6bf9c7beddc4090f1f9069eb7dc5b5b41c 100644
 --- a/components/Search.astro
 +++ b/components/Search.astro
 @@ -59,7 +59,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
@@ -51,7 +51,7 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..90895db5f455ccebbbef855894a74d0c
  
  			// Listen for `ctrl + k` and `cmd + k` keyboard shortcuts.
  			window.addEventListener('keydown', (e) => {
-@@ -121,41 +126,91 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+@@ -121,30 +126,56 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
  					dialog.open ? closeModal() : openModal();
  					e.preventDefault();
  				}
@@ -102,53 +102,25 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..90895db5f455ccebbbef855894a74d0c
  					// @ts-expect-error — Missing types for @pagefind/default-ui package.
  					const { PagefindUI } = await import('@pagefind/default-ui');
 -					new PagefindUI({
--						...pagefindUserConfig,
--						element: '#starlight__search',
--						baseUrl: import.meta.env.BASE_URL,
--						bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
--						showImages: false,
--						translations,
--						showSubResults: true,
--						processResult: (result: { url: string; sub_results: Array<{ url: string }> }) => {
--							result.url = formatURL(result.url);
--							result.sub_results = result.sub_results.map((sub_result) => {
--								sub_result.url = formatURL(sub_result.url);
--								return sub_result;
--							});
--						},
--					});
 +					await translationsReady();
 +					// Navigation can detach this instance while the module is loading.
 +					if (signal.aborted) return;
-+					// Pagefind picks its built-in UI strings from `<html lang>` while mounting and its
-+					// search index later, on first use. `data-ui-lang` localizes the UI only.
-+					const root = document.documentElement;
-+					const pageLang = root.getAttribute('lang');
-+					const uiLang = this.dataset.uiLang;
-+					if (uiLang) root.setAttribute('lang', uiLang);
-+					try {
-+						pagefindUI = new PagefindUI({
-+							...pagefindUserConfig,
-+							element: this.querySelector('#starlight__search'),
-+							baseUrl: import.meta.env.BASE_URL,
-+							bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
-+							showImages: false,
-+							translations: readTranslations(),
-+							showSubResults: true,
-+							processResult: (result: { url: string; sub_results: Array<{ url: string }> }) => {
-+								result.url = formatURL(result.url);
-+								result.sub_results = result.sub_results.map((sub_result) => {
-+									sub_result.url = formatURL(sub_result.url);
-+									return sub_result;
-+								});
-+							},
-+						});
-+					} finally {
-+						if (uiLang) {
-+							if (pageLang === null) root.removeAttribute('lang');
-+							else root.setAttribute('lang', pageLang);
-+						}
-+					}
++					pagefindUI = new PagefindUI({
+ 						...pagefindUserConfig,
+-						element: '#starlight__search',
++						element: this.querySelector('#starlight__search'),
+ 						baseUrl: import.meta.env.BASE_URL,
+ 						bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
+ 						showImages: false,
+-						translations,
++						translations: readTranslations(),
+ 						showSubResults: true,
+ 						processResult: (result: { url: string; sub_results: Array<{ url: string }> }) => {
+ 							result.url = formatURL(result.url);
+@@ -154,8 +185,19 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 							});
+ 						},
+ 					});
 +					if (dialog.open) this.querySelector('input')?.focus();
  				});
 -			});

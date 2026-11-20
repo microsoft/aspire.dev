@@ -162,10 +162,7 @@ function holdSearch(): void {
 function releaseSearch(dictionary?: LocaleFallbackDictionary): void {
   window.clearTimeout(searchTimer);
   for (const search of document.querySelectorAll<HTMLElement>('site-search')) {
-    if (dictionary) {
-      search.dataset.translations = JSON.stringify(dictionary.search);
-      search.dataset.uiLang = dictionary.lang;
-    }
+    if (dictionary) search.dataset.translations = JSON.stringify(dictionary.search);
     if (!search.hasAttribute('data-translations-pending')) continue;
     search.removeAttribute('data-translations-pending');
     search.dispatchEvent(new Event('translationsready'));
