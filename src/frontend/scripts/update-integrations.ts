@@ -36,6 +36,7 @@ const EXCLUDED_PACKAGES = [
   'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
   'CommunityToolkit.Aspire.Hosting.Bun',
   'CommunityToolkit.Aspire.Hosting.Dapr.AzureRedis',
+  'CommunityToolkit.Aspire.Hosting.Deno',
   'CommunityToolkit.Aspire.Hosting.EventStore',
   'CommunityToolkit.Aspire.Hosting.Golang',
   'CommunityToolkit.Aspire.Hosting.Java',

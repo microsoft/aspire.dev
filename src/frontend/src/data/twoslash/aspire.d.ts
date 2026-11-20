@@ -203401,26 +203401,6 @@ export interface IDistributedApplicationBuilder {
 
   addDbx(name?: string, port?: number): DbxContainerResource;
   /**
-   * Adds a Deno application to the application model. Deno should available on the PATH.
-   */
-
-  addDenoApp(name: string, scriptPath: string, options?: { workingDirectory?: string; permissionFlags?: string[]; args?: string[] }): DenoAppResource;
-  /**
-   * Adds a Deno application to the application model. Deno should available on the PATH.
-   */
-
-  addDenoApp(name: string, scriptPath: string, workingDirectory?: string, permissionFlags?: string[], args?: string[]): DenoAppResource;
-  /**
-   * Adds a Deno task to the distributed application builder
-   */
-
-  addDenoTask(name: string, options?: { workingDirectory?: string; taskName?: string; args?: string[] }): DenoAppResource;
-  /**
-   * Adds a Deno task to the distributed application builder
-   */
-
-  addDenoTask(name: string, workingDirectory?: string, taskName?: string, args?: string[]): DenoAppResource;
-  /**
    * Adds a DuckDB resource to the application builder.
    */
 
@@ -227863,11 +227843,6 @@ export interface DenoAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
-  /**
-   * Ensures the Deno packages are installed before the application starts using Deno as the package manager.
-   */
-
-  withDenoPackageInstallation(): this;
   /**
    * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
    */
