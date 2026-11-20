@@ -637,6 +637,21 @@ var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProje
     The TypeScript and Go AppHosts don't currently expose a `withClearCommand()` / `WithClearCommand()` API for Redis. This feature is only available in the C# AppHost.
 </Aside>
 
+## Container ports when TLS is enabled
+
+When TLS is enabled for the Redis resource in run mode, Aspire uses the conventional Redis port assignments inside the container:
+
+| Run-mode endpoint | Container port |
+| --- | --- |
+| Primary (`tcp`, TLS) | `6380` |
+| Secondary (`secondary`, non-TLS) | `6379` |
+
+Endpoint names, connection-string selection, and publish behavior are unchanged. The `port` argument to `AddRedis` still selects the host port of the primary endpoint, and explicitly configured host ports are preserved.
+
+<Aside type="note">
+    Redis doesn't mandate a TLS port. Port `6380` follows the common convention for TLS-enabled Redis. Earlier versions targeted container port `6379` for the primary TLS endpoint and `6380` for the secondary non-TLS endpoint.
+</Aside>
+
 ## Pass custom environment variables
 
 By default, Aspire injects the Redis connection information using variable names derived from the resource name (for example, `CACHE_URI`, `CACHE_HOST`, `CACHE_PORT`, `CACHE_PASSWORD`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
