@@ -70,7 +70,7 @@ export default defineConfig({
         // Build job builds it, so the tests start its assembly directly: `dotnet run --no-build` still
         // evaluates the project, which takes seconds. The E2E jobs start it before dist arrives
         // (.github/scripts/start-web-server.mjs), hence reuseExistingServer.
-        command: `dotnet bin/Release/net10.0/StaticHost.dll --urls ${e2eBaseUrl}`,
+        command: `dotnet bin/Release/net11.0/StaticHost.dll --urls ${e2eBaseUrl}`,
         cwd: fileURLToPath(new URL('../statichost/StaticHost/', import.meta.url)),
         // No Redis runs with the tests: the short connect timeout keeps StaticHost from waiting 5 s per
         // attempt at startup.
