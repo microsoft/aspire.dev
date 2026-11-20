@@ -35,7 +35,7 @@ To get started with the Aspire Community Toolkit MySQL hosting extensions, insta
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MySql.Extensions" />
 
-For TypeScript AppHosts, add the Community Toolkit MySQL extensions package to `aspire.config.json`:
+For TypeScript and Go AppHosts, add the Community Toolkit MySQL extensions package to `aspire.config.json`:
 
 ```json title="aspire.config.json" ins={3}
 {
@@ -60,7 +60,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var mysql = builder.AddMySql("mysql")
     .WithDbGate();
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysql);
 
 builder.Build().Run();
@@ -77,10 +77,34 @@ const builder = await createBuilder();
 const mysql = await builder.addMySql('mysql');
 await mysql.withDbGate();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(mysql);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mysql := builder.AddMySql("mysql").
+	WithDbGate()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mysql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -101,7 +125,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var mysql = builder.AddMySql("mysql")
     .WithAdminer();
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysql);
 
 builder.Build().Run();
@@ -118,10 +142,34 @@ const builder = await createBuilder();
 const mysql = await builder.addMySql('mysql');
 await mysql.withAdminer();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(mysql);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mysql := builder.AddMySql("mysql").
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mysql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -143,7 +191,7 @@ var mysql = builder.AddMySql("mysql")
     .WithDbGate()
     .WithAdminer();
 
-builder.AddProject<Projects.ExampleProject>("api")
+builder.AddDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .WithReference(mysql);
 
 builder.Build().Run();
@@ -161,10 +209,35 @@ const mysql = await builder.addMySql('mysql');
 await mysql.withDbGate();
 await mysql.withAdminer();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
 await api.withReference(mysql);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+mysql := builder.AddMySql("mysql").
+	WithDbGate().
+	WithAdminer()
+
+builder.AddGoApp("api", "./api").
+	WithReference(mysql)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -204,9 +277,31 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+builder.AddMySql("mysql").
+	WithDbx(aspire.DbxContainerName("mysql-dbx"),
+		aspire.DbxImageTag("0.5.33"))
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
-The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript binding accepts optional `containerName` and `imageTag` values.
+The C# overload accepts an optional container configuration callback and `containerName`. The TypeScript and Go bindings accept optional `containerName` and `imageTag` values.
 
 ## See also
 

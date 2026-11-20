@@ -106,7 +106,12 @@ internal sealed class SiteFileMiddleware
         var served = useCompressed ? compressed : file;
 
         var response = context.Response;
-        var etag = await _etags.GetAsync(useCompressed ? compressedPath : request.Path.Value, served, context.RequestAborted);
+        // A precondition decides on the ETag, so it must match the bytes on disk now: a 304 for a
+        // file replaced with one of the same length and time would keep a client on the old bytes.
+        var revalidate = request.Headers.IfMatch.Count > 0
+            || request.Headers.IfNoneMatch.Count > 0
+            || request.Headers.IfRange.Count > 0;
+        var etag = await _etags.GetAsync(useCompressed ? compressedPath : request.Path.Value, served, revalidate, context.RequestAborted);
         var entityTag = new EntityTagHeaderValue(etag);
         var lastModified = TruncateToSeconds(file.LastModified);
         var requestHeaders = request.GetTypedHeaders();
@@ -127,7 +132,11 @@ internal sealed class SiteFileMiddleware
         }
 
         headers.AcceptRanges = "bytes";
-        var range = GetRange(requestHeaders, entityTag, lastModified, served.Length, out var unsatisfiable);
+        // Range applies only to GET (RFC 9110, 14.2): HEAD gets the headers of the whole file.
+        var unsatisfiable = false;
+        var range = HttpMethods.IsGet(request.Method)
+            ? GetRange(requestHeaders, entityTag, lastModified, served.Length, out unsatisfiable)
+            : null;
         if (unsatisfiable)
         {
             response.StatusCode = StatusCodes.Status416RangeNotSatisfiable;
@@ -186,6 +195,16 @@ internal sealed class SiteFileMiddleware
             : _cacheOptions.Default;
     }
 
+    /// <summary>
+    /// Chooses between the brotli copy and the file itself by the quality values of
+    /// <c>Accept-Encoding</c> (RFC 9110, 12.5.3), and returns whether to send brotli.
+    /// </summary>
+    /// <remarks>
+    /// <c>*</c> applies to each coding the header does not list, identity included. Unlisted,
+    /// identity stays acceptable but preferred last, so <c>br;q=0.5</c> still gets brotli, and a tie
+    /// goes to brotli. When the client accepts neither, it gets the file itself: RFC 9110, 12.1 lets
+    /// the server disregard the header, and a 406 could be cached for clients that accept the file.
+    /// </remarks>
     internal static bool AcceptsBrotli(StringValues acceptEncoding)
     {
         if (!StringWithQualityHeaderValue.TryParseList(acceptEncoding, out var encodings))
@@ -194,6 +213,7 @@ internal sealed class SiteFileMiddleware
         }
 
         double? brotli = null;
+        double? identity = null;
         double? wildcard = null;
         foreach (var encoding in encodings)
         {
@@ -202,6 +222,10 @@ internal sealed class SiteFileMiddleware
             {
                 brotli = quality;
             }
+            else if (StringSegment.Equals(encoding.Value, "identity", StringComparison.OrdinalIgnoreCase))
+            {
+                identity = quality;
+            }
             else if (StringSegment.Equals(encoding.Value, "*", StringComparison.Ordinal))
             {
                 wildcard = quality;
@@ -209,7 +233,8 @@ internal sealed class SiteFileMiddleware
         }
 
         // An explicit "br;q=0" refuses brotli even when "*" accepts everything else.
-        return (brotli ?? wildcard ?? 0) > 0;
+        var brotliQuality = brotli ?? wildcard ?? 0;
+        return brotliQuality > 0 && brotliQuality >= (identity ?? wildcard ?? 0);
     }
 
     /// <summary>

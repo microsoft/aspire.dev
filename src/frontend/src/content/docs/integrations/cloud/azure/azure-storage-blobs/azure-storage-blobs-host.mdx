@@ -21,7 +21,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Blob Storage Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model Azure Storage and blob resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Blob Storage Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model Azure Storage and blob resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Blob Storage integration, start with the [Get started with Azure Blob Storage integrations](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Blob Storage](../azure-storage-blobs-connect/).
 
@@ -72,6 +72,27 @@ This updates your `aspire.config.json` with the Azure Storage hosting integratio
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Storage": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Azure Storage resource
@@ -101,6 +122,25 @@ const storage = await builder.addAzureStorage("storage");
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 <Aside type="caution">
@@ -123,7 +163,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var blobs = builder.AddAzureStorage("storage")
     .AddBlobs("blobs");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs)
     .WaitFor(blobs);
 
@@ -140,12 +180,36 @@ const builder = await createBuilder();
 const blobs = await builder.addAzureStorage("storage")
     .addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs)
     .waitFor(blobs);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+blobs := builder.AddAzureStorage("storage").
+	AddBlobs("blobs")
+
+builder.AddGoApp("api", "./api").
+	WithReference(blobs).
+	WaitFor(blobs)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -168,7 +232,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var container = builder.AddAzureStorage("storage")
     .AddBlobContainer("uploads", blobContainerName: "upload-data");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(container)
     .WaitFor(container);
 
@@ -185,12 +249,36 @@ const builder = await createBuilder();
 const container = await builder.addAzureStorage("storage")
     .addBlobContainer("uploads", { blobContainerName: "upload-data" });
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(container)
     .waitFor(container);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+container := builder.AddAzureStorage("storage").
+	AddBlobContainer("uploads", aspire.AddBlobContainerBlobContainerName("upload-data"))
+
+builder.AddGoApp("api", "./api").
+	WithReference(container).
+	WaitFor(container)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -210,7 +298,7 @@ var blobs = builder.AddAzureStorage("storage")
     .RunAsEmulator()
     .AddBlobs("blobs");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs)
     .WaitFor(blobs);
 
@@ -228,12 +316,37 @@ const blobs = await builder.addAzureStorage("storage")
     .runAsEmulator()
     .addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs)
     .waitFor(blobs);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+blobs := builder.AddAzureStorage("storage").
+	RunAsEmulator().
+	AddBlobs("blobs")
+
+builder.AddGoApp("api", "./api").
+	WithReference(blobs).
+	WaitFor(blobs)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -288,6 +401,30 @@ const storage = await builder.addAzureStorage("storage")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithBlobPort(27000).
+			WithQueuePort(27001).
+			WithTablePort(27002)
+	}))
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ### Configure Azurite container with persistent lifetime
@@ -326,6 +463,28 @@ const storage = await builder.addAzureStorage("storage")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithLifetime(aspire.ContainerLifetimePersistent)
+	}))
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ### Configure Azurite container with data volume
@@ -362,6 +521,28 @@ const storage = await builder.addAzureStorage("storage")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithDataVolume()
+	}))
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -404,6 +585,28 @@ const storage = await builder.addAzureStorage("storage")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(azurite aspire.AzureStorageEmulatorResource) {
+		azurite.WithDataBindMount(aspire.DataBindMountPath("../azurite/data"))
+	}))
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 <Aside type="note">
@@ -428,7 +631,7 @@ var blobs = builder.AddAzureStorage("storage")
     .AsExisting(existingStorageName, existingStorageResourceGroup)
     .AddBlobs("blobs");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs);
 
 // After adding all resources, run the app...
@@ -448,11 +651,38 @@ const blobs = await builder.addAzureStorage("storage")
     .asExisting(existingStorageName, { resourceGroup: existingStorageResourceGroup })
     .addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingStorageName := builder.AddParameter("existingStorageName")
+existingStorageResourceGroup := builder.AddParameter("existingStorageResourceGroup")
+
+blobs := builder.AddAzureStorage("storage").
+	AsExisting(existingStorageName, aspire.AsExistingResourceGroup(existingStorageResourceGroup)).
+	AddBlobs("blobs")
+
+builder.AddGoApp("api", "./api").
+	WithReference(blobs)
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -501,7 +731,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddAzureStorage("storage");
 var blobs = storage.AddBlobs("blobs");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(blobs)
     .WithRoleAssignments(storage, AzureStorageRole.StorageBlobDataReader);
 
@@ -518,12 +748,38 @@ const builder = await createBuilder();
 const storage = await builder.addAzureStorage("storage");
 const blobs = await storage.addBlobs("blobs");
 
-await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+await builder.addDotnetProject("api", "../ExampleProject/ExampleProject.csproj")
     .withReference(blobs)
     .withRoleAssignments(storage, [AzureStorageRole.StorageBlobDataReader]);
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage")
+blobs := storage.AddBlobs("blobs")
+
+builder.AddGoApp("api", "./api").
+	WithReference(blobs).
+	WithStorageRoleAssignments(storage, []aspire.AzureStorageRole{
+		aspire.AzureStorageRoleStorageBlobDataReader,
+	})
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -638,6 +894,31 @@ const blobs = await storage.addBlobs("blobs");
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+storage := builder.AddAzureStorage("storage").
+	ConfigureInfrastructure(func(infra aspire.AzureResourceInfrastructure) {
+		// Access and modify the provisioned infrastructure
+		// For example, add custom tags or modify SKU settings.
+	})
+
+blobs := storage.AddBlobs("blobs")
+
+// After adding all resources, run the app...
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>

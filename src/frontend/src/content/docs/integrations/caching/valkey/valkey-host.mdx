@@ -20,7 +20,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Valkey Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model a Valkey resource in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Valkey Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model a Valkey resource in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Valkey integration, start with the [Get started with Valkey integrations](/integrations/caching/valkey/valkey-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Valkey](../valkey-connect/).
 
@@ -71,6 +71,27 @@ This updates your `aspire.config.json` with the Valkey hosting integration packa
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add valkey
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Valkey hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Valkey": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Valkey resource
@@ -84,7 +105,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddValkey("cache");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+var exampleProject = builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -100,6 +121,21 @@ const cache = await builder.addValkey("cache");
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddValkey("cache")
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -134,7 +170,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddValkey("cache")
     .WithDataVolume(isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -151,6 +187,22 @@ await cache.withDataVolume({ isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddValkey("cache").
+	WithDataVolume(aspire.DataVolumeIsReadOnly(false))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -173,7 +225,7 @@ var cache = builder.AddValkey("cache")
         source: "/Valkey/Data",
         isReadOnly: false);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -190,6 +242,22 @@ await cache.withDataBindMount("/Valkey/Data", { isReadOnly: false });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddValkey("cache").
+	WithDataBindMount("/Valkey/Data", aspire.DataBindMountIsReadOnly(false))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -217,7 +285,7 @@ var cache = builder.AddValkey("cache")
         interval: TimeSpan.FromMinutes(5),
         keysChangedThreshold: 100);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -242,9 +310,27 @@ await builder.addNodeApp("api", "./api", "index.js")
 // After adding all resources, run the app...
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddValkey("cache").
+	WithDataVolume().
+	WithPersistence(aspire.PersistenceInterval(5*60*1000),
+		aspire.PersistenceKeysChangedThreshold(100))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+```
+</TabItem>
 </Tabs>
 
-The preceding code adds explicit persistence to the Valkey resource by snapshotting data at the configured interval whenever the configured number of keys changes. The C# AppHost accepts a `TimeSpan` for `interval`; the TypeScript AppHost accepts the same value as milliseconds.
+The preceding code adds explicit persistence to the Valkey resource by snapshotting data at the configured interval whenever the configured number of keys changes. The C# AppHost accepts a `TimeSpan` for `interval`; the TypeScript and Go AppHosts accept the same value as milliseconds.
 
 ## Add Valkey resource with parameters
 
@@ -259,7 +345,7 @@ var password = builder.AddParameter("password", secret: true);
 
 var cache = builder.AddValkey("cache", port: 6379, password: password);
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -277,6 +363,24 @@ const cache = await builder.addValkey("cache", { port: 6379, password });
 
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+password := builder.AddParameter("password", aspire.AddParameterSecret(true))
+
+cache := builder.AddValkey("cache", aspire.AddValkeyPort(6379),
+	aspire.AddValkeyPassword(password))
+
+api := builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(cache)
 
 // After adding all resources, run the app...
 ```
@@ -328,6 +432,34 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 await builder.build().run();
 ```
 </TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddValkey("cache")
+cacheEndpoint := cache.GetEndpoint("tcp")
+cacheHost := cacheEndpoint.Property(aspire.EndpointPropertyHost)
+cachePort := cacheEndpoint.Property(aspire.EndpointPropertyPort)
+
+app := builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(cache).
+	WithEnvironment("VALKEY_HOST", cacheHost).
+	WithEnvironment("VALKEY_PORT", cachePort).
+	WithEnvironment("VALKEY_PASSWORD", cache.PasswordParameter())
+
+
+application, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := application.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+</TabItem>
 </Tabs>
 
 ## Connect to an existing Valkey instance
@@ -341,7 +473,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddConnectionString("cache");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(cache);
 
 // After adding all resources, run the app...
@@ -360,6 +492,28 @@ await builder.addNodeApp("my-app", "./app", "index.js")
 
 // After adding all resources, run the app...
 await builder.build().run();
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddConnectionString("cache")
+
+app := builder.AddNodeApp("my-app", "./app", "index.js").
+	WithReference(cache)
+
+// After adding all resources, run the app...
+application, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := application.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 </TabItem>
 </Tabs>
@@ -393,6 +547,26 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddValkey("cache").WithRepl();
 
 builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+cache := builder.AddValkey("cache").WithRepl()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

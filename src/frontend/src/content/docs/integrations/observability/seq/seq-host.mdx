@@ -70,6 +70,27 @@ This updates your `aspire.config.json` with the Seq hosting integration package:
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add seq
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Seq hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Seq": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Seq resource
@@ -86,7 +107,7 @@ var seq = builder.AddSeq("seq")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithEnvironment("ACCEPT_EULA", "Y");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(seq)
     .WaitFor(seq);
 
@@ -107,6 +128,20 @@ await seq.withEnvironment("ACCEPT_EULA", "Y");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(seq)
     .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+adminPassword := builder.AddParameter("seq-admin-password", aspire.AddParameterSecret(true))
+seq := builder.AddSeq("seq", adminPassword).
+	WithLifetime(aspire.ContainerLifetimePersistent).
+	WithEnvironment("ACCEPT_EULA", "Y")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(seq).
+	WaitFor(seq)
 
 // After adding all resources, run the app...
 ```
@@ -152,7 +187,7 @@ var seq = builder.AddSeq("seq")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithEnvironment("ACCEPT_EULA", "Y");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(seq)
     .WaitFor(seq);
 
@@ -173,10 +208,28 @@ await seq.excludeFromManifest();
 await seq.withLifetime(ContainerLifetime.Persistent);
 await seq.withEnvironment("ACCEPT_EULA", "Y");
 
-const myService = await builder.addProject("example", "../ExampleProject/ExampleProject.csproj");
+const myService = await builder.addDotnetProject("example", "../ExampleProject/ExampleProject.csproj");
 await myService
     .withReference(seq)
     .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+adminPassword := builder.AddParameter("seq-admin-password", aspire.AddParameterSecret(true))
+seq := builder.AddSeq("seq", adminPassword).
+	WithDataVolume().
+	ExcludeFromManifest().
+	WithLifetime(aspire.ContainerLifetimePersistent).
+	WithEnvironment("ACCEPT_EULA", "Y")
+
+builder.AddDotnetProject("example", "../ExampleProject/ExampleProject.csproj").
+	WithReference(seq).
+	WaitFor(seq)
 
 // After adding all resources, run the app...
 ```
@@ -201,7 +254,7 @@ var seq = builder.AddSeq("seq")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithEnvironment("ACCEPT_EULA", "Y");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var myService = builder.AddDotnetProject("exampleproject", "../ExampleProject/ExampleProject.csproj")
     .WithReference(seq)
     .WaitFor(seq);
 
@@ -223,6 +276,21 @@ await seq.withEnvironment("ACCEPT_EULA", "Y");
 await builder.addNodeApp("api", "./api", "index.js")
     .withReference(seq)
     .waitFor(seq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="go" label="Go">
+```go title="apphost.go"
+adminPassword := builder.AddParameter("seq-admin-password", aspire.AddParameterSecret(true))
+seq := builder.AddSeq("seq", adminPassword).
+	WithDataBindMount("/Seq/Data", aspire.DataBindMountIsReadOnly(false)).
+	WithLifetime(aspire.ContainerLifetimePersistent).
+	WithEnvironment("ACCEPT_EULA", "Y")
+
+builder.AddNodeApp("api", "./api", "index.js").
+	WithReference(seq).
+	WaitFor(seq)
 
 // After adding all resources, run the app...
 ```

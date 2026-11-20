@@ -11,8 +11,8 @@ The dashboard is intended for development and short-term diagnostics. Its persis
 
 ## Persistence modes
 
-| Mode | Database lifetime | Historical run selector | Default scenario |
-|------|-------------------|-------------------------|------------------|
+| Mode | Database lifetime | Recordings drawer | Default scenario |
+|------|-------------------|------------------|------------------|
 | `None` | One temporary database per dashboard process | No | Standalone dashboard |
 | `Run` | One persistent database per dashboard process | Yes | AppHost dashboard |
 | `Resume` | One persistent database reused across dashboard restarts | No | Explicit opt-in |
@@ -33,7 +33,7 @@ aspire dashboard run
 
 `Run` creates a separate persistent database each time the dashboard starts. It is the default when an AppHost launches the dashboard. No additional configuration is required.
 
-The dashboard header displays a run selector with the live run followed by completed runs. Switching runs doesn't reload the browser. Historical runs are read-only:
+The dashboard header displays a **Recordings** button that opens a drawer with the live view followed by past recordings. Switching runs doesn't reload the browser. Historical runs are read-only:
 
 - Resource commands and parameter changes are disabled.
 - Clearing or importing telemetry is disabled.
@@ -42,7 +42,7 @@ The dashboard header displays a run selector with the live run followed by compl
 
 You can pin runs that you want to keep. The dashboard retains up to 10 unpinned runs for an application and prunes the oldest unpinned runs after a new run starts. Pinned runs don't count toward this limit. A run currently selected by another dashboard session or owned by another dashboard process isn't pruned until its lock is released.
 
-Runs created with an incompatible dashboard schema version remain visible in the selector but are disabled. Hover over a disabled run to see why it can't be viewed. You can still pin or unpin an incompatible run; an incompatible, unpinned run participates in normal retention.
+Runs created with an incompatible dashboard schema version remain visible in the drawer but are disabled. Hover over a disabled run to see why it can't be viewed. You can still pin or unpin an incompatible run; an incompatible, unpinned run participates in normal retention.
 
 ### Resume
 
@@ -108,6 +108,10 @@ The SQLite schema stores data in relational tables rather than retaining opaque 
 
 Console logs are persisted only after their stream is viewed or exported. A historical run can therefore omit console logs that weren't captured. The `Dashboard:Frontend:MaxConsoleLogCount` setting limits how many console entries are retained per database, shared across resources.
 
+## Browser-stored settings
+
+Resource tags added in the dashboard, resource and group order, and pinned metrics aren't stored in the data directory. The dashboard saves them in the browser's local storage, separately for each application. They aren't shared between browsers or users, and they're tied to the browser origin, including the port: if the dashboard is served on a different port, they don't carry over. Clearing the site's data in the browser resets them. They're stored unencrypted, so don't put secrets in resource tags.
+
 ## Telemetry retention and disk use
 
 The dashboard applies the following default data retention limits:
@@ -136,7 +140,7 @@ For long-running `Resume` databases, keep finite attribute and span-event limits
 The database has a versioned schema and doesn't run migrations between incompatible versions:
 
 - `None` always creates a new temporary database.
-- `Run` creates a new database. Historical runs with incompatible schema versions remain visible in the selector but are disabled and can't be opened. They can still be pinned or unpinned.
+- `Run` creates a new database. Historical runs with incompatible schema versions remain visible in the drawer but are disabled and can't be opened. They can still be pinned or unpinned.
 - `Resume` replaces an incompatible database after successfully reading its schema version. If the compatibility check itself fails, startup fails and leaves the existing files in place.
 
 The dashboard uses exclusive lock files to prevent two processes from writing to the same run or resumed database. It also locks a historical run while that run is selected so background pruning can't remove it.

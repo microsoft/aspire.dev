@@ -107,7 +107,9 @@ The following options are available:
 
 - **`--isolated`**
 
-  Run in isolated mode with randomized ports and isolated user secrets, allowing multiple instances of the same AppHost to run simultaneously. This is useful for parallel testing or comparing different configurations side-by-side.
+  Run with randomized ports and isolated user secrets, allowing copies of the same AppHost in different directories, such as separate Git worktrees, to run simultaneously. This is useful for parallel testing or comparing different configurations side-by-side.
+
+  This doesn't enable multiple concurrent instances from the same AppHost path. If an instance of the AppHost is already running from that path, `aspire run` stops it before starting the new one, with or without `--isolated`. `aspire run`, `aspire run --detach`, and `aspire start` all behave this way. When it stops an instance this way, `aspire run --isolated` without `--detach` also prints a warning that suggests running from a different directory.
 
 - **`--no-build`**
 
@@ -159,9 +161,17 @@ The following options are available:
   aspire run --detach --format Json
   ```
 
-- Run in isolated mode for parallel testing:
+- Run two copies of the same AppHost side by side, the second one from a Git worktree. A worktree contains only committed files, so commit your changes before you create it. In the repository's main checkout:
 
   ```bash title="Aspire CLI"
+  git worktree add ../my-app-feature
+  aspire run --isolated
+  ```
+
+  Then, in a second terminal opened in the main checkout:
+
+  ```bash title="Aspire CLI"
+  cd ../my-app-feature
   aspire run --isolated
   ```
 

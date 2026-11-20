@@ -1,0 +1,140 @@
+---
+title: Import OpenAPI into Azure API Management
+description: Import operations into an Azure API Management API from an OpenAPI file or from a deployed Aspire workload's OpenAPI endpoint in your AppHost.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Azure API Management (APIM) can import operations, parameters, schemas, and descriptions from an OpenAPI document instead of using catch-all proxy operations. The Aspire Azure API Management hosting integration supports two sources for the document: a file that you keep with your AppHost, and an endpoint that a deployed Aspire workload exposes. An API can use only one source.
+
+This page assumes the `apim` resource and the `catalog` workload from [Get started with Azure API Management](/integrations/cloud/azure/azure-api-management/azure-api-management-get-started/#add-a-service-and-route-a-workload).
+
+## Import from a file
+
+Call `WithOpenApiDocument` to import a JSON or YAML document. The path is relative to the AppHost directory unless it's absolute.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const catalogApi = await apim.addApi("catalog-api", catalog, "catalog");
+await catalogApi.withOpenApiDocument("../Catalog/openapi.json");
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+apim.AddApi("catalog-api", catalog, path: "catalog")
+    .WithOpenApiDocument("../Catalog/openapi.json");
+```
+
+</TabItem>
+</Tabs>
+
+Aspire infers the document format from the file extension:
+
+| Extension | Format | `AzureApiManagementOpenApiFormat` value |
+| --------- | ------ | --------------------------------------- |
+| `.json` | OpenAPI 3.x JSON | `OpenApiJson` |
+| `.yaml`, `.yml` | OpenAPI YAML | `OpenApi` |
+
+For any other extension, and for Swagger 2.0 documents, pass the format explicitly. Swagger 2.0 documents use `SwaggerJson`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { AzureApiManagementOpenApiFormat } from './.aspire/modules/aspire.mjs';
+
+const legacyApi = await apim.addApi("legacy-api", catalog, "legacy");
+await legacyApi.withOpenApiDocument("../Catalog/swagger.json", {
+    format: AzureApiManagementOpenApiFormat.SwaggerJson,
+});
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Azure;
+
+apim.AddApi("legacy-api", catalog, path: "legacy")
+    .WithOpenApiDocument(
+        "../Catalog/swagger.json",
+        AzureApiManagementOpenApiFormat.SwaggerJson);
+```
+
+</TabItem>
+</Tabs>
+
+Aspire reads the file when it generates infrastructure for publish or deploy, not during `aspire run`. The file doesn't need to exist for local development. When you publish or deploy, Aspire throws a `FileNotFoundException` if the file doesn't exist, and an `InvalidOperationException` if the file is empty or contains only whitespace.
+
+`WithOpenApiDocument` works for every API, including APIs that use a backend that you configure. Use a file when the workload's endpoint isn't reachable from the APIM control plane, such as a workload in an internal Container Apps environment, or when you generate the document before deployment.
+
+## Import from a deployed workload
+
+Call `WithOpenApiEndpoint` to have APIM retrieve the OpenAPI document from the workload after it's deployed.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+const catalogApi = await apim.addApi("catalog-api", catalog, "catalog", {
+    subscriptionRequired: false,
+});
+await catalogApi.withOpenApiEndpoint({ documentPath: "/openapi/v1.json" });
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+apim.AddApi("catalog-api", catalog, path: "catalog", subscriptionRequired: false)
+    .WithOpenApiEndpoint("/openapi/v1.json");
+```
+
+</TabItem>
+</Tabs>
+
+The method has the following parameters:
+
+| Parameter | Default | Description |
+| --------- | ------- | ----------- |
+| `documentPath` | `/openapi/v1.json` | The absolute path of the OpenAPI endpoint. It must start with `/`. |
+| `endpointName` | An external HTTP or HTTPS endpoint | The name of the workload endpoint to use. |
+| `format` | Inferred from the path extension | The document format. |
+
+ASP.NET Core serves its generated document at `/openapi/v1.json` when you call `MapOpenApi`, which is why that path is the default.
+
+Aspire resolves the workload's deployed external endpoint, appends the document path, and passes the resulting link to APIM. APIM retrieves the document through its control plane during deployment, so the endpoint must be publicly reachable at that time. Aspire orders the APIM deployment after the workload's deployment so that the document is available.
+
+`WithOpenApiEndpoint` requires a compute-targeted API. Aspire throws an `InvalidOperationException` in these cases:
+
+- The API has no target compute resource.
+- The workload has no suitable external HTTP or HTTPS endpoint.
+- The workload deploys to an internal Container Apps environment.
+- The workload's compute publisher isn't an Azure provisioning resource that Aspire can order before the APIM deployment.
+
+In each case, use `WithOpenApiDocument` instead.
+
+## How imports change the API
+
+When an OpenAPI source is configured:
+
+- The imported operations replace the generated catch-all proxy operations.
+- Operations that you add with `AddOperation` are still provisioned in addition to the imported operations.
+- Explicit operations can use the `/` and `/{*path}` routes that are otherwise reserved for generated proxy operations.
+- For an endpoint import, the backend URL comes from the `servers` entry that APIM resolves from the document, so a non-root server path is preserved. If the document has no server URL, Aspire falls back to the workload's endpoint.
+
+An API can have only one OpenAPI source. Repeating the same configuration is allowed. Configuring a different source, path, endpoint name, or format throws an `InvalidOperationException` instead of replacing the existing source.
+
+:::caution
+An OpenAPI import defines the operations that APIM accepts. Requests that don't match an imported operation return an error from the gateway, so keep the document in sync with the workload.
+:::
+
+## See also
+
+- [APIs and operations](/integrations/cloud/azure/azure-api-management/azure-api-management-apis/)
+- [Virtual networking](/integrations/cloud/azure/azure-api-management/azure-api-management-networking/)
+- [Import an OpenAPI specification in Azure API Management](https://learn.microsoft.com/azure/api-management/import-api-from-oas)

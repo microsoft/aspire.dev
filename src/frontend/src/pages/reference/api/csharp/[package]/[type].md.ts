@@ -3,15 +3,12 @@ import type { APIRoute } from 'astro';
 import { markdownResponse } from '@utils/api-markdown-shared';
 import { apiDocumentCacheKey } from '@utils/api-cache-key';
 import { renderCSharpTypeMarkdown } from '@utils/csharp-api-markdown';
-import type { PackageType } from '@utils/packages';
-import { genericArity, getPackageDocument, getPackages, packageSlug, slugify } from '@utils/packages';
+import type { PackageTypeRouteProps } from '@utils/packages';
+import { genericArity, getPackageDocument, getPackages, getPackageType, packageSlug, slugify } from '@utils/packages';
 
 export const prerender = true;
 
-type RouteProps = {
-  packageName: string;
-  type: PackageType;
-};
+type RouteProps = PackageTypeRouteProps;
 
 type StaticPath = {
   cacheKey: string;
@@ -28,7 +25,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
     const pkgSlug = packageSlug(pkg.package.name);
     const cacheKey = apiDocumentCacheKey(pkg);
 
-    for (const type of pkg.types) {
+    for (const [typeIndex, type] of pkg.types.entries()) {
       const typeSlug = slugify(type.name, genericArity(type));
       if (!typeSlug) {
         continue;
@@ -42,7 +39,7 @@ export async function getStaticPaths(): Promise<StaticPath[]> {
         },
         props: {
           packageName: pkg.package.name,
-          type,
+          typeIndex,
         },
       });
     }
@@ -55,8 +52,9 @@ export const GET: APIRoute = async ({ props }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const routeProps = props as RouteProps;
   const pkg = await getPackageDocument(routeProps.packageName);
+  const type = getPackageType(pkg, routeProps.typeIndex);
 
   return markdownResponse(
-    renderCSharpTypeMarkdown(pkg, routeProps.type, pkg.types, base)
+    renderCSharpTypeMarkdown(pkg, type, pkg.types, base)
   );
 };

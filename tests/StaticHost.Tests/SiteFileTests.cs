@@ -72,8 +72,29 @@ public sealed class SiteFileTests
     [InlineData("*", true)]
     [InlineData("*;q=0", false)]
     [InlineData("br;q=0, *", false)]
+    [InlineData("br;q=0.1, identity;q=1", false)]
+    [InlineData("br;q=0.5, *", false)]
+    [InlineData("br;q=0.5, identity;q=0.5", true)]
+    [InlineData("br, identity;q=0.5", true)]
+    [InlineData("br;q=0.1, identity;q=0", true)]
+    [InlineData("gzip, br;q=0, identity;q=0", false)]
     public void Accepts_brotli_per_the_accept_encoding_header(string acceptEncoding, bool expected) =>
         Assert.Equal(expected, SiteFileMiddleware.AcceptsBrotli(new StringValues(acceptEncoding)));
+
+    [Fact]
+    public async Task Client_that_accepts_neither_coding_gets_the_file_itself()
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(root => SeedCompressedPage(root, "docs/page"));
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/docs/page/");
+        request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, br;q=0, identity;q=0");
+        using var response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(response.Content.Headers.ContentEncoding);
+        Assert.Contains("Accept-Encoding", response.Headers.Vary);
+        Assert.Equal(Page, await response.Content.ReadAsStringAsync());
+    }
 
     [Fact]
     public async Task Matching_if_none_match_returns_not_modified()
@@ -228,6 +249,29 @@ public sealed class SiteFileTests
         Assert.Equal("{\"v\":22}", await after.Content.ReadAsStringAsync());
     }
 
+    [Fact]
+    public async Task Precondition_sees_a_file_replaced_with_the_same_length_and_time()
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile("data.json", "{\"v\":1}"));
+        var path = Path.Combine(server.WebRoot, "data.json");
+        var lastWrite = File.GetLastWriteTimeUtc(path);
+
+        using var before = await server.Client.GetAsync("/data.json");
+        var staleETag = before.Headers.ETag!.Tag;
+
+        // A restore: new bytes, same length, the old time.
+        await File.WriteAllTextAsync(path, "{\"v\":2}");
+        File.SetLastWriteTimeUtc(path, lastWrite);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/data.json");
+        request.Headers.TryAddWithoutValidation("If-None-Match", staleETag);
+        using var response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("{\"v\":2}", await response.Content.ReadAsStringAsync());
+        Assert.Equal(ETagOf(Encoding.UTF8.GetBytes("{\"v\":2}")), response.Headers.ETag?.Tag);
+    }
+
     [Theory]
     [InlineData("/_astro/index.Bx1y2z3.js", SiteFileCacheOptions.ImmutableValue)]
     [InlineData("/_astro/logo.Bx1y2z3.png", SiteFileCacheOptions.ImmutableValue)]
@@ -379,6 +423,23 @@ public sealed class SiteFileTests
 
         Assert.Equal(HttpStatusCode.RequestedRangeNotSatisfiable, response.StatusCode);
         Assert.Equal("bytes */10", response.Content.Headers.ContentRange?.ToString());
+    }
+
+    [Theory]
+    [InlineData("bytes=2-5")]
+    [InlineData("bytes=10-")]
+    public async Task Head_ignores_the_range(string range)
+    {
+        await using var server = await AgentReadinessTestServer.StartAsync(root => root.WriteFile("casts/demo.mp4", "0123456789"));
+
+        using var request = new HttpRequestMessage(HttpMethod.Head, "/casts/demo.mp4");
+        request.Headers.TryAddWithoutValidation("Range", range);
+        using var response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(10, response.Content.Headers.ContentLength);
+        Assert.Null(response.Content.Headers.ContentRange);
+        Assert.Equal(["bytes"], response.Headers.AcceptRanges);
     }
 
     [Fact]

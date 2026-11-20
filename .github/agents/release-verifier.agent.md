@@ -210,10 +210,10 @@ grep -rnE '%ASPIRE_VERSION%-(preview|alpha|beta|rc)(\.[0-9A-Za-z-]+)+' src/front
   --exclude-dir="whats-new"
 ```
 
-Also search for stale SDK version references:
+Also search for stale AppHost package and legacy SDK version references:
 
 ```bash
-grep -rn 'Aspire.AppHost.Sdk.*Version="{PRIOR_NUGET_VERSION}"' src/frontend/src/content/docs/ \
+grep -rnE '(Aspire\.Hosting\.AppHost|Aspire\.AppHost\.Sdk).*Version="{PRIOR_NUGET_VERSION}"' src/frontend/src/content/docs/ \
   --include="*.md" \
   --include="*.mdx"
 ```

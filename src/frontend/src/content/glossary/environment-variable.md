@@ -15,7 +15,7 @@ Aspire supplies environment variables to running resources for configuration suc
 
 - `ConnectionStrings__resourcename` for a named connection string.
 - `services__servicename__https__0` for a service's HTTPS endpoint.
-- Custom settings configured with `WithEnvironment` in C# or `withEnvironment` in TypeScript.
+- Custom settings configured with `WithEnvironment` in C# or Go, or `withEnvironment` in TypeScript.
 
 Applications read these through their runtime's environment APIs or a configuration library. .NET configuration maps double underscores to configuration separators; JavaScript and Python can read the original environment variable names directly.
 

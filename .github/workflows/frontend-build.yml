@@ -159,12 +159,20 @@ jobs:
             echo "- Size: \`$(du -sh node_modules/.astro 2>/dev/null | cut -f1)\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Every build reports dist size (total, HTML, counts, median page,
+      # top-level and reference/api directories) to the job summary and
+      # checks it against a soft budget. Tune it with the repository
+      # variables FRONTEND_DIST_BUDGET_BYTES and FRONTEND_DIST_BUDGET_MODE
+      # (`warn`, the default, or `error` to fail the build when exceeded).
+      # The file manifest and compression sample remain opt-in profiling.
       - name: Measure frontend output
-        if: ${{ inputs.profile_build }}
+        if: ${{ !cancelled() && hashFiles('src/frontend/dist/index.html') != '' }}
         env:
           BUILD_METRICS_DIR: ${{ runner.temp }}/frontend-performance
           ASTRO_CACHE_HIT: ${{ steps.astro_cache.outputs.cache-matched-key != '' }}
           PROFILE_BUILD: ${{ inputs.profile_build }}
+          DIST_SIZE_BUDGET_BYTES: ${{ vars.FRONTEND_DIST_BUDGET_BYTES }}
+          DIST_SIZE_BUDGET_MODE: ${{ vars.FRONTEND_DIST_BUDGET_MODE }}
         run: node scripts/measure-build-output.mjs
 
       - name: Upload build diagnostics

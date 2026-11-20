@@ -1,5 +1,6 @@
 import type { TsRouteParameterLike } from './ts-api-routes';
 import { CSharpLanguageProvider } from './api-reference/csharp-provider';
+import { GoLanguageProvider, type ApiReferenceGoDocument } from './api-reference/go-provider';
 import { ApiReferenceProviderRegistry } from './api-reference/registry';
 import { TypeScriptLanguageProvider } from './api-reference/typescript-provider';
 
@@ -127,12 +128,15 @@ export const API_REFERENCE_FQN_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][
 
 export function buildApiReferenceIndex(
   packages: readonly ApiReferencePackageDocument[],
-  modules: readonly ApiReferenceTsDocument[]
+  modules: readonly ApiReferenceTsDocument[],
+  goModules: readonly ApiReferenceGoDocument[] = []
 ): ApiReferenceIndex {
   return new ApiReferenceProviderRegistry(new CSharpLanguageProvider(), [
     new TypeScriptLanguageProvider(),
+    new GoLanguageProvider(),
   ]).build({
     csharp: packages,
     typescript: modules,
+    go: goModules,
   });
 }

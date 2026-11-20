@@ -19,7 +19,7 @@ import ApiReference from '@components/ApiReference.astro';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Azure Service Bus Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.mts` — that you use to model an Azure Service Bus namespace, queues, topics, and subscriptions as resources in your [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire Azure Service Bus Hosting integration. It enumerates the AppHost APIs — with examples for `AppHost.cs`, `apphost.mts`, and `apphost.go` — that you use to model an Azure Service Bus namespace, queues, topics, and subscriptions as resources in your [`AppHost`](/get-started/app-host/) project.
 
 If you're new to the Azure Service Bus integration, start with the [Get started with the Azure Service Bus integrations](/integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure Service Bus](../azure-service-bus-connect/).
 
@@ -78,6 +78,27 @@ This updates your `aspire.config.json` with the Azure Service Bus hosting integr
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```bash title="Terminal"
+aspire add azure-service-bus
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Service Bus hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.ServiceBus": "%ASPIRE_VERSION%"
+  }
+}
+```
+
+</TabItem>
 </Tabs>
 
 ## Add Azure Service Bus resource
@@ -107,6 +128,26 @@ const builder = await createBuilder();
 const serviceBus = await builder.addAzureServiceBus("messaging");
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -144,7 +185,7 @@ var existingServiceBusResourceGroup = builder.AddParameter("existingServiceBusRe
 var serviceBus = builder.AddAzureServiceBus("messaging")
     .AsExisting(existingServiceBusName, existingServiceBusResourceGroup);
 
-builder.AddProject<Projects.WebApplication>("web")
+builder.AddDotnetProject("web", "../WebApplication/WebApplication.csproj")
     .WithReference(serviceBus);
 
 // After adding all resources, run the app...
@@ -169,6 +210,33 @@ await builder.addNodeApp("web", "./web", "index.js")
     .withReference(serviceBus);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+existingServiceBusName := builder.AddParameter("existingServiceBusName")
+existingServiceBusResourceGroup := builder.AddParameter("existingServiceBusResourceGroup")
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	AsExisting(existingServiceBusName, aspire.AsExistingResourceGroup(existingServiceBusResourceGroup))
+
+builder.AddGoApp("web", "./web").
+	WithReference(serviceBus)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -197,7 +265,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var serviceBus = builder.AddAzureServiceBus("messaging");
 var queue = serviceBus.AddServiceBusQueue("queue");
 
-builder.AddProject<Projects.ExampleProject>("apiservice")
+builder.AddDotnetProject("apiservice", "../ExampleProject/ExampleProject.csproj")
     .WithReference(queue);
 
 // After adding all resources, run the app...
@@ -219,6 +287,30 @@ await builder.addNodeApp("api", "./api", "index.js")
     .withReference(queue);
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+queue := serviceBus.AddServiceBusQueue("queue")
+
+builder.AddGoApp("api", "./api").
+	WithReference(queue)
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -258,6 +350,27 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+topic := serviceBus.AddServiceBusTopic("topic")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The topic is created in the namespace that the `AzureServiceBusResource` represents.
@@ -293,6 +406,28 @@ const topic = await serviceBus.addServiceBusTopic("topic");
 await topic.addServiceBusSubscription("sub1");
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging")
+topic := serviceBus.AddServiceBusTopic("topic")
+topic.AddServiceBusSubscription("sub1")
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>
@@ -374,6 +509,27 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	RunAsEmulator()
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 When you call `runAsEmulator`, Aspire provisions the `mcr.microsoft.com/azure-messaging/servicebus-emulator` container and its companion `mcr.microsoft.com/mssql/server` container locally. The emulator starts alongside your AppHost instead of requiring an Azure subscription. For more information, see [Container resource lifecycle](/architecture/resource-model/#built-in-resources-and-lifecycle).
@@ -426,6 +582,29 @@ await builder.build().run();
 ```
 
 </TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(emulator aspire.AzureServiceBusEmulatorResource) {
+		emulator.WithHostPort(aspire.IntPtr(7777))
+	}))
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+```
+
+</TabItem>
 </Tabs>
 
 The preceding code maps the `emulator` endpoint to host port `7777`:
@@ -433,6 +612,72 @@ The preceding code maps the `emulator` endpoint to host port `7777`:
 | Endpoint name | Port mapping (`container:host`) |
 | ------------- | ------------------------------- |
 | `emulator`    | `5672:7777`                     |
+
+### Configure the emulator's SQL Server
+
+The emulator stores its state in a SQL Server resource that Aspire creates for it. In C# AppHosts, pass a callback to `WithSqlServer` to customize that resource with the regular [SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/) APIs, such as persisting state in a data volume:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithSqlServer(sql => sql
+            .WithDataVolume()
+            .WithContainerName("messaging-sql"));
+    });
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The emulator connects to the SQL Server through its `tcp` endpoint, so don't remove or rename that endpoint in the callback.
+
+To reuse a SQL Server resource that's already in your AppHost instead of creating a new one, pass it to `WithSqlServer`. The emulator waits for that SQL Server to be healthy before it starts:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql");
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithSqlServer(sql);
+    });
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer("sql");
+
+const serviceBus = await builder.addAzureServiceBus("messaging")
+    .runAsEmulator({
+        configureContainer: async (emulator) => {
+            await emulator.withSqlServer(sql);
+        }
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+You can't combine the two forms: an emulator either customizes its own SQL Server or uses an existing one.
 
 ### Configure the emulator with a custom JSON file
 
@@ -471,6 +716,29 @@ const serviceBus = await builder.addAzureServiceBus("messaging")
     });
 
 await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="apphost.go"
+builder, err := aspire.CreateBuilder()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+
+serviceBus := builder.AddAzureServiceBus("messaging").
+	RunAsEmulator(aspire.RunAsEmulatorConfigureContainer(func(emulator aspire.AzureServiceBusEmulatorResource) {
+		emulator.WithConfigurationFile("./messaging/custom-config.json")
+	}))
+
+app, err := builder.Build()
+if err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
+if err := app.Run(); err != nil {
+	log.Fatal(aspire.FormatError(err))
+}
 ```
 
 </TabItem>

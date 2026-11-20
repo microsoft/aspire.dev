@@ -694,9 +694,29 @@ describe('API reference index', () => {
     // targets is missing, which would silently hide regressions.
     expect(resolution.targets?.csharp).toBe(resolution.csharp);
     expect(resolution.targets?.typescript).toBe(resolution.typescript);
-    expect(Object.keys(resolution.targets ?? {}).sort()).toEqual(['csharp', 'typescript']);
+    expect(Object.keys(resolution.targets ?? {}).sort()).toEqual(['csharp', 'go', 'typescript']);
   });
 
+  it('links the Go reference by capability id without raising diagnostics when Go has no match', () => {
+    const goModule = {
+      package: { name: 'Aspire.Hosting.Widget' },
+      functions: [
+        {
+          name: 'AddWidget',
+          kind: 'Method',
+          capabilityId: 'Aspire.Hosting.Widget/addWidget',
+          qualifiedName: 'addWidget',
+        },
+      ],
+    };
+    const fqn = 'Aspire.Hosting.WidgetBuilderExtensions.AddWidget';
+    const linked = buildApiReferenceIndex([widgetPackage], [widgetModule], [goModule]).resolve(fqn);
+    const unlinked = buildApiReferenceIndex([widgetPackage], [widgetModule]).resolve(fqn);
+
+    expect(linked.targets?.go?.path).toBe('/reference/api/go/aspire.hosting.widget/addwidget/');
+    expect(unlinked.targets?.go?.path).toBeUndefined();
+    expect(unlinked.diagnostics).toEqual(linked.diagnostics);
+  });
   it('routes target-owned diagnostics through the registered target providers', () => {
     // The missing-typescript diagnostic is emitted by the TypeScript target
     // provider, not the primary C# provider. Verifying it flows through the
@@ -1272,6 +1292,18 @@ describe('API reference authoring validator', () => {
     const packageDocuments = readJsonDocuments<ApiReferencePackageDocument>(
       path.join(frontendRoot, 'src', 'data', 'pkgs')
     );
+    const deferredTypeScriptPackages = new Set(
+      (
+        JSON.parse(
+          fs.readFileSync(
+            path.join(frontendRoot, 'src', 'data', 'api-generation-failures.json'),
+            'utf8'
+          )
+        ) as { name: string; stage: string }[]
+      )
+        .filter((failure) => failure.stage === 'TypeScript')
+        .map((failure) => failure.name)
+    );
     const index = buildApiReferenceIndex(
       packageDocuments,
       readJsonDocuments<ApiReferenceTsDocument>(
@@ -1331,6 +1363,7 @@ describe('API reference authoring validator', () => {
     const declaredExportFailures: string[] = [];
     const checkedExports = new Set<string>();
     for (const pkg of packageDocuments) {
+      if (deferredTypeScriptPackages.has(pkg.package.name)) continue;
       for (const type of pkg.types ?? []) {
         const typeName = (
           type.fullName ?? `${type.namespace ? `${type.namespace}.` : ''}${type.name}`

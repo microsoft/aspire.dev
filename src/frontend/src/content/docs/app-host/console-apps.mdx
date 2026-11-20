@@ -31,7 +31,7 @@ For example, to orchestrate a Node.js console app from a C# AppHost, choose any 
 
 These examples assume an existing AppHost.
 
-- **.NET:** The examples also assume a shared service defaults project. Create the named console, worker, and API projects before referencing them. In a C# AppHost, add project references so the corresponding `Projects.*` types are generated; in a TypeScript AppHost, use each project's actual path.
+- **.NET:** The examples also assume a shared service defaults project. Create the named console, worker, and API projects before referencing them. Reference each project by its path relative to the AppHost directory.
 - **Node.js:** Create each app folder with a _package.json_ file before referencing it. The AppHost resolves the app folder path relative to the AppHost directory, and the script path relative to the app folder.
 
 For the Redis examples, install the hosting integration in your AppHost. Running Redis also requires a supported [container runtime](/get-started/prerequisites/).
@@ -52,7 +52,22 @@ For the Redis examples, install the hosting integration in your AppHost. Running
 <Tabs syncKey='console-app-lang'>
 <TabItem id='dotnet' label='.NET'>
 
-Add the console app project to your AppHost:
+Install the .NET hosting integration in your AppHost. It provides `AddDotnetProject` / `addDotnetProject`, which runs a .NET project or C# file-based app:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+<InstallPackage packageName="Aspire.Hosting.Dotnet" />
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+<InstallPackage packageName="Aspire.Hosting.Dotnet" cliOnly />
+
+</TabItem>
+</Tabs>
+
+Then add the console app project to your AppHost:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -63,7 +78,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache");
 
 // Add a console app project to the AppHost
-var processor = builder.AddProject<Projects.MyConsoleApp>("processor")
+var processor = builder.AddDotnetProject("processor", "../MyConsoleApp/MyConsoleApp.csproj")
     .WithReference(cache);
 
 builder.Build().Run();
@@ -81,7 +96,7 @@ const cache = await builder.addRedis('cache');
 
 // Add a console app project to the AppHost
 await builder
-  .addProject('processor', '../MyConsoleApp/MyConsoleApp.csproj')
+  .addDotnetProject('processor', '../MyConsoleApp/MyConsoleApp.csproj')
   .withReference(cache);
 
 await builder.build().run();
@@ -258,9 +273,9 @@ Console apps using the .NET Generic Host can use the same service discovery infr
     ```csharp title="AppHost.cs"
     var builder = DistributedApplication.CreateBuilder(args);
 
-    var catalog = builder.AddProject<Projects.CatalogService>("catalog");
+    var catalog = builder.AddDotnetProject("catalog", "../CatalogService/CatalogService.csproj");
 
-    var processor = builder.AddProject<Projects.MyConsoleApp>("processor")
+    var processor = builder.AddDotnetProject("processor", "../MyConsoleApp/MyConsoleApp.csproj")
         .WithReference(catalog)
         .WaitFor(catalog);
 
@@ -275,12 +290,12 @@ Console apps using the .NET Generic Host can use the same service discovery infr
 
     const builder = await createBuilder();
 
-    const catalog = await builder.addProject(
+    const catalog = await builder.addDotnetProject(
       'catalog',
       '../CatalogService/CatalogService.csproj'
     );
 
-    const processor = await builder.addProject(
+    const processor = await builder.addDotnetProject(
       'processor',
       '../MyConsoleApp/MyConsoleApp.csproj'
     );
@@ -337,7 +352,7 @@ Node.js apps don't use the .NET service discovery resolver. Instead, they read t
     ```csharp title="AppHost.cs"
     var builder = DistributedApplication.CreateBuilder(args);
 
-    var catalog = builder.AddProject<Projects.CatalogService>("catalog");
+    var catalog = builder.AddDotnetProject("catalog", "../CatalogService/CatalogService.csproj");
 
     var processor = builder.AddNodeApp("processor", "../processor", "index.js")
         .WithReference(catalog)
@@ -354,7 +369,7 @@ Node.js apps don't use the .NET service discovery resolver. Instead, they read t
 
     const builder = await createBuilder();
 
-    const catalog = await builder.addProject(
+    const catalog = await builder.addDotnetProject(
       'catalog',
       '../CatalogService/CatalogService.csproj'
     );
@@ -543,7 +558,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cache = builder.AddRedis("cache");
 var db = builder.AddPostgres("postgres").AddDatabase("app-db");
 
-var worker = builder.AddProject<Projects.DataWorker>("data-worker")
+var worker = builder.AddDotnetProject("data-worker", "../DataWorker/DataWorker.csproj")
     .WithReference(cache)
     .WithReference(db)
     .WaitFor(db);
@@ -563,7 +578,7 @@ const cache = await builder.addRedis('cache');
 const postgres = await builder.addPostgres('postgres');
 const db = await postgres.addDatabase('app-db');
 
-const worker = await builder.addProject(
+const worker = await builder.addDotnetProject(
   'data-worker',
   '../DataWorker/DataWorker.csproj'
 );
@@ -653,7 +668,7 @@ In your AppHost, add the console app project with `WithExplicitStart`:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var tool = builder.AddProject<Projects.MyInteractiveTool>("tool")
+var tool = builder.AddDotnetProject("tool", "../MyInteractiveTool/MyInteractiveTool.csproj")
     .WithExplicitStart();
 
 builder.Build().Run();
@@ -667,7 +682,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const tool = await builder.addProject(
+const tool = await builder.addDotnetProject(
   'tool',
   '../MyInteractiveTool/MyInteractiveTool.csproj'
 );
@@ -726,11 +741,7 @@ With `WithExplicitStart`, the resource appears in the Aspire dashboard but doesn
   user input to the process's stdin.
 </Aside>
 
-Aspire builds that include the experimental `WithTerminal` API support interactive terminal user interfaces (TUIs) and shell-based experiences that need a live, bidirectional session, separately from the dashboard's console log viewer.
-
-:::caution[Experimental API]
-`WithTerminal` is reported under diagnostic ID `ASPIRETERMINAL001`. Using it in C# requires suppressing that diagnostic, and its API surface and behavior may change. This API might not be present in your installed release; use compatible hosting packages and a CLI build that includes it.
-:::
+Use the `WithTerminal` API for interactive terminal user interfaces (TUIs) and shell-based experiences that need a live, bidirectional session, separately from the dashboard's console log viewer. For more information, see [Attach a terminal to a resource](/app-host/with-terminal/).
 
 ## Viewing console output
 
