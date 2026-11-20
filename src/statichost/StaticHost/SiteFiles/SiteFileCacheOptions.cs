@@ -7,20 +7,18 @@ namespace StaticHost.SiteFiles;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every deployment purges Azure Front Door, so a file that is not fingerprinted can be cached at
-/// the edge (<c>s-maxage</c>) while browsers revalidate it on every use (<c>max-age=0</c>): the
-/// edge answers those revalidations, and a deployment's purge drops what it cached. Front Door
-/// does not cache a response the origin marks <c>no-cache</c>, even with a rule that overrides
-/// the cache duration, so the origin must send these values for HTML to be cached at the edge.
+/// Azure Front Door caches only fingerprinted content, and deployments don't purge it. A file
+/// that isn't fingerprinted keeps its URL when its content changes, so it defaults to
+/// <c>no-cache</c>: browsers revalidate it on every use, and Front Door never caches a response
+/// the origin marks <c>no-cache</c>, even on a route or rule that enables caching.
 /// </para>
 /// </remarks>
 internal sealed class SiteFileCacheOptions
 {
     public const string SectionName = "SiteFiles:CacheControl";
 
-    // Browsers revalidate every time; Front Door keeps the response for an hour, or until the
-    // purge that follows a deployment. An hour bounds how long a missed purge can serve stale HTML.
-    internal const string DefaultValue = "public, max-age=0, must-revalidate, s-maxage=3600";
+    // A file that isn't fingerprinted can change without a new URL, so nothing may reuse it unchecked.
+    internal const string DefaultValue = "no-cache";
 
     // The SDK's default for images, video and fonts, as MapStaticAssets sent.
     internal const string MediaValue = "max-age=3600, must-revalidate";
