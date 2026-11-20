@@ -6,7 +6,8 @@ namespace StaticHost.Routing;
 /// </summary>
 /// <remarks>
 /// Built on first use rather than at startup: CI starts StaticHost before it unpacks the site
-/// into the web root. Until the frontend's locale manifest appears, the index is rebuilt at
+/// into the web root, and unpacks the frontend's locale manifest last, so the manifest marks a
+/// complete web root. Until it appears, the index is rebuilt at
 /// most once per <see cref="RetryInterval"/>, for up to <see cref="RetryWindow"/>; production
 /// ships the manifest, so it is built once.
 /// </remarks>
