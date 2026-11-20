@@ -99,7 +99,7 @@ verified. When in doubt, leave it out.
 
 Apply only the checklists for languages that actually changed. Keep findings high-signal.
 
-### C# (`StaticHost`, tools, AppHost — xUnit, `net10.0`, nullable enabled)
+### C# (`StaticHost`, tools, AppHost — xUnit, `net11.0`, nullable enabled)
 
 - **Correctness:** middleware ordering and short-circuiting; request/response paths; header and
   content-negotiation parsing (`AcceptHeaderParser`, path mapping) handle malformed/edge input.
