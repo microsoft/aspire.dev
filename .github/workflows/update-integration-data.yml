@@ -5,10 +5,11 @@ name: Integration Data Updater
 # opens a PR through the Aspire bot GitHub App when the generated data changes.
 #
 # The bot owns the rolling `chore/update-integration-data` branch and force-pushes
-# it on every run, so nobody should commit to it. The PR is labeled
-# `:octocat: auto-merge`, which .github/policies/auto-merge.yml turns into an
-# approval and a squash auto-merge once the required `ci-gate` check passes.
-# Remove the label to hold a PR for manual review.
+# it on every run, so nobody should commit to it. When the updater's unit tests
+# pass against the new data, the PR is labeled `:octocat: auto-merge`, which
+# .github/policies/auto-merge.yml turns into an approval and a squash auto-merge
+# once the required `ci-gate` check passes. Remove the label to hold a PR for
+# manual review.
 #
 # All logic lives in src/frontend/scripts/update-integration-data.ps1 so the
 # exact same flow can be reproduced locally:
@@ -92,6 +93,7 @@ jobs:
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          ASTRO_TELEMETRY_DISABLED: 1
         run: ./src/frontend/scripts/update-integration-data.ps1
 
       - name: Commit and refresh automation branch
@@ -155,13 +157,19 @@ jobs:
           BRANCH: ${{ steps.push.outputs.branch }}
           PR_TITLE: ${{ steps.update.outputs.pr_title }}
           PR_BODY_FILE: ${{ steps.update.outputs.pr_body_file }}
+          AUTO_MERGE: ${{ steps.update.outputs.auto_merge }}
         shell: bash
         run: |
           set -euo pipefail
 
+          label=":octocat: auto-merge"
+          # Written by update-integration-data.ps1 when unit tests fail.
+          failure_marker="### :x: Unit tests failed"
+
           # Reuse the existing open PR for the rolling branch if there is one, so
           # its review threads and history carry over; otherwise open a fresh PR.
-          # Adding the label at creation is what triggers the auto-merge policy.
+          # Adding the label is what triggers the auto-merge policy, so it is only
+          # applied when the updater's unit tests passed against the new data.
           existing=$(gh pr list \
             --state open \
             --head "$BRANCH" \
@@ -170,16 +178,31 @@ jobs:
 
           if [ -n "$existing" ]; then
             echo "Refreshing existing PR #$existing in place."
+            previous_body=$(gh pr view "$existing" --json body --jq .body)
+            has_label=$(gh pr view "$existing" --json labels \
+              --jq "any(.labels[]; .name == \"$label\")")
             gh pr edit "$existing" \
               --title "$PR_TITLE" \
               --body-file "$PR_BODY_FILE"
+            if [ "$AUTO_MERGE" != "true" ] && [ "$has_label" = "true" ]; then
+              gh pr edit "$existing" --remove-label "$label"
+            elif [ "$AUTO_MERGE" = "true" ] && [ "$has_label" != "true" ] &&
+              grep -qF -- "$failure_marker" <<< "$previous_body"; then
+              # Restore only a label this workflow removed; a maintainer's manual
+              # hold (label removed without the failure marker) is preserved.
+              gh pr edit "$existing" --add-label "$label"
+            fi
           else
+            label_args=()
+            if [ "$AUTO_MERGE" = "true" ]; then
+              label_args=(--label "$label")
+            fi
             new_pr=$(gh pr create \
               --base main \
               --head "$BRANCH" \
               --title "$PR_TITLE" \
               --body-file "$PR_BODY_FILE" \
-              --label ":octocat: auto-merge")
+              "${label_args[@]}")
             echo "Created $new_pr"
           fi
 
@@ -230,6 +253,7 @@ jobs:
             echo "- Versions changed: \`${{ steps.update.outputs.versions_changed || 'n/a' }}\`"
             echo "- API regen ran: \`${{ steps.update.outputs.regen_ran || 'n/a' }}\`"
             echo "- Semantic validation: \`${{ steps.update.outputs.semantic_validation || 'not run' }}\`"
+            echo "- Unit tests: \`${{ steps.update.outputs.unit_tests || 'not run' }}\`"
             if [ -n "${{ steps.update.outputs.icon_warnings }}" ]; then
               echo "- Icon warnings: \`${{ steps.update.outputs.icon_warnings }}\`"
             fi

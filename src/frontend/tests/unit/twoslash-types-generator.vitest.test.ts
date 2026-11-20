@@ -11,25 +11,34 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { hasNestedSingleDtoOptionsWrapper } from '../../scripts/validate-generated-api-data';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
 const generatorScript = path.join(frontendRoot, 'scripts', 'generate-twoslash-types.ts');
-const outputFile = path.join(frontendRoot, 'src', 'data', 'twoslash', 'aspire.d.ts');
+const outputDir = mkdtempSync(path.join(tmpdir(), 'aspire-twoslash-output-'));
+const outputFile = path.join(outputDir, 'aspire.d.ts');
 
 let output = '';
 
 beforeAll(() => {
-  // The output is source-controlled, so don't unlink it. Re-run the generator
-  // in place; subsequent assertions read the refreshed content.
+  // Generate from the committed API data into a temp file: the real output is
+  // source-controlled, and the integration data updater stages it after tests run.
   // Invoke tsx directly via node to avoid cross-platform package manager shim
   // resolution issues (and the DEP0190 warning from `shell: true`).
   const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-  execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
+  execFileSync(process.execPath, [tsxBin, generatorScript], {
+    cwd: frontendRoot,
+    env: { ...process.env, ASPIRE_API_TWOSLASH_FILE: outputFile },
+    stdio: 'pipe',
+  });
   output = readFileSync(outputFile, 'utf8');
 }, 60_000);
+
+afterAll(() => {
+  rmSync(outputDir, { recursive: true, force: true });
+});
 
 describe('generate-twoslash-types', () => {
   test('keeps enum literals from independent packages sharing an exported short name', () => {

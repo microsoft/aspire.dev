@@ -67,6 +67,7 @@ export interface ApiReferenceTsCallable {
 export interface ApiReferenceTsHandle {
   name: string;
   fullName?: string;
+  baseTypeHierarchy?: string[];
   capabilities?: ApiReferenceTsCallable[];
 }
 
