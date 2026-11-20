@@ -66,9 +66,9 @@ export default defineConfig({
   webServer: isCI
     ? {
         // CI serves the built site with StaticHost, as production does (Markdown negotiation, canonical
-        // redirects, the 404 page, headers). The Frontend Build job builds it against the site's files
-        // (wwwroot holds a copy of dist), so the tests start its assembly directly: `dotnet run --no-build`
-        // still evaluates the project, which takes seconds. The E2E jobs start it before dist arrives
+        // redirects, the 404 page, headers) from its wwwroot, where the E2E jobs unpack dist. The Frontend
+        // Build job builds it, so the tests start its assembly directly: `dotnet run --no-build` still
+        // evaluates the project, which takes seconds. The E2E jobs start it before dist arrives
         // (.github/scripts/start-web-server.mjs), hence reuseExistingServer.
         command: `dotnet bin/Release/net10.0/StaticHost.dll --urls ${e2eBaseUrl}`,
         cwd: fileURLToPath(new URL('../statichost/StaticHost/', import.meta.url)),

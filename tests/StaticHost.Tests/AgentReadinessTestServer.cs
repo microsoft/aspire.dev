@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StaticHost.AgentReadiness;
 using StaticHost.Routing;
+using StaticHost.SiteFiles;
 
 namespace StaticHost.Tests;
 
@@ -24,6 +25,8 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
     public HttpClient Client { get; }
 
     public string WebRoot => _wwwroot.Path;
+
+    public IServiceProvider Services => _host.Services;
 
     private AgentReadinessTestServer(IHost host, TestServer testServer, TempWebRoot wwwroot)
     {
@@ -48,6 +51,7 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
                 {
                     web.UseTestServer();
                     web.UseWebRoot(wwwroot.Path);
+                    web.ConfigureServices(static services => services.AddSiteFiles());
                     web.Configure(app =>
                     {
                         if (pathBase.HasValue)
@@ -60,10 +64,9 @@ internal sealed class AgentReadinessTestServer : IAsyncDisposable
                         app.UseCanonicalPathRedirects();
                         app.UseAgentReadiness();
                         app.UseDefaultFiles();
-                        app.UseStaticFiles();
+                        app.UseSiteFiles();
 
-                        // Endpoint that mimics MapStaticAssets fallback: 404 if
-                        // no static asset matched.
+                        // 404 when no file matched, as in production.
                         app.Run(static ctx =>
                         {
                             ctx.Response.StatusCode = StatusCodes.Status404NotFound;
