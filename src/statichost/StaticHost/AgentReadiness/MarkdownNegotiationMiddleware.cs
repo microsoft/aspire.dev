@@ -14,9 +14,8 @@ namespace StaticHost.AgentReadiness;
 /// HTML page (via <c>starlight-page-actions</c>). E.g. <c>/get-started/quickstart/</c>
 /// has companion <c>/get-started/quickstart.md</c>. This middleware short-circuits
 /// the pipeline by streaming that file directly when markdown is preferred —
-/// it does NOT rewrite <c>Request.Path</c> because rewriting after
-/// <c>UseRouting()</c> would not re-trigger endpoint selection in
-/// <c>MapStaticAssets()</c>.
+/// it does NOT rewrite <c>Request.Path</c>, because the negotiated response needs
+/// its own caching headers (below), which the site file middleware would replace.
 /// </para>
 /// <para>
 /// Therefore the middleware MUST run before <c>UseDefaultFiles</c> and
@@ -44,7 +43,7 @@ internal sealed class MarkdownNegotiationMiddleware
     {
         _next = next;
         _logger = logger;
-        // Use the same provider MapStaticAssets reads from so wwwroot is the source of truth.
+        // Use the same provider SiteFileMiddleware reads from so wwwroot is the source of truth.
         _fileProvider = env.WebRootFileProvider;
     }
 

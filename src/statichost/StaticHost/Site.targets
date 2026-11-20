@@ -1,0 +1,56 @@
+<Project>
+  <!--
+  Publishes the site (src/frontend/dist) to wwwroot with a brotli copy of each text file.
+
+  StaticHost serves the web root with SiteFileMiddleware, not MapStaticAssets, so the project
+  turns static web assets off (StaticWebAssetsEnabled). That pipeline hashed every file, wrote a
+  manifest of every URL, and made each instance load it at startup, which costs a lot with
+  about 70,000 files. What it did that the site needs is here: run the frontend build, copy its
+  output, and compress it once at publish. Caching and ETags are decided per request.
+
+  Asking frontend.esproj for JavaScriptOutputGroup runs its BuildCommand and returns dist's
+  files, as the static web assets pipeline did. The brotli copies are written by a file-based
+  app (../compress-site.cs), which reuses the copies of files that did not change.
+  -->
+  <PropertyGroup>
+    <!-- The text types the SDK compressed (Microsoft.NET.Sdk.StaticWebAssets.Compression.targets). -->
+    <SiteCompressedExtensions>.html;.htm;.md;.markdown;.txt;.xml;.json;.webmanifest;.js;.mjs;.jsx;.css;.map;.svg;.ico;.bmp;.otf;.wasm;.csv;.tsv;.ics;.xsl;.xslt</SiteCompressedExtensions>
+    <SiteCompressApp>$(MSBuildThisFileDirectory)../compress-site.cs</SiteCompressApp>
+    <!-- The dotnet that runs this build, so the app uses the same SDK; plain dotnet under msbuild.exe. -->
+    <SiteDotnet>$(DOTNET_HOST_PATH)</SiteDotnet>
+    <SiteDotnet Condition="'$(SiteDotnet)' == ''">dotnet</SiteDotnet>
+  </PropertyGroup>
+
+  <Target Name="AddSiteToPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <PropertyGroup>
+      <!-- Set here: IntermediateOutputPath is not defined yet when this file's properties are. -->
+      <_SiteIntermediateDirectory>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)</_SiteIntermediateDirectory>
+      <_SiteCompressedDirectory>$(_SiteIntermediateDirectory)site-br/</_SiteCompressedDirectory>
+      <_SiteFileList>$(_SiteIntermediateDirectory)site-files.txt</_SiteFileList>
+      <_SiteBrotliList>$(_SiteIntermediateDirectory)site-br.txt</_SiteBrotliList>
+    </PropertyGroup>
+
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('Filename', 'frontend'))" Targets="JavaScriptOutputGroup">
+      <Output TaskParameter="TargetOutputs" ItemName="_SiteFile" />
+    </MSBuild>
+
+    <!-- The app reads each file's full path and its path in the site, separated by a tab. -->
+    <WriteLinesToFile File="$(_SiteFileList)" Lines="@(_SiteFile->'%(FullPath)%09%(TemplateSubPath)%(Filename)%(Extension)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Exec Command="&quot;$(SiteDotnet)&quot; run --file &quot;$(SiteCompressApp)&quot; -- &quot;$(_SiteFileList)&quot; &quot;$(_SiteCompressedDirectory)&quot; &quot;$(SiteCompressedExtensions)&quot; &quot;$(_SiteBrotliList)&quot;"
+          StandardOutputImportance="high" />
+    <ReadLinesFromFile File="$(_SiteBrotliList)">
+      <Output TaskParameter="Lines" ItemName="_SiteBrotliFile" />
+    </ReadLinesFromFile>
+
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(_SiteFile)"
+                             RelativePath="wwwroot/%(_SiteFile.TemplateSubPath)%(_SiteFile.Filename)%(_SiteFile.Extension)"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="@(_SiteBrotliFile->'$(_SiteCompressedDirectory)%(Identity)')"
+                             RelativePath="wwwroot/%(_SiteBrotliFile.Identity)"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
+</Project>
