@@ -232,6 +232,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           collapsed: false,
           items: [
             {
+              label: 'Transition Aspire deployments from azd',
+              slug: 'deployment/azd-transition',
+            },
+            {
               label: 'Customize Azure resources',
               slug: 'integrations/cloud/azure/customize-resources',
             },
