@@ -38,6 +38,28 @@ async function sidebarOn(page: Page): Promise<Locator> {
   return page.locator(sidebarSelector);
 }
 
+type CompactNode = [string, string | CompactNode[]];
+
+function countLinks(nodes: CompactNode[]): number {
+  return nodes.reduce((count, [, value]) => count + (typeof value === 'string' ? 1 : countLinks(value)), 0);
+}
+
+/** Wait for the module tree to replace the server-rendered spine. */
+async function treeLinkCount(page: Page): Promise<number> {
+  await expect(page.locator('.topics-sidebar[data-api-sidebar-tree-state="loaded"]')).toHaveCount(1);
+  const src = await page.locator('.topics-sidebar[data-api-sidebar-tree]').getAttribute('data-api-sidebar-tree');
+  const tree = await (await page.request.get(src!)).json() as { items: CompactNode[] };
+  return countLinks(tree.items);
+}
+
+async function expectSpineHtml(page: Page, path: string, maxLinks: number): Promise<void> {
+  const html = await (await page.request.get(path)).text();
+  const spine = html.match(/<sl-sidebar-state-persist[\s\S]*?<\/sl-sidebar-state-persist>/)?.[0] ?? '';
+  const count = spine.match(/<a\s/g)?.length ?? 0;
+  expect(count).toBeGreaterThan(1);
+  expect(count).toBeLessThanOrEqual(maxLinks);
+}
+
 async function expectLocalAnchors(page: Page, sidebar: Locator): Promise<void> {
   const broken = await sidebar.locator('a[href*="#"]').evaluateAll((anchors) =>
     anchors.flatMap((anchor) => {
@@ -50,16 +72,22 @@ async function expectLocalAnchors(page: Page, sidebar: Locator): Promise<void> {
   expect(broken).toEqual([]);
 }
 
-test('a module catalog is shared through overview links, not repeated on detail pages', async ({ page }) => {
+test('detail pages render a spine and load the module tree once', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  const treeRequests: string[] = [];
+  page.on('request', (req) => {
+    if (new URL(req.url()).pathname.endsWith('/sidebar.json')) treeRequests.push(req.url());
+  });
+  await expectSpineHtml(page, itemPath, 12);
   await page.goto(itemPath);
   let sidebar = await sidebarOn(page);
 
-  // Search root + module overview + item overview + the item's own section links.
+  // Search root + the module tree, with the item entry expanded to its overview and section links.
+  const treeLinks = await treeLinkCount(page);
   const sectionLinkCount = await sidebar.locator('a[href*="#"]').count();
   expect(sectionLinkCount).toBeGreaterThan(0);
-  await expect(sidebar.locator('a')).toHaveCount(3 + sectionLinkCount);
+  await expect(sidebar.locator('a')).toHaveCount(1 + treeLinks + sectionLinkCount);
   await expect(sidebar.locator('a[aria-current="page"]')).toHaveAttribute('href', itemPath);
   await expect(sidebar.locator(`a[href="${modulePath}"]`)).toHaveCount(1);
   await expect(sidebar.locator('a[href="/reference/api/go/"]')).toHaveCount(1);
@@ -80,8 +108,8 @@ test('a module catalog is shared through overview links, not repeated on detail 
   await firstMethod.click();
   await expect(page).toHaveURL(new URL(methodHref!, page.url()).href);
   sidebar = await sidebarOn(page);
-  // Search root + module, item and member overviews + the member's Signature and Defined on sections.
-  await expect(sidebar.locator('a')).toHaveCount(6);
+  // The member page adds its overview and its Signature and Defined on sections to the tree.
+  await expect(sidebar.locator('a')).toHaveCount(1 + (await treeLinkCount(page)) + 3);
   await expect(sidebar.locator('a[aria-current="page"]')).toHaveAttribute('href', methodHref!);
   await expectLocalAnchors(page, sidebar);
 
@@ -97,6 +125,7 @@ test('a module catalog is shared through overview links, not repeated on detail 
   await setMobileMenuOpen(page, false);
   await page.locator('#pkg-search-input').fill('RedisResource');
   await expect(page.locator(`#pkg-search-results a[title="RedisResource"][href="${itemPath}"]`)).toBeVisible();
+  expect(new Set(treeRequests).size).toBe(1);
   expect(errors).toEqual([]);
 });
 

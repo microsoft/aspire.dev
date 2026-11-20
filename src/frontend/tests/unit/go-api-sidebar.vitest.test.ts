@@ -166,3 +166,21 @@ describe('production sidebars', () => {
     expect(getCollection).not.toHaveBeenCalled();
   });
 });
+
+test('the module tree lists every item page once, grouped like the module overview', async () => {
+  const { buildCompactGoModuleSidebarTree } = await import('../../src/utils/go-api-sidebar');
+  const tree = buildCompactGoModuleSidebarTree({
+    handleTypes: [{ name: 'RedisResource', fullName: 'redis.RedisResource' }],
+    dtoTypes: [],
+    enumTypes: [{ name: 'Persistence', fullName: 'redis.Persistence' }],
+    functions: [{ name: 'AddRedis', qualifiedName: 'AddRedis', parameters: [] }],
+  });
+
+  expect(tree).toEqual([
+    ['Overview', ''],
+    ['Handles', [['RedisResource', 'redisresource/']]],
+    ['Enums', [['Persistence', 'persistence/']]],
+    ['Functions', [['AddRedis', 'addredis/']]],
+  ]);
+  expect(getCollection).not.toHaveBeenCalled();
+});

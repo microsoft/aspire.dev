@@ -6,6 +6,7 @@ import MobileSiteLinks from '@components/starlight/MobileSiteLinks.astro';
 import { Badge, Icon, LinkButton } from '@astrojs/starlight/components';
 import { sidebarTopics } from '../../../config/sidebar/sidebar.topics.js';
 import { referenceTopics } from '../../../config/sidebar/reference.topics.js';
+import { getApiSidebarTreeSrc } from '@utils/api-sidebar-tree-src';
 import '../../styles/search-controls.css';
 
 const routeData = Astro.locals.starlightRoute;
@@ -22,6 +23,11 @@ const apiLang = pageId.startsWith('reference/api/typescript')
       : undefined;
 const sidebar = routeData?.sidebar ?? [];
 const topics = topicState?.topics ?? [];
+// Package/module pages render a small spine; the full tree loads on the client
+// from a content-versioned URL so the edge can cache it indefinitely.
+const apiSidebarTreeSrc = isApiRefPage
+  ? await getApiSidebarTreeSrc(Astro.url.pathname, import.meta.env.BASE_URL.replace(/\/$/, ''))
+  : undefined;
 
 type SidebarTopicOption = {
   label: string;
@@ -122,6 +128,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   class="topics-sidebar"
   data-api-ref={isApiRefPage || undefined}
   data-api-lang={apiLang}
+  data-api-sidebar-tree={apiSidebarTreeSrc}
   data-topic-nav={hasTopicSidebar || undefined}
 >
   <MobileSiteLinks />
@@ -1246,6 +1253,10 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 </style>
 
 <script>
+  import { API_SIDEBAR_TREE_LOADED_EVENT, initApiSidebarTree } from './api-sidebar-tree';
+
+  initApiSidebarTree();
+
   /**
    * Sidebar filter controller shared by API reference and topic sidebars.
    * Filters sidebar entries by matching their label text against user input.
@@ -1347,6 +1358,12 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         this.sidebarContainer?.addEventListener('toggle', scheduleSync, { capture: true, signal });
         syncToggle();
       }
+
+      // API sidebars swap in their full package/module tree after load; refilter it.
+      container.addEventListener(API_SIDEBAR_TREE_LOADED_EVENT, () => {
+        if (this.input?.value.trim()) this.applyFilter();
+        this.sidebarContainer?.dispatchEvent(new Event('toggle'));
+      }, { signal });
     }
 
     private handleInput(): void {
@@ -2139,6 +2156,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     document.addEventListener('DOMContentLoaded', setupStickySidebar);
     document.addEventListener('astro:after-swap', setupStickySidebar);
     document.addEventListener('astro:page-load', setupStickySidebar);
+    document.addEventListener(API_SIDEBAR_TREE_LOADED_EVENT, setupStickySidebar);
   }
   if (document.readyState !== 'loading') {
     requestAnimationFrame(setupStickySidebar);
