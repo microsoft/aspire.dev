@@ -32,6 +32,16 @@ The command performs the following:
 - Applies all package version edits before running a single final `dotnet restore`, so channel switches that add NuGet source mappings don't cause restore failures mid-update
 - Provides colorized output with detailed summary of changes
 
+### Restore validation failures
+
+Before applying an update, `aspire update` runs a validation restore for the target channel. If it fails, the error names the channel and the AppHost project, and states that the update was not applied:
+
+```text title="Output"
+Validation restore for daily channel update failed for project /path/to/MyApp.AppHost/MyApp.AppHost.csproj. The update was not applied. Review the restore output for details.
+```
+
+The restore output is written to the CLI log whether the restore succeeds or fails, and is displayed only on failure. Before the output is logged or displayed, the CLI redacts credentials from the NuGet package sources it knows about: sources from the candidate and referenced-project NuGet configuration files, and `RestoreAdditionalProjectSources` values from project evaluation. The CLI doesn't scan the output for unknown URLs, so sources added only by restore-time targets and other secrets aren't redacted. Review log files before sharing them.
+
 ### Non-interactive usage
 
 When you use `--non-interactive`, also pass `--yes` to explicitly confirm the update operation. Omitting `--yes` when using `--non-interactive` is an error:
