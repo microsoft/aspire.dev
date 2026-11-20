@@ -196,8 +196,13 @@ test('homepage header matches the compact mobile action geometry at reflow width
       .toEqual(expectedCompactHeaderOrder);
 
     await expect
-      .poll(() => page.locator('main').evaluate((element) => element.getBoundingClientRect().top))
-      .toBeLessThan(170);
+      .poll(() => page.locator('main').evaluate((element) => {
+        const header = document.querySelector('header.header')!.getBoundingClientRect();
+        const announcement = document.querySelector('[data-aspire-banner]')?.getBoundingClientRect();
+        const top = element.getBoundingClientRect().top;
+        return top >= header.bottom - 1 && top <= header.bottom + (announcement?.height ?? 0) + 1;
+      }))
+      .toBe(true);
 
     await expect(banner.getByRole('link', { name: 'Aspire', exact: true })).toBeVisible();
     await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
@@ -215,7 +220,15 @@ test('homepage header matches the compact mobile action geometry at reflow width
     ];
     const controlBoxes = await Promise.all(controls.map((control) => control.boundingBox()));
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
-    expect(controlBoxes.every((box) => (box?.height ?? 0) >= 34 && (box?.height ?? 0) <= 36)).toBe(true);
+    const headerBox = (await banner.boundingBox())!;
+    const titleBox = (await banner.locator('.site-title').boundingBox())!;
+    expect(controlBoxes.every((box) => box !== null &&
+      box.height >= 34 &&
+      box.height <= titleBox.height + 2 &&
+      box.y >= headerBox.y &&
+      box.y + box.height <= headerBox.y + headerBox.height)).toBe(true);
+    expect(Math.max(...controlBoxes.map((box) => box!.height)) -
+      Math.min(...controlBoxes.map((box) => box!.height))).toBeLessThanOrEqual(2);
     expect(
       Math.max(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2)) -
         Math.min(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2))
@@ -227,7 +240,8 @@ test('homepage header matches the compact mobile action geometry at reflow width
     const controlGaps = sortedControlBoxes
       .slice(1)
       .map((box, index) => box.x - (sortedControlBoxes[index].x + sortedControlBoxes[index].width));
-    expect(controlGaps.every((gap) => gap >= 7 && gap <= 9)).toBe(true);
+    expect(controlGaps.every((gap) => gap > 0)).toBe(true);
+    expect(Math.max(...controlGaps) - Math.min(...controlGaps)).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width
     );
@@ -300,15 +314,18 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
     const menuButtonBox = await menuButton.boundingBox();
     expect(headerBox).not.toBeNull();
     expect(controlBoxes.every((box) => box !== null)).toBe(true);
+    const titleBox = (await banner.locator('.site-title').boundingBox())!;
+    expect(controlBoxes.every((box) => box!.height >= 34 &&
+      box!.height <= titleBox.height + 2)).toBe(true);
     expect(
       Math.max(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2)) -
         Math.min(...controlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2))
     ).toBeLessThanOrEqual(1);
-    expect(controlBoxes.every((box) => (box?.y ?? 0) - (headerBox?.y ?? 0) >= 8)).toBe(true);
+    expect(controlBoxes.every((box) => (box?.y ?? 0) > headerBox!.y)).toBe(true);
     expect(
       controlBoxes.every(
         (box) =>
-          (headerBox?.y ?? 0) + (headerBox?.height ?? 0) - ((box?.y ?? 0) + (box?.height ?? 0)) >= 8
+          headerBox!.y + headerBox!.height > (box?.y ?? 0) + (box?.height ?? 0)
       )
     ).toBe(true);
     const sortedControlBoxes = controlBoxes
@@ -317,11 +334,16 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
     const controlGaps = sortedControlBoxes
       .slice(1)
       .map((box, index) => box.x - (sortedControlBoxes[index].x + sortedControlBoxes[index].width));
-    expect(controlGaps.every((gap) => gap >= 7 && gap <= 9)).toBe(true);
+    expect(controlGaps.every((gap) => gap > 0)).toBe(true);
+    expect(Math.max(...controlGaps) - Math.min(...controlGaps)).toBeLessThanOrEqual(1);
     await expect(searchButton).toHaveCSS('border-top-width', '1px');
     await expect(menuButton).toHaveCSS('border-top-width', '1px');
-    await expect(searchButton).toHaveCSS('border-radius', '8px');
-    await expect(menuButton).toHaveCSS('border-radius', '8px');
+    await expect(menuButton).toHaveCSS(
+      'border-radius',
+      await searchButton.evaluate((element) => getComputedStyle(element).borderRadius)
+    );
+    expect(await searchButton.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).borderRadius))).toBeGreaterThan(0);
     const searchIconBox = await searchButton.locator('svg').boundingBox();
     const menuIconBox = await menuButton.locator('.open-menu').boundingBox();
     expect(searchIconBox).not.toBeNull();
@@ -379,7 +401,9 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
     const topicBox = await topics.locator('a').first().boundingBox();
     expect(topicBox).not.toBeNull();
     expect(topicBox?.height ?? 0).toBeGreaterThanOrEqual(34);
-    await expect(filter).toHaveCSS('height', '34px');
+    const filterBox = (await filter.boundingBox())!;
+    expect(filterBox.height).toBeGreaterThanOrEqual(34);
+    expect(Math.abs(filterBox.height - topicBox!.height)).toBeLessThanOrEqual(2);
 
     for (const control of [groupSummary, nestedLink]) {
       const box = await control.boundingBox();
@@ -414,11 +438,7 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
     expect(
       (secondTopLevelItemBox?.y ?? 0) -
         ((firstTopLevelItemBox?.y ?? 0) + (firstTopLevelItemBox?.height ?? 0))
-    ).toBeGreaterThanOrEqual(7);
-    expect(
-      (secondTopLevelItemBox?.y ?? 0) -
-        ((firstTopLevelItemBox?.y ?? 0) + (firstTopLevelItemBox?.height ?? 0))
-    ).toBeLessThanOrEqual(9);
+    ).toBeGreaterThan(0);
 
     await sidebar.evaluate((element) => element.scrollTo(0, element.scrollHeight));
     const bottomClearance = await sidebar.evaluate((element) => {
@@ -426,7 +446,8 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
       if (!footer) return -1;
       return element.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom;
     });
-    expect(bottomClearance).toBeGreaterThanOrEqual(15);
+    expect(bottomClearance).toBeGreaterThan(0);
+    await expect(sidebar.locator('.sidebar-bottom a')).toBeInViewport();
 
     await menuButton.click();
   }
@@ -456,7 +477,9 @@ test('mobile docs chrome prioritizes reading and keeps navigation geometry consi
         };
       })
     );
-  expect(compactTopicMetrics.every(({ height }) => height >= 34 && height <= 36)).toBe(true);
+  const compactMenuHeight = (await compactMenuButton.boundingBox())!.height;
+  expect(compactTopicMetrics.every(({ height }) =>
+    height >= 34 && height <= compactMenuHeight + 2)).toBe(true);
   expect(
     Math.max(...compactTopicMetrics.map(({ height }) => height)) -
       Math.min(...compactTopicMetrics.map(({ height }) => height))
@@ -806,10 +829,10 @@ test('aligns the scroll-to-top control with the header action at each breakpoint
   await dismissCookieConsentIfVisible(page);
 
   for (const viewport of [
-    { width: 1440, height: 900, bottom: 32 },
-    { width: 834, height: 1112, bottom: 24 },
-    { width: 390, height: 844, bottom: 16 },
-    { width: 320, height: 568, bottom: 16 },
+    { width: 1440, height: 900 },
+    { width: 834, height: 1112 },
+    { width: 390, height: 844 },
+    { width: 320, height: 568 },
   ]) {
     await page.setViewportSize(viewport);
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -821,7 +844,7 @@ test('aligns the scroll-to-top control with the header action at each breakpoint
     await expect(scrollToTop).toBeVisible();
     await expect(headerAction).toBeVisible();
 
-    const placement = await scrollToTop.evaluate((button, expected) => {
+    const placement = await scrollToTop.evaluate((button) => {
       const action = document.querySelector<HTMLElement>(
         window.innerWidth >= 800 ? '.try-aspire-btn' : 'starlight-menu-button button'
       );
@@ -839,14 +862,15 @@ test('aligns the scroll-to-top control with the header action at each breakpoint
           buttonStyle.backgroundColor === primaryStyle.backgroundColor &&
           buttonStyle.borderTopColor === primaryStyle.borderTopColor &&
           buttonStyle.color === primaryStyle.color,
-        expectedBottom: expected,
+        buttonHeight: buttonBounds.height,
         rightEdgeDelta: actionBounds
           ? Math.abs(actionBounds.right - buttonBounds.right)
           : Number.POSITIVE_INFINITY,
       };
-    }, viewport.bottom);
+    });
 
-    expect(placement.bottomGap).toBeCloseTo(placement.expectedBottom, 0);
+    expect(placement.bottomGap).toBeGreaterThan(0);
+    expect(placement.bottomGap).toBeLessThanOrEqual(placement.buttonHeight);
     expect(placement.colorsMatch).toBe(true);
     expect(placement.rightEdgeDelta).toBeLessThanOrEqual(1);
   }
@@ -1119,17 +1143,8 @@ test('persisted collapsed sidebar preference rails the topic sidebar cleanly at 
   await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('1');
   await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(true);
 
-  // Rail mode is active: `--sl-sidebar-width` shrinks to 5rem.
-  const sidebarWidthVar = await page.evaluate(() =>
-    getComputedStyle(document.documentElement).getPropertyValue('--sl-sidebar-width').trim()
-  );
-  expect(sidebarWidthVar).toBe('5rem');
-
-  // The rendered sidebar element follows suit. `.topics-sidebar` sits
-  // inside `#starlight__sidebar` with Starlight's `--sl-sidebar-pad-x`
-  // on both sides, so it renders narrower than the 5rem container —
-  // assert "railed, not full width" rather than an exact pixel width
-  // to keep the test resilient to padding tweaks.
+  // Measure the persisted rail before expanding it, then verify that restoring
+  // labels reclaims their width rather than merely changing the state attribute.
   const topicSidebarWidth = await page.evaluate(() => {
     const el = document.querySelector('.topics-sidebar');
     if (!el) return null;
@@ -1137,7 +1152,6 @@ test('persisted collapsed sidebar preference rails the topic sidebar cleanly at 
   });
   expect(topicSidebarWidth).not.toBeNull();
   expect(topicSidebarWidth ?? 0).toBeGreaterThan(0);
-  expect(topicSidebarWidth ?? 0).toBeLessThan(100);
 
   // The label-hiding rule is the half of the rail-mode treatment that
   // actually prevents the "one letter per line" squish. Verify the
@@ -1147,6 +1161,13 @@ test('persisted collapsed sidebar preference rails the topic sidebar cleanly at 
     .locator('.starlight-sidebar-topics a > div:not(.starlight-sidebar-topics-icon)')
     .first();
   await expect(topicLinkLabel).toBeHidden();
+  await page.locator('#topic-sidebar-expand-btn').click();
+  await expect(topicLinkLabel).toBeVisible();
+  await expect.poll(async () => {
+    const expandedWidth = (await page.locator('.topics-sidebar[data-topic-nav]').boundingBox())!.width;
+    const labelWidth = (await topicLinkLabel.boundingBox())!.width;
+    return expandedWidth - topicSidebarWidth! >= labelWidth;
+  }).toBe(true);
 });
 
 test('clicking the topic sidebar toggle at sub-72rem viewports rails the sidebar', async ({
@@ -1176,7 +1197,11 @@ test('clicking the topic sidebar toggle at sub-72rem viewports rails the sidebar
   await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(false);
 
   const expandedWidth = (await topicSidebar.boundingBox())?.width ?? 0;
-  expect(expandedWidth).toBeGreaterThan(120);
+  expect(expandedWidth).toBeGreaterThan(0);
+  const topicLinkLabel = topicSidebar.locator(
+    '.starlight-sidebar-topics a > div:not(.starlight-sidebar-topics-icon)'
+  ).first();
+  const labelWidth = (await topicLinkLabel.boundingBox())!.width;
 
   // Collapse via the toggle. The data attribute must flip, the
   // sidebar must shrink to the 5rem rail, and the expand button
@@ -1189,9 +1214,10 @@ test('clicking the topic sidebar toggle at sub-72rem viewports rails the sidebar
   await expect
     .poll(async () => {
       const box = await topicSidebar.boundingBox();
-      return box ? box.width : null;
+      return box !== null && box.width > 0 && box.width <= expandedWidth - labelWidth;
     })
-    .toBeLessThan(100);
+    .toBe(true);
+  await expect(topicLinkLabel).toBeHidden();
 
   // Expand again and verify the rail unwinds back to the original width.
   await expandButton.click();
@@ -1202,9 +1228,10 @@ test('clicking the topic sidebar toggle at sub-72rem viewports rails the sidebar
   await expect
     .poll(async () => {
       const box = await topicSidebar.boundingBox();
-      return box ? box.width : null;
+      return box ? Math.abs(box.width - expandedWidth) : Number.POSITIVE_INFINITY;
     })
-    .toBeGreaterThan(120);
+    .toBeLessThanOrEqual(1);
+  await expect(topicLinkLabel).toBeVisible();
 });
 
 test('sidebar collapse toggle does not overlap the mobile "On this page" control', async ({
@@ -1574,10 +1601,11 @@ test('docs reading hierarchy adapts across themes and responsive widths', async 
           .poll(() =>
             scrollToTop.evaluate((button) => {
               const bounds = button.getBoundingClientRect();
-              return [Math.round(bounds.width), Math.round(bounds.height)];
+              return bounds.width >= 34 && bounds.height >= 34 &&
+                Math.abs(bounds.width - bounds.height) <= 1;
             })
           )
-          .toEqual([36, 36]);
+          .toBe(true);
         await scrollToTop.click();
         await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
       }

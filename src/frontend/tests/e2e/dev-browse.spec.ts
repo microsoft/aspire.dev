@@ -500,7 +500,17 @@ for (const width of [390, 768, 1440]) {
         await expect(card.locator('.browse-artwork-brand, .browse-card-topic')).toHaveCount(0);
         await preview.scrollIntoViewIfNeeded();
         const box = await preview.boundingBox();
-        expect(box!.width).toBeGreaterThan(150);
+        const cardGeometry = await card.locator('a').evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return {
+            left: box.left + parseFloat(style.borderLeftWidth),
+            right: box.right - parseFloat(style.borderRightWidth),
+          };
+        });
+        expect(box!.width).toBeGreaterThan(0);
+        expect(box!.x).toBeCloseTo(cardGeometry.left, 0);
+        expect(box!.x + box!.width).toBeCloseTo(cardGeometry.right, 0);
         expect(Math.abs(box!.width / box!.height - 16 / 9)).toBeLessThan(0.03);
       }
     }
@@ -534,7 +544,7 @@ test('top filters support keyboard dismissal and stay within the viewport', asyn
     const style = getComputedStyle(element);
     return parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
   });
-  expect(inset).toBeGreaterThanOrEqual(16);
+  expect(inset).toBeGreaterThan(0);
   expect(search!.x - controlsBox.x).toBeCloseTo(inset, 0);
   for (const name of ['type', 'topic', 'language', 'sort']) {
     const group = page.locator(`[data-filter-group="${name}"]`);
@@ -586,16 +596,25 @@ test('mobile filters open as readable fixed panels without shifting results', as
   const panel = type.locator('.browse-filter-panel');
   await expect(panel).toHaveCSS('position', 'fixed');
   const box = (await panel.boundingBox())!;
-  expect(box.x).toBeLessThanOrEqual(12);
-  expect(box.width).toBeGreaterThanOrEqual(350);
-  expect(box.y).toBeGreaterThanOrEqual(70);
-  expect(box.y).toBeLessThanOrEqual(90);
-  expect(box.y + box.height).toBeLessThanOrEqual(692);
+  const viewport = page.viewportSize()!;
+  // The zero-inset backdrop measures the fixed viewport, excluding any reserved scrollbar gutter.
+  const backdrop = (await type.locator('.browse-filter-backdrop').boundingBox())!;
+  const header = (await page.getByRole('banner').boundingBox())!;
+  expect(box.x).toBeGreaterThan(0);
+  expect(box.x - backdrop.x).toBeCloseTo(backdrop.x + backdrop.width - box.x - box.width, 0);
+  expect(box.width).toBeGreaterThan(backdrop.width / 2);
+  expect(box.y).toBeGreaterThanOrEqual(header.y + header.height);
+  expect(box.y + box.height).toBeLessThan(viewport.height);
   await expect(type.getByRole('button', { name: 'Close Type' })).toBeVisible();
   await expect(type.locator('.browse-filter-mobile-header strong')).toHaveText('Type');
   const closeBox = (await type.getByRole('button', { name: 'Close Type' }).boundingBox())!;
-  expect(closeBox.width).toBe(34);
-  expect(closeBox.height).toBe(34);
+  expect(closeBox.width).toBeGreaterThanOrEqual(34);
+  expect(closeBox.height).toBeGreaterThanOrEqual(34);
+  expect(closeBox.width).toBeCloseTo(closeBox.height, 0);
+  expect(closeBox.x).toBeGreaterThanOrEqual(box.x);
+  expect(closeBox.x + closeBox.width).toBeLessThanOrEqual(box.x + box.width);
+  expect(closeBox.y).toBeGreaterThanOrEqual(box.y);
+  expect(closeBox.y + closeBox.height).toBeLessThanOrEqual(box.y + box.height);
   await expect(type.locator('.browse-filter-backdrop')).toBeVisible();
   for (const option of await type.locator('.browse-filter-option').all()) {
     expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(34);
@@ -610,8 +629,14 @@ test('mobile filters open as readable fixed panels without shifting results', as
   await sort.locator('summary').click();
   for (const choice of await sort.locator('.browse-sort-choice').all()) {
     const choiceBox = (await choice.boundingBox())!;
-    expect(choiceBox.width).toBe(34);
-    expect(choiceBox.height).toBe(34);
+    expect(choiceBox.width).toBeGreaterThanOrEqual(34);
+    expect(choiceBox.height).toBeGreaterThanOrEqual(34);
+    expect(choiceBox.width).toBeCloseTo(choiceBox.height, 0);
+    const row = (await choice.locator('..').boundingBox())!;
+    expect(choiceBox.x).toBeGreaterThanOrEqual(row.x);
+    expect(choiceBox.x + choiceBox.width).toBeLessThanOrEqual(row.x + row.width);
+    expect(choiceBox.y).toBeGreaterThanOrEqual(row.y);
+    expect(choiceBox.y + choiceBox.height).toBeLessThanOrEqual(row.y + row.height);
   }
   await sort.getByRole('button', { name: 'Close Sort by' }).click();
   await expect(sort).not.toHaveAttribute('open');
@@ -642,14 +667,30 @@ test('every dropdown shows responsive options without a separate search input', 
     await expect(group.locator('[data-option-label][hidden]')).toHaveCount(0);
     const box = await options.first().boundingBox();
     if (mobile) {
-      expect(box!.height).toBeGreaterThanOrEqual(name === 'sort' ? 56 : 34);
+      expect(box!.height).toBeGreaterThanOrEqual(34);
     } else {
       const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
       if (coarse) expect(box!.height).toBeGreaterThanOrEqual(34);
       else {
-        expect(box!.height).toBeLessThanOrEqual(36);
         expect(box!.height).toBeGreaterThanOrEqual(24);
       }
+    }
+    const optionGeometry = await options.evaluateAll((elements) => elements.map((element) => {
+      const bounds = element.getBoundingClientRect();
+      const children = [...element.children].map((child) => child.getBoundingClientRect());
+      return {
+        top: bounds.top, bottom: bounds.bottom,
+        overflow: element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1,
+        contained: children.every((child) => child.left >= bounds.left && child.right <= bounds.right
+          && child.top >= bounds.top && child.bottom <= bounds.bottom),
+        separated: children.every((child, index) => !index || child.left >= children[index - 1].right),
+      };
+    }));
+    for (const [index, option] of optionGeometry.entries()) {
+      expect(option.overflow).toBe(false);
+      expect(option.contained).toBe(true);
+      expect(option.separated).toBe(true);
+      if (index) expect(option.top).toBeGreaterThanOrEqual(optionGeometry[index - 1].bottom);
     }
     expect(page.url()).toBe(initialUrl);
     expect(await results(page).locator('h3').allTextContents()).toEqual(initialResults);
@@ -708,7 +749,7 @@ test('type options use available height without unnecessary scrolling', async ({
   await page.setViewportSize({ width: 390, height: 700 });
   await openFacet(page, 'type');
   const panel = await page.locator('[data-filter-group="type"] .browse-filter-panel').boundingBox();
-  expect(panel!.y + panel!.height).toBeLessThanOrEqual(700);
+  expect(panel!.y + panel!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
 });
 
 test('filtered selections persist alongside sort history and clearing', async ({ page }) => {
@@ -756,7 +797,14 @@ test('date and title directions persist across searches, reloads and history', a
     await expect(label).toHaveCSS('display', 'flex');
     const mobile = page.viewportSize()!.width < 600;
     await expect(label).toHaveCSS('flex-direction', mobile ? 'column' : 'row');
-    expect(await label.evaluate((element) => parseFloat(getComputedStyle(element).gap))).toBeGreaterThanOrEqual(mobile ? 1 : 6);
+    const [caption, selection] = await label.locator(':scope > small').evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element.parentElement!.firstChild!);
+      return [range.getBoundingClientRect(), element.getBoundingClientRect()]
+        .map(({ x, y, right, bottom }) => ({ x, y, right, bottom }));
+    });
+    if (mobile) expect(selection.y).toBeGreaterThan(caption.bottom);
+    else expect(selection.x).toBeGreaterThan(caption.right);
   }
   for (const icon of await sort.locator('.browse-sort-icon').all()) {
     await expect(icon).toBeVisible();

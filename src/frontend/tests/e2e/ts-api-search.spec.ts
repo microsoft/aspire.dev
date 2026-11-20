@@ -24,9 +24,29 @@ test('TypeScript API search keeps result names visible on narrow viewports', asy
   await expect(resultPackage).toBeVisible();
 
   await expect
-    .poll(async () => {
-      const box = await resultName.boundingBox();
-      return Math.round(box?.width ?? 0);
-    })
-    .toBeGreaterThan(20);
+    .poll(() => firstResult.evaluate((result) => {
+      const name = result.querySelector('.api-search-result-name')!;
+      const nameBox = name.getBoundingClientRect();
+      const nameWrap = result.querySelector('.api-result-name-wrap')!.getBoundingClientRect();
+      const kind = result.querySelector('.api-kind-micro')!.getBoundingClientRect();
+      const metadata = result.querySelector('.trailing .api-list-meta')!.getBoundingClientRect();
+      const row = result.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(name);
+      const text = range.getBoundingClientRect();
+      const separate = (a: DOMRect, b: DOMRect) =>
+        a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+      return {
+        readable: text.width > 0 && [nameBox, nameWrap].every((box) =>
+          text.left >= box.left && text.right <= box.right &&
+          text.top >= box.top && text.bottom <= box.bottom,
+        ),
+        contained: [text, kind, metadata].every((box) =>
+          box.left >= row.left && box.right <= row.right &&
+          box.top >= row.top && box.bottom <= row.bottom,
+        ),
+        nonoverlapping: separate(text, kind) && separate(text, metadata) && separate(kind, metadata),
+      };
+    }))
+    .toEqual({ readable: true, contained: true, nonoverlapping: true });
 });
