@@ -6,6 +6,7 @@ import poppinsBold from '@fontsource/poppins/files/poppins-latin-700-normal.woff
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import { ClientRouter } from 'astro:transitions';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
+import LocaleFallback from '../LocaleFallback.astro';
 import SiteTour from '../SiteTour.astro';
 import { getStructuredData } from '@utils/structured-data';
 import { getOgMetadata } from '@utils/page-metadata';
@@ -23,6 +24,8 @@ const route = Astro.locals?.starlightRoute;
 const entryId = route?.entry?.id;
 const path = route?.entry?.filePath;
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+// English pages are also served in place of untranslated locale routes.
+const isDefaultLocalePage = route ? !route.locale : true;
 const structuredData = route ? getStructuredData(route, Astro.url, Astro.site) : undefined;
 const ogMetadata = route ? getOgMetadata(route, Astro.url, Astro.site) : undefined;
 
@@ -68,6 +71,7 @@ function computeSourceUrl() {
   });
 </script>
 <ClientRouter fallback="swap" />
+{isDefaultLocalePage && <LocaleFallback />}
 
 {
   ogMetadata && (

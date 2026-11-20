@@ -46,6 +46,11 @@ app.UseHttpsRedirection();
 // Resolve request casing before any middleware rewrites or matches the static path.
 app.UseCanonicalPathRedirects();
 
+// Untranslated locale routes (e.g. /de/get-started/) aren't built: serve the English
+// page in place. This rewrites Request.Path, so it runs before agent readiness (which
+// maps the path to its .md companion), UseDefaultFiles, and UseRouting.
+app.UseLocaleFallback();
+
 // Agent-readiness middlewares MUST run before UseDefaultFiles + UseRouting:
 //   * UseDefaultFiles rewrites /foo/ -> /foo/index.html, breaking .md-companion mapping.
 //   * A path rewrite after UseRouting wouldn't re-trigger endpoint selection.

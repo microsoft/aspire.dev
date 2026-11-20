@@ -95,15 +95,13 @@ for (const [url, ogType] of [
   });
 }
 
-test('preserves Starlight content languages and canonical links for translations and fallbacks', async ({
+test('preserves Starlight content languages and canonical links for translations', async ({
   request,
 }) => {
   for (const [url, locale, contentLanguage] of [
     ['/da/', 'da', 'da'],
     ['/uk/', 'uk', 'uk'],
     ['/ja/fundamentals/telemetry/', 'ja', 'ja'],
-    ['/da/fundamentals/telemetry/', 'da', 'en'],
-    ['/uk/fundamentals/telemetry/', 'uk', 'en'],
   ]) {
     const response = await request.get(url);
     expect(response.ok()).toBe(true);

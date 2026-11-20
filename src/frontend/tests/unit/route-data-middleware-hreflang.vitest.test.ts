@@ -97,13 +97,25 @@ describe('hreflang alternates for default-locale-only routes', () => {
     expect(head.some((entry) => entry.attrs?.rel === 'sitemap')).toBe(true);
   });
 
+  test('keeps every locale alternate on the home page, which all locales translate', () => {
+    expect(hreflangs(runMiddleware('/', 'index.mdx'))).toEqual([...locales, 'x-default']);
+  });
+});
+
+describe('hreflang alternates for untranslated locale routes', () => {
+  // Only `ja` translates /get-started/install-cli/; the other locales' routes
+  // aren't built because the host serves the English page in place.
+  test('keeps only translated alternates', () => {
+    expect(
+      hreflangs(runMiddleware('/get-started/install-cli/', 'get-started/install-cli.mdx'))
+    ).toEqual(['en', 'ja', 'x-default']);
+  });
+
   test.each([
-    ['/get-started/install-cli/', 'get-started/install-cli.mdx'],
-    ['/de/get-started/install-cli/', 'de/get-started/install-cli.mdx'],
     ['/reference/samples/', 'reference/samples.mdx'],
-    ['/', 'index.mdx'],
-  ])('keeps locale alternates on localized docs route %s', (pathname, id) => {
-    expect(hreflangs(runMiddleware(pathname, id))).toEqual([...locales, 'x-default']);
+    ['/reference/overview/', 'reference/overview.mdx'],
+  ])('drops alternates for every locale without a translation on %s', (pathname, id) => {
+    expect(hreflangs(runMiddleware(pathname, id))).toEqual(['en', 'x-default']);
   });
 });
 
