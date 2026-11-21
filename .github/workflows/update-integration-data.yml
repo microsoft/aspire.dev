@@ -163,8 +163,13 @@ jobs:
           set -euo pipefail
 
           label=":octocat: auto-merge"
-          # Written by update-integration-data.ps1 when unit tests fail.
-          failure_marker="### :x: Unit tests failed"
+          # Hidden marker recording that this workflow (not a maintainer) removed
+          # or withheld the label. Only a bot-owned hold is lifted when the unit
+          # tests pass again; a maintainer's manual hold (label removed without
+          # this marker) is always preserved.
+          hold_marker="<!-- update-integration-data: auto-merge label held by updater -->"
+          body_file=$(mktemp)
+          cp "$PR_BODY_FILE" "$body_file"
 
           # Reuse the existing open PR for the rolling branch if there is one, so
           # its review threads and history carry over; otherwise open a fresh PR.
@@ -181,27 +186,50 @@ jobs:
             previous_body=$(gh pr view "$existing" --json body --jq .body)
             has_label=$(gh pr view "$existing" --json labels \
               --jq "any(.labels[]; .name == \"$label\")")
+            bot_hold=false
+            if grep -qF -- "$hold_marker" <<< "$previous_body"; then
+              bot_hold=true
+            fi
+
+            label_action=""
+            if [ "$AUTO_MERGE" != "true" ]; then
+              if [ "$has_label" = "true" ]; then
+                label_action="remove"
+                bot_hold=true
+              fi
+              # Label already absent: keep the inherited ownership, so a manual
+              # hold stays manual and a bot hold stays restorable.
+            else
+              if [ "$has_label" != "true" ] && [ "$bot_hold" = "true" ]; then
+                label_action="add"
+              fi
+              bot_hold=false
+            fi
+
+            if [ "$bot_hold" = "true" ]; then
+              printf '\n%s\n' "$hold_marker" >> "$body_file"
+            fi
             gh pr edit "$existing" \
               --title "$PR_TITLE" \
-              --body-file "$PR_BODY_FILE"
-            if [ "$AUTO_MERGE" != "true" ] && [ "$has_label" = "true" ]; then
-              gh pr edit "$existing" --remove-label "$label"
-            elif [ "$AUTO_MERGE" = "true" ] && [ "$has_label" != "true" ] &&
-              grep -qF -- "$failure_marker" <<< "$previous_body"; then
-              # Restore only a label this workflow removed; a maintainer's manual
-              # hold (label removed without the failure marker) is preserved.
-              gh pr edit "$existing" --add-label "$label"
-            fi
+              --body-file "$body_file"
+            case "$label_action" in
+              remove) gh pr edit "$existing" --remove-label "$label" ;;
+              add) gh pr edit "$existing" --add-label "$label" ;;
+            esac
           else
             label_args=()
             if [ "$AUTO_MERGE" = "true" ]; then
               label_args=(--label "$label")
+            else
+              # The label is withheld by this workflow, so a later passing run
+              # may add it.
+              printf '\n%s\n' "$hold_marker" >> "$body_file"
             fi
             new_pr=$(gh pr create \
               --base main \
               --head "$BRANCH" \
               --title "$PR_TITLE" \
-              --body-file "$PR_BODY_FILE" \
+              --body-file "$body_file" \
               "${label_args[@]}")
             echo "Created $new_pr"
           fi

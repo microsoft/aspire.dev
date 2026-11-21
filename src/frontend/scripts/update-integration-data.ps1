@@ -843,7 +843,7 @@ if ($unitTestsPassed) {
 else {
     [void]$sb.AppendLine("### :x: Unit tests failed")
     [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("``bun run test:unit`` failed against this data, so this PR is **not** labeled for auto-merge. Fix the failures on ``main``; the next updater run refreshes this PR and restores the ``:octocat: auto-merge`` label once the tests pass.")
+    [void]$sb.AppendLine("``bun run test:unit`` failed against this data, so this PR is **not** labeled for auto-merge. Fix the failures on ``main``; the next updater run refreshes this PR and restores the ``:octocat: auto-merge`` label once the tests pass, unless a maintainer removed it to hold the PR.")
     [void]$sb.AppendLine("")
     foreach ($failure in $unitTestFailures) { [void]$sb.AppendLine("- ``$failure``") }
 }
