@@ -7,10 +7,21 @@ description: Learn about common patterns you can use to work with databases as y
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import ApiReference from '@components/ApiReference.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 Most Aspire solutions include at least one database. During development you create that database, fill it with sample data, change its schema as your app evolves, and decide whether its data should survive a restart. When you deploy, you decide where the database runs and how schema changes reach it. This article describes the options Aspire gives you for each of these tasks, with examples you can adapt for your own solution.
 
-The examples on this page use PostgreSQL but the same patterns apply to other database integrations such as SQL Server, MySQL, and MongoDB. Where an example needs an Object-Relational Mapper (ORM), it shows both Entity Framework Core (EF Core) for .NET apps and Drizzle for JavaScript and TypeScript apps.
+The examples on this page use PostgreSQL but the same patterns apply to other database integrations such as SQL Server, MySQL, and MongoDB. Where an example needs an Object-Relational Mapper (ORM), it uses Entity Framework Core (EF Core) for .NET apps or Drizzle for JavaScript and TypeScript apps. Select your ORM to see only the examples that use it:
+
+<PivotSelector
+    title="Select your ORM"
+    key="orm"
+    options={[
+        { id: "efcore", title: "EF Core" },
+        { id: "drizzle", title: "Drizzle" },
+    ]}
+/>
 
 Use this table to find the right approach for your requirements:
 
@@ -87,6 +98,8 @@ To control how the database is created, for example to set a collation or an own
 
 Sometimes the app needs to create its own database. For example, the app might connect to an existing server that isn't modeled in your AppHost, or it might create one database for each tenant. In this case, reference the server resource instead of a database resource, so the app receives a connection to the server.
 
+<Pivot id="efcore">
+
 EF Core can create the database for you. When an app applies migrations, EF Core creates the database first if it doesn't exist. `EnsureCreatedAsync` also creates the database, but it bypasses migrations, so use it only for prototypes and tests.
 
 When a .NET app references a PostgreSQL server resource named `postgres`, Aspire passes a connection string to the server, without a database name. Add the database name to the connection string when you register the `DbContext`, then apply migrations when the app starts. This example assumes a `DbContext` named `CatalogContext`:
@@ -119,6 +132,10 @@ if (app.Environment.IsDevelopment())
 app.Run();
 ```
 
+</Pivot>
+
+<Pivot id="drizzle">
+
 Drizzle doesn't create databases. Instead, connect to the server and run a `CREATE DATABASE` statement before you run migrations. When a JavaScript app references a PostgreSQL server resource named `postgres`, Aspire passes the server's connection URI in the `POSTGRES_URI` environment variable:
 
 ```typescript title="src/create-database.ts"
@@ -138,6 +155,8 @@ await client.end();
 ```
 
 You can run this code when the app starts, or from a custom command that you trigger from the dashboard. The [Seed a database on startup or using a custom command](#seed-a-database-on-startup-or-using-a-custom-command) section shows both approaches.
+
+</Pivot>
 
 <LearnMore>
   For the environment variables that Aspire passes to apps for each resource, see [Connect to PostgreSQL](/integrations/databases/postgres/postgres-connect/).
@@ -202,7 +221,9 @@ When your app seeds the database, the seed logic lives in source control next to
 
 To seed on startup, run the seed code after the app connects to the database and before it handles requests. Make the code idempotent: check whether the data already exists before you insert it, so a restart doesn't add duplicate rows.
 
-With EF Core, configure seeding with the `UseSeeding` and `UseAsyncSeeding` options when you register the `DbContext`. EF Core runs this code when the database is created or migrated. Implement both options with the same logic, because the EF Core tools call the synchronous `UseSeeding` option. The following example seeds a product only when it doesn't exist, and registers the seed code only in development:
+<Pivot id="efcore">
+
+Configure seeding with the `UseSeeding` and `UseAsyncSeeding` options when you register the `DbContext`. EF Core runs this code when the database is created or migrated. Implement both options with the same logic, because the EF Core tools call the synchronous `UseSeeding` option. The following example seeds a product only when it doesn't exist, and registers the seed code only in development:
 
 ```csharp title="Program.cs"
 using Microsoft.EntityFrameworkCore;
@@ -253,7 +274,11 @@ app.Run();
 
 To register the `DbContext` for SQL Server or MySQL instead, see [Seed data using EF Core](/integrations/databases/efcore/seed-database/#seed-data-using-ef-core).
 
-With Drizzle, the `drizzle-seed` package generates realistic random data from your schema. The following example seeds the `products` table only when it's empty:
+</Pivot>
+
+<Pivot id="drizzle">
+
+The `drizzle-seed` package generates realistic random data from your schema. The following example seeds the `products` table only when it's empty:
 
 ```typescript title="src/seed.ts"
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -272,29 +297,13 @@ export async function seedDatabase() {
 
 Call `seedDatabase()` when the app starts. Aspire passes the `CATALOGDB_URI` environment variable because the app references a database resource named `catalogdb`.
 
+</Pivot>
+
 To seed only when you choose, expose the seed code as an endpoint in your app, then add a custom HTTP command to the app resource. The command appears in the dashboard, and selecting it sends a request to the endpoint.
 
-With Drizzle, the endpoint calls the `seedDatabase` function from the previous example:
+<Pivot id="efcore">
 
-```typescript title="api/src/index.ts"
-import express from 'express';
-import { seedDatabase } from './seed.ts';
-
-const app = express();
-
-if (process.env.NODE_ENV === 'development') {
-    app.post('/admin/seed', async (req, res) => {
-        await seedDatabase();
-        res.json({ status: 'Database seeded' });
-    });
-}
-
-// Add your other routes...
-
-app.listen(process.env.PORT);
-```
-
-With EF Core, the endpoint adds the rows through the database context. It checks for existing rows first, so you can run the command more than once:
+The endpoint adds the rows through the database context. It checks for existing rows first, so you can run the command more than once:
 
 ```csharp title="Program.cs"
 using Microsoft.EntityFrameworkCore;
@@ -329,8 +338,7 @@ const builder = await createBuilder();
 const postgres = await builder.addPostgres('postgres');
 const catalogdb = await postgres.addDatabase('catalogdb');
 
-await builder.addNodeApp('api', './api', 'src/index.ts')
-    .withHttpEndpoint({ env: 'PORT' })
+await builder.addDotnetProject('api', '../Api/Api.csproj')
     .withReference(catalogdb)
     .waitFor(catalogdb)
     .withHttpCommand('/admin/seed', 'Seed database', {
@@ -370,7 +378,88 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-In the TypeScript example, `withHttpEndpoint({ env: 'PORT' })` passes the endpoint's port to the app in the `PORT` environment variable. The app must listen on `process.env.PORT`, otherwise the command can't reach it.
+</Pivot>
+
+<Pivot id="drizzle">
+
+The endpoint calls the `seedDatabase` function from the previous example:
+
+```typescript title="api/src/index.ts"
+import express from 'express';
+import { seedDatabase } from './seed.ts';
+
+const app = express();
+
+if (process.env.NODE_ENV === 'development') {
+    app.post('/admin/seed', async (req, res) => {
+        await seedDatabase();
+        res.json({ status: 'Database seeded' });
+    });
+}
+
+// Add your other routes...
+
+app.listen(process.env.PORT);
+```
+
+Add the command to the app resource with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpCommand" />:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+await builder.addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withReference(catalogdb)
+    .waitFor(catalogdb)
+    .withHttpCommand('/admin/seed', 'Seed database', {
+        methodName: 'POST',
+        description: 'Adds sample data to the catalog database.',
+        confirmationMessage: 'Add sample data to the catalog database?',
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+builder.AddNodeApp("api", "../api", "src/index.ts")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(catalogdb)
+    .WaitFor(catalogdb)
+    .WithHttpCommand(
+        path: "/admin/seed",
+        displayName: "Seed database",
+        commandOptions: new HttpCommandOptions
+        {
+            Method = HttpMethod.Post,
+            Description = "Adds sample data to the catalog database.",
+            ConfirmationMessage = "Add sample data to the catalog database?"
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The HTTP endpoint passes its port to the app in the `PORT` environment variable. The app must listen on `process.env.PORT`, otherwise the command can't reach it.
+
+</Pivot>
 
 Protect seed endpoints so that only the AppHost can call them, and don't expose them in production. The examples in [Modify a schema with a custom command](#modify-a-schema-with-a-custom-command) show how to send a shared secret with each request.
 
@@ -382,7 +471,9 @@ Protect seed endpoints so that only the AppHost can call them, and don't expose 
 
 You can also include seed data in your migrations. The data is then applied in order with your schema changes, and it reaches every environment that runs the migrations. Use this approach for reference data that your app needs, such as a list of countries or order statuses, rather than for large sets of test data.
 
-With EF Core, call `HasData` in `OnModelCreating` to define seed rows as part of your model. Each row needs a primary key value:
+<Pivot id="efcore">
+
+Call `HasData` in `OnModelCreating` to define seed rows as part of your model. Each row needs a primary key value:
 
 ```csharp title="CatalogContext.cs"
 protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -402,7 +493,11 @@ dotnet ef migrations add SeedOrderStatuses
 
 EF Core generates the insert, update, and delete statements needed to keep the rows in sync with the model. For more information, see [Model managed data](https://learn.microsoft.com/ef/core/modeling/data-seeding#model-managed-data) in the EF Core documentation.
 
-With Drizzle, generate an empty custom migration:
+</Pivot>
+
+<Pivot id="drizzle">
+
+Generate an empty custom migration:
 
 ```bash title="Terminal"
 npx drizzle-kit generate --custom --name=seed-order-statuses
@@ -418,6 +513,8 @@ INSERT INTO order_statuses (id, name) VALUES
 ```
 
 Drizzle applies the file in order with your other migrations. Drizzle Kit sets the number prefix in the file name. For more information, see [Custom migrations](https://orm.drizzle.team/docs/kit-custom-migrations) in the Drizzle documentation.
+
+</Pivot>
 
 To learn how to apply migrations when your app runs, see [Modify a database schema](#modify-a-database-schema).
 
@@ -481,7 +578,56 @@ When Aspire later creates `catalogdb`, it finds the database and leaves it in pl
 
 PostgreSQL runs these scripts only when it initializes an empty data directory. If you [persist the database](#persist-a-database-across-restarts) with a data volume, the scripts don't run again until you remove the volume.
 
-To run a seed program written in another language, such as a Node.js or Python script, add it to the AppHost as a resource that you start from the dashboard. Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExplicitStart" /> so that the resource doesn't run with the rest of the app. The resource receives the database's connection information from `WithReference`, in the same way as the app. This example runs a `db:seed` script from the app's _package.json_ file:
+To run a separate seed program, add it to the AppHost as a resource that you start from the dashboard. Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExplicitStart" /> so that the resource doesn't run with the rest of the app. The resource receives the database's connection information from `WithReference`, in the same way as the app.
+
+<Pivot id="efcore">
+
+This example adds a .NET console project that seeds the database. The project registers the `DbContext` in the same way as the app:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+await builder.addDotnetProject('api-seed', '../SeedData/SeedData.csproj')
+    .withReference(catalogdb)
+    .waitFor(catalogdb)
+    .withExplicitStart();
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+builder.AddDotnetProject("api-seed", "../SeedData/SeedData.csproj")
+    .WithReference(catalogdb)
+    .WaitFor(catalogdb)
+    .WithExplicitStart();
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+</Pivot>
+
+<Pivot id="drizzle">
+
+This example runs a `db:seed` script from the app's _package.json_ file:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -522,6 +668,8 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
+</Pivot>
+
 To seed, select **Start** on the `api-seed` resource in the dashboard. The resource's console logs show the script's output. To run a tool that isn't part of your app, such as a CLI installed on your machine, use a process-backed resource command instead. For more information, see [Process-backed resource commands](/fundamentals/custom-resource-commands/#process-backed-resource-commands).
 
 <LearnMore>
@@ -530,16 +678,27 @@ To seed, select **Start** on the `api-seed` resource in the dashboard. The resou
 
 ## Modify a database schema
 
-As your app evolves, its tables and columns change. Most teams manage these changes with migrations: versioned files, kept in source control, that each describe one change to the schema. An ORM tracks which migrations a database has already applied, so it applies only the new ones. Both EF Core and Drizzle generate migrations from changes to your model:
+As your app evolves, its tables and columns change. Most teams manage these changes with migrations: versioned files, kept in source control, that each describe one change to the schema. An ORM tracks which migrations a database has already applied, so it applies only the new ones. Your ORM generates migrations from changes to your model.
 
-- With EF Core, run `dotnet ef migrations add <name>` to generate a C# migration from changes to your `DbContext` model. For more information, see [Create migrations](/integrations/databases/efcore/migrations/#create-migrations).
-- With Drizzle, run `npx drizzle-kit generate` to generate a SQL migration from changes to your schema file. For more information, see [Migrations with Drizzle](https://orm.drizzle.team/docs/migrations) in the Drizzle documentation.
+<Pivot id="efcore">
+
+Run `dotnet ef migrations add <name>` to generate a C# migration from changes to your `DbContext` model. For more information, see [Create migrations](/integrations/databases/efcore/migrations/#create-migrations).
+
+</Pivot>
+
+<Pivot id="drizzle">
+
+Run `npx drizzle-kit generate` to generate a SQL migration from changes to your schema file. For more information, see [Migrations with Drizzle](https://orm.drizzle.team/docs/migrations) in the Drizzle documentation.
+
+</Pivot>
 
 ### Apply schema migrations on startup
 
 To keep the database schema in step with your code, apply pending migrations every time the app runs.
 
-For EF Core, add a migration resource to your AppHost with <ApiReference name="Aspire.Hosting.EFResourceBuilderExtensions.AddEFMigrations" /> from the [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore) package. This package is in preview. Call <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.RunDatabaseUpdateOnStart" /> to apply migrations when the AppHost starts, and make the app wait for the migrations to finish with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitForCompletion" />:
+<Pivot id="efcore">
+
+Add a migration resource to your AppHost with <ApiReference name="Aspire.Hosting.EFResourceBuilderExtensions.AddEFMigrations" /> from the [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore) package. This package is in preview. Call <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.RunDatabaseUpdateOnStart" /> to apply migrations when the AppHost starts, and make the app wait for the migrations to finish with <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WaitForCompletion" />:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -669,7 +828,11 @@ builder.Build().Run();
 
 If the migrations fail, the worker exits with an error and the app doesn't start. For a step-by-step tutorial that builds a migration service, see [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/#create-the-migration-service).
 
-For Drizzle, add a `db:migrate` script to the app's _package.json_ file that runs `drizzle-kit migrate`. Then add a second resource to your AppHost that runs this script, and make the app wait for it to finish. Add the resource with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddJavaScriptApp" /> from the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) package:
+</Pivot>
+
+<Pivot id="drizzle">
+
+Add a `db:migrate` script to the app's _package.json_ file that runs `drizzle-kit migrate`. Then add a second resource to your AppHost that runs this script, and make the app wait for it to finish. Add the resource with <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddJavaScriptApp" /> from the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) package:
 
 ```json title="api/package.json"
 {
@@ -763,12 +926,20 @@ app.listen(process.env.PORT);
 If you run more than one replica of the app, each replica applies the migrations when it starts. Use a separate migration resource when only one process should change the schema.
 
 <LearnMore>
-  For more information about the JavaScript hosting APIs, see [Customize scripts](/integrations/frameworks/javascript/#customize-scripts). For more information about waiting for resources, see [Health checks](/fundamentals/health-checks/).
+  For more information about the JavaScript hosting APIs, see [Customize scripts](/integrations/frameworks/javascript/#customize-scripts).
+</LearnMore>
+
+</Pivot>
+
+<LearnMore>
+  For more information about waiting for resources, see [Health checks](/fundamentals/health-checks/).
 </LearnMore>
 
 ### Modify a schema with a custom command
 
 Applying migrations on every run isn't always what you want. For example, you might want to review a migration before you apply it, or apply it to a database that already holds data you care about. In these cases, apply the migrations on demand from a command in the dashboard.
+
+<Pivot id="efcore">
 
 When you add an EF Core migration resource without calling `RunDatabaseUpdateOnStart`, the resource doesn't apply migrations on its own. It still appears in the dashboard, with commands that run the EF Core tools for that project. If your migrations are in a different project from the app, such as a data project, point the resource at that project with <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.WithMigrationsProject" />:
 
@@ -817,37 +988,9 @@ builder.Build().Run();
 
 Pass the path to the migrations project, relative to the AppHost. If your migrations are in the app project, omit the call. For more information, see [Automated EF migrations with `AddEFMigrations`](/integrations/databases/efcore/migrations/#automated-ef-migrations-with-addefmigrations).
 
-For any ORM, you can also expose migrations as an endpoint in your app and call it with a custom HTTP command. Anyone who can reach the endpoint can change your schema, so the dashboard's confirmation prompt isn't enough protection on its own. Register the endpoint only in development, and require a shared secret that only the AppHost knows. The AppHost passes the secret to the app as an environment variable and sends it in a header when you run the command. For more information, see [Considerations when registering HTTP commands](/fundamentals/http-commands/#considerations-when-registering-http-commands).
+You can also expose migrations as an endpoint in your app and call it with a custom HTTP command. Anyone who can reach the endpoint can change your schema, so the dashboard's confirmation prompt isn't enough protection on its own. Register the endpoint only in development, and require a shared secret that only the AppHost knows. The AppHost passes the secret to the app as an environment variable and sends it in a header when you run the command. For more information, see [Considerations when registering HTTP commands](/fundamentals/http-commands/#considerations-when-registering-http-commands).
 
-With Drizzle, the endpoint calls the `migrate` function:
-
-```typescript title="api/src/index.ts"
-import express from 'express';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-
-const app = express();
-const db = drizzle(process.env.CATALOGDB_URI!);
-const migrationKey = process.env.MIGRATION_KEY;
-
-if (process.env.NODE_ENV === 'development' && migrationKey) {
-    app.post('/admin/migrate', async (req, res) => {
-        if (req.get('X-Migration-Key') !== migrationKey) {
-            res.sendStatus(401);
-            return;
-        }
-
-        await migrate(db, { migrationsFolder: './drizzle' });
-        res.json({ status: 'Migrations applied' });
-    });
-}
-
-// Add your other routes...
-
-app.listen(process.env.PORT);
-```
-
-With EF Core, the endpoint calls `MigrateAsync` on the database context. This example assumes that the app registers a `DbContext` named `CatalogContext`. For more information, see [Use Aspire to create an EF Core context](/integrations/databases/efcore/overview/#use-aspire-to-create-an-ef-core-context).
+The endpoint calls `MigrateAsync` on the database context. This example assumes that the app registers a `DbContext` named `CatalogContext`. For more information, see [Use Aspire to create an EF Core context](/integrations/databases/efcore/overview/#use-aspire-to-create-an-ef-core-context).
 
 ```csharp title="Program.cs"
 using Microsoft.AspNetCore.Mvc;
@@ -889,8 +1032,7 @@ const migrationKey = randomBytes(32).toString('hex');
 const postgres = await builder.addPostgres('postgres');
 const catalogdb = await postgres.addDatabase('catalogdb');
 
-await builder.addNodeApp('api', './api', 'src/index.ts')
-    .withHttpEndpoint({ env: 'PORT' })
+await builder.addDotnetProject('api', '../Api/Api.csproj')
     .withReference(catalogdb)
     .waitFor(catalogdb)
     .withEnvironment('MIGRATION_KEY', migrationKey)
@@ -941,6 +1083,114 @@ builder.Build().Run();
 
 </TabItem>
 </Tabs>
+
+</Pivot>
+
+<Pivot id="drizzle">
+
+To apply migrations on demand, expose them as an endpoint in your app and call it with a custom HTTP command. Anyone who can reach the endpoint can change your schema, so the dashboard's confirmation prompt isn't enough protection on its own. Register the endpoint only in development, and require a shared secret that only the AppHost knows. The AppHost passes the secret to the app as an environment variable and sends it in a header when you run the command. For more information, see [Considerations when registering HTTP commands](/fundamentals/http-commands/#considerations-when-registering-http-commands).
+
+The endpoint calls the `migrate` function:
+
+```typescript title="api/src/index.ts"
+import express from 'express';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+
+const app = express();
+const db = drizzle(process.env.CATALOGDB_URI!);
+const migrationKey = process.env.MIGRATION_KEY;
+
+if (process.env.NODE_ENV === 'development' && migrationKey) {
+    app.post('/admin/migrate', async (req, res) => {
+        if (req.get('X-Migration-Key') !== migrationKey) {
+            res.sendStatus(401);
+            return;
+        }
+
+        await migrate(db, { migrationsFolder: './drizzle' });
+        res.json({ status: 'Migrations applied' });
+    });
+}
+
+// Add your other routes...
+
+app.listen(process.env.PORT);
+```
+
+Then add the command to the app resource in your AppHost. The AppHost generates a random key each time it starts, passes it to the app in the `MIGRATION_KEY` environment variable, and adds it to the command's request in the `X-Migration-Key` header:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { randomBytes } from 'node:crypto';
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const migrationKey = randomBytes(32).toString('hex');
+
+const postgres = await builder.addPostgres('postgres');
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+await builder.addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withReference(catalogdb)
+    .waitFor(catalogdb)
+    .withEnvironment('MIGRATION_KEY', migrationKey)
+    .withHttpCommand('/admin/migrate', 'Apply migrations', {
+        methodName: 'POST',
+        confirmationMessage: 'Apply pending migrations to the catalog database?',
+        prepareRequest: async () => ({
+            headers: { 'X-Migration-Key': migrationKey },
+        }),
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using System.Security.Cryptography;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var migrationKey = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+
+var postgres = builder.AddPostgres("postgres");
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+builder.AddNodeApp("api", "../api", "src/index.ts")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(catalogdb)
+    .WaitFor(catalogdb)
+    .WithEnvironment("MIGRATION_KEY", migrationKey)
+    .WithHttpCommand(
+        path: "/admin/migrate",
+        displayName: "Apply migrations",
+        commandOptions: new HttpCommandOptions
+        {
+            Method = HttpMethod.Post,
+            ConfirmationMessage = "Apply pending migrations to the catalog database?",
+            PrepareRequest = context =>
+            {
+                context.Request.Headers.Add("X-Migration-Key", migrationKey);
+                return Task.CompletedTask;
+            }
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The HTTP endpoint passes its port to the app in the `PORT` environment variable. The app must listen on `process.env.PORT`, otherwise the command can't reach it.
+
+</Pivot>
 
 Dashboard commands are available only when you run the dashboard locally. Don't rely on them to migrate a deployed database. For deployment options, see [Deploy a database with an Aspire solution](#deploy-a-database-with-an-aspire-solution).
 
@@ -1019,6 +1269,53 @@ When you deploy, the database resources in your AppHost become part of the deplo
 
 To use a managed service when you deploy and a local container during development, call `RunAsContainer` on the Azure resource. This example uses the [📦 Aspire.Hosting.Azure.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.Azure.PostgreSQL) package:
 
+<Pivot id="efcore">
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addAzurePostgresFlexibleServer('postgres');
+await postgres.runAsContainer();
+
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+await builder.addDotnetProject('api', '../Api/Api.csproj')
+    .withReference(catalogdb)
+    .waitFor(catalogdb);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+    .RunAsContainer();
+
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithReference(catalogdb)
+    .WaitFor(catalogdb);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+</Pivot>
+
+<Pivot id="drizzle">
+
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
@@ -1050,7 +1347,7 @@ var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
 
 var catalogdb = postgres.AddDatabase("catalogdb");
 
-builder.AddDotnetProject("api", "../Api/Api.csproj")
+builder.AddNodeApp("api", "../api", "src/index.ts")
     .WithReference(catalogdb)
     .WaitFor(catalogdb);
 
@@ -1060,12 +1357,15 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
+</Pivot>
+
 When you run the app locally, Aspire starts a PostgreSQL container. When you deploy, it provisions Azure Database for PostgreSQL.
 
-Your schema must also reach the deployed database. `RunDatabaseUpdateOnStart` affects only local runs, so plan a separate step for deployment:
+Your schema must also reach the deployed database, so plan how your migrations run when you deploy.
 
-- With EF Core, publish your migrations as a container image with <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationBundle" />. The bundle is deployed with your app and applies pending migrations when it runs. If you want to review the SQL before it runs, call <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationScript" /> instead. It generates an idempotent SQL script during `aspire publish`, which you then run against the database yourself.
-- With Drizzle, run `drizzle-kit migrate` as a step in your CI/CD pipeline, or [call the `migrate` function](#apply-schema-migrations-on-startup) when the deployed app starts. The migration resource from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) configures a local run script; deploying it requires explicit runtime publishing configuration and a one-shot execution model for your deployment target. For publishing options, see [Deploy JavaScript apps](/deployment/javascript-apps/).
+<Pivot id="efcore">
+
+`RunDatabaseUpdateOnStart` affects only local runs. To apply migrations in a deployed environment, publish them as a container image with <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationBundle" />. The bundle is deployed with your app and applies pending migrations when it runs. If you want to review the SQL before it runs, call <ApiReference name="Aspire.Hosting.EFMigrationResourceBuilderExtensions.PublishAsMigrationScript" /> instead. It generates an idempotent SQL script during `aspire publish`, which you then run against the database yourself.
 
 A migration bundle container exits after it applies the migrations. Configure each deployment target so that it doesn't restart the container:
 
@@ -1128,6 +1428,79 @@ builder.Build().Run();
 
 The Docker Compose methods come from the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) package. Call `WithReference` on the migration resource so that the bundle container receives the database connection string, and `WaitFor` so that it starts only after the database is healthy.
 
+</Pivot>
+
+<Pivot id="drizzle">
+
+Run `drizzle-kit migrate` as a step in your CI/CD pipeline, or call the `migrate` function when the deployed app starts, as shown in [Apply schema migrations on startup](#apply-schema-migrations-on-startup). To deploy the `api-migrate` resource from that section instead, call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" />. The deployment then builds a container image that runs the `db:migrate` script. For other publishing options, see [Deploy JavaScript apps](/deployment/javascript-apps/).
+
+The `api-migrate` container exits after it applies the migrations. Configure each deployment target so that it doesn't restart the container:
+
+- On Azure Container Apps, publish the migration resource as a job with <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" />. A manually triggered job doesn't run until you start it. To start it during deployment, see [Ensure successful migrations deployment](#ensure-successful-migrations-deployment).
+- On Docker Compose, set the service's restart policy to `no` with <ApiReference name="Aspire.Hosting.DockerComposeServiceExtensions.PublishAsDockerComposeService" />, as shown in the following example.
+- On Kubernetes, customize the generated manifest to use a `Job` workload, or set `restartPolicy: OnFailure`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment('compose');
+
+const postgres = await builder.addPostgres('postgres');
+const catalogdb = await postgres.addDatabase('catalogdb');
+
+const migrate = await builder.addJavaScriptApp('api-migrate', './api', { runScriptName: 'db:migrate' })
+    .withReference(catalogdb)
+    .waitFor(catalogdb)
+    .publishAsPackageScript({ scriptName: 'db:migrate' });
+await migrate.publishAsDockerComposeService(async (resource, service) => {
+    await service.restart.set('no');
+});
+
+await builder.addNodeApp('api', './api', 'src/index.ts')
+    .withReference(catalogdb)
+    .waitForCompletion(migrate);
+
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+var postgres = builder.AddPostgres("postgres");
+var catalogdb = postgres.AddDatabase("catalogdb");
+
+#pragma warning disable ASPIREJAVASCRIPT001
+var migrate = builder.AddJavaScriptApp("api-migrate", "../api", "db:migrate")
+    .WithReference(catalogdb)
+    .WaitFor(catalogdb)
+    .PublishAsPackageScript(scriptName: "db:migrate")
+    .PublishAsDockerComposeService((_, service) => service.Restart = "no");
+#pragma warning restore ASPIREJAVASCRIPT001
+
+builder.AddNodeApp("api", "../api", "src/index.ts")
+    .WithReference(catalogdb)
+    .WaitForCompletion(migrate);
+
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The Docker Compose methods come from the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) package. The container image includes only production dependencies, so list `drizzle-kit` under `dependencies` in _package.json_, not `devDependencies`. In a C# AppHost, the JavaScript publishing API is experimental and requires suppressing the [`ASPIREJAVASCRIPT001`](/diagnostics/aspirejavascript001/) diagnostic.
+
+</Pivot>
+
 Don't deploy development seed data or seed endpoints. Seed data that's part of your migrations, such as reference data, is deployed with the migrations.
 
 <LearnMore>
@@ -1138,8 +1511,19 @@ Don't deploy development seed data or seed endpoints. Seed data that's part of y
 
 When you deploy a new version of your app, the new code often expects the new schema. If the app starts before the migrations finish, or if the migrations fail, the app can fail at runtime. To prevent this, make the deployment apply migrations first, and stop it when they fail. Choose one of these approaches:
 
+<Pivot id="efcore">
+
 - [Add a custom step to the Aspire deployment pipeline](#run-migrations-in-the-deployment-pipeline) so that `aspire deploy` runs a migration job and waits for it to succeed before it updates the app.
-- [Run an EF Core migration bundle in your CI/CD pipeline](#run-a-migration-bundle-as-a-cicd-pre-deployment-step) before you call `aspire deploy`.
+- [Run an EF Core migration bundle in your CI/CD pipeline](#run-migrations-as-a-cicd-pre-deployment-step) before you call `aspire deploy`.
+
+</Pivot>
+
+<Pivot id="drizzle">
+
+- [Add a custom step to the Aspire deployment pipeline](#run-migrations-in-the-deployment-pipeline) so that `aspire deploy` runs a migration job and waits for it to succeed before it updates the app.
+- [Run `drizzle-kit migrate` in your CI/CD pipeline](#run-migrations-as-a-cicd-pre-deployment-step) before you call `aspire deploy`.
+
+</Pivot>
 
 Either way, the app version that's still running keeps serving requests while the migrations run. Write migrations that the old version of the app can tolerate. For example, add a column in one release and remove the old column in a later release.
 
@@ -1155,7 +1539,9 @@ The following examples deploy to Azure Container Apps, so they need the [📦 As
 
 Aspire creates the Azure deployment steps while it resolves the pipeline, after your AppHost code adds its own steps. If you name an Azure step in the `dependsOn` or `requiredBy` options of a new step, the pipeline fails with an `unknown step` error. Instead, add the step without dependencies, then add the dependencies in a pipeline configuration callback. Aspire runs this callback after all the steps exist. The callback also runs during pipeline passes that don't create the Azure steps, so it adds the dependencies only when it finds them.
 
-For EF Core, publish the migration bundle as a container image and deploy it as a manually triggered job with <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" />. Then add the custom step and the configuration callback. In C#, use `builder.Pipeline.AddStep` and `builder.Pipeline.AddPipelineConfiguration`. In TypeScript, use `pipeline.addStep` and `pipeline.configure`:
+<Pivot id="efcore">
+
+Publish the migration bundle as a container image and deploy it as a manually triggered job with <ApiReference name="Aspire.Hosting.ContainerAppExtensions.PublishAsAzureContainerAppJob" />. Then add the custom step and the configuration callback. In C#, use `builder.Pipeline.AddStep` and `builder.Pipeline.AddPipelineConfiguration`. In TypeScript, use `pipeline.addStep` and `pipeline.configure`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -1352,9 +1738,11 @@ static async Task<string> RunAzAsync(string[] args, CancellationToken cancellati
 </TabItem>
 </Tabs>
 
-The custom step reads the resource group from the `Azure__ResourceGroup` environment variable, so set it when you run `aspire deploy`. The Azure CLI must be installed and signed in to the same subscription. On Windows, run `az.cmd` instead of `az`. In a C# AppHost, the pipeline API is experimental and requires suppressing the [`ASPIREPIPELINES001`](/diagnostics/aspirepipelines001/) diagnostic.
+</Pivot>
 
-For Drizzle, deploy the `db:migrate` script from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) as a job. Call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" /> to build a container image that runs the script, and deploy the image as a manually triggered job. Then add the same custom step and configuration callback for the `api-migrate` job:
+<Pivot id="drizzle">
+
+Deploy the `db:migrate` script from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) as a job. Call `PublishAsPackageScript` to build a container image that runs the script, and deploy the image as a manually triggered job. Then add the custom step and the configuration callback for the `api-migrate` job. In C#, use `builder.Pipeline.AddStep` and `builder.Pipeline.AddPipelineConfiguration`. In TypeScript, use `pipeline.addStep` and `pipeline.configure`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
@@ -1557,15 +1945,23 @@ static async Task<string> RunAzAsync(string[] args, CancellationToken cancellati
 
 The container image includes only production dependencies, so list `drizzle-kit` under `dependencies` in _package.json_, not `devDependencies`. In a C# AppHost, the JavaScript publishing API is experimental and requires suppressing the [`ASPIREJAVASCRIPT001`](/diagnostics/aspirejavascript001/) diagnostic.
 
+</Pivot>
+
+The custom step reads the resource group from the `Azure__ResourceGroup` environment variable, so set it when you run `aspire deploy`. The Azure CLI must be installed and signed in to the same subscription. On Windows, run `az.cmd` instead of `az`. In a C# AppHost, the pipeline API is experimental and requires suppressing the [`ASPIREPIPELINES001`](/diagnostics/aspirepipelines001/) diagnostic.
+
 You can use the same pattern with other deployment targets. Replace the `az` commands with the commands that run a one-off job on your target, such as `docker compose run` or `kubectl wait --for=condition=complete`. Then depend on the steps that your target adds to the pipeline.
 
 <LearnMore>
   For more information, see [Pipelines and app topology](/deployment/pipelines/), [Azure Container Apps jobs](/integrations/cloud/azure/container-app-jobs/), and [Jobs in Azure Container Apps](https://learn.microsoft.com/azure/container-apps/jobs) in the Azure documentation.
 </LearnMore>
 
-#### Run a migration bundle as a CI/CD pre-deployment step
+#### Run migrations as a CI/CD pre-deployment step
 
-An EF Core migration bundle is a single executable that applies your migrations to a database. It doesn't need the .NET SDK or your source code, so you can run it from a CI/CD pipeline before you deploy. If it fails, the pipeline stops before `aspire deploy` runs.
+To apply migrations before the app is deployed, run them from your CI/CD pipeline before you call `aspire deploy`. If they fail, the pipeline stops before the deployment starts.
+
+<Pivot id="efcore">
+
+An EF Core migration bundle is a single executable that applies your migrations to a database. It doesn't need the .NET SDK or your source code, so you can run it from a CI/CD pipeline before you deploy.
 
 To generate the bundle, publish the migration resource as a migration bundle. Set the target runtime to match your CI/CD agent, and make the bundle self-contained so that the agent doesn't need the .NET runtime:
 
@@ -1625,11 +2021,27 @@ aspire deploy
 
 Store the connection string in your CI/CD system's secret store, and make sure the agent can reach the database through its firewall. The step that generates the bundle doesn't deploy anything. You can run it in a build stage and pass the bundle to a later deployment stage as an artifact.
 
-Drizzle has no equivalent of a bundle, but you can follow the same order. Run `npx drizzle-kit migrate` in your CI/CD pipeline with the production connection string, and then run `aspire deploy`.
-
 <LearnMore>
   For more information, see [Migration bundles](https://learn.microsoft.com/ef/core/managing-schemas/migrations/applying#bundles) in the EF Core documentation and the [`aspire do` command](/reference/cli/commands/aspire-do/).
 </LearnMore>
+
+</Pivot>
+
+<Pivot id="drizzle">
+
+Drizzle has no equivalent of an EF Core migration bundle. Instead, run `drizzle-kit migrate` in your CI/CD pipeline with the production connection string. The _drizzle.config.ts_ file from [Apply schema migrations on startup](#apply-schema-migrations-on-startup) reads the connection string from the `CATALOGDB_URI` environment variable:
+
+```bash title="Terminal"
+# Apply pending migrations from the app folder. The command fails if any migration fails.
+(cd api && CATALOGDB_URI="$CATALOGDB_CONNECTION_STRING" npx drizzle-kit migrate)
+
+# Deploy the app only after the migrations succeed.
+aspire deploy
+```
+
+Store the connection string in your CI/CD system's secret store, and make sure the agent can reach the database through its firewall.
+
+</Pivot>
 
 ## See also
 
