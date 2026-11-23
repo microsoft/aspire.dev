@@ -26,6 +26,8 @@ Since Aspire projects use a containerized architecture, databases are ephemeral 
 
 In this article, you learn how to configure Aspire projects to run EF Core migrations during app startup. Before continuing, ensure your development environment is set up — see [Prerequisites](/get-started/prerequisites/).
 
+For a comparison of the ways to create, seed, and migrate a database with EF Core or Drizzle, see [Aspire database patterns](/fundamentals/database-patterns/).
+
 ## Obtain the starter app
 
 This tutorial uses a sample app that demonstrates how to apply EF Core migrations in Aspire. Use Visual Studio to clone [the sample app from GitHub](https://github.com/MicrosoftDocs/aspire-docs-samples/) or use the following command:
@@ -209,7 +211,7 @@ Ensure you're running migration commands from the correct project:
 
 ## Create the migration service
 
-To execute migrations, call the EF Core `Microsoft.EntityFrameworkCore.Migrations.IMigrator.Migrate` method or the `IMigrator.MigrateAsync` method. In this tutorial, you'll create a separate worker service to apply migrations. This approach separates migration concerns into a dedicated project, which is easier to maintain and allows migrations to run before other services start.
+To execute migrations, call the EF Core `Microsoft.EntityFrameworkCore.Migrations.IMigrator.Migrate` method or the `IMigrator.MigrateAsync` method. In this tutorial, you'll create a separate worker service to apply migrations. This approach separates migration concerns into a dedicated project, which is easier to maintain and allows migrations to run before other services start. For a condensed version of this pattern with a PostgreSQL database, and for the alternatives, see [Apply schema migrations on startup](/fundamentals/database-patterns/#apply-schema-migrations-on-startup).
 
 :::note
 **Where to create migrations**: Migrations should be created in the project that contains your Entity Framework DbContext and model classes (in this example, *SupportTicketApi.Data*). The migration service project references this data project to apply the migrations at startup.
@@ -549,6 +551,8 @@ The [Aspire Shop](https://learn.microsoft.com/samples/microsoft/aspire-samples/a
 
 In addition to creating a dedicated worker service as described above, Aspire provides a first-class AppHost API for managing EF Core migrations: <ApiReference name="Aspire.Hosting.EFResourceBuilderExtensions.AddEFMigrations" />. This API integrates migration execution directly into the AppHost orchestration and the Aspire publishing pipeline, without requiring a separate migration service project.
 
+This section describes the API. For C# and TypeScript AppHost examples that apply migrations on startup, from a dashboard command, and during deployment, see [Aspire database patterns](/fundamentals/database-patterns/#modify-a-database-schema).
+
 ### Add the package
 
 Add the [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore) NuGet package to your AppHost project:
@@ -645,7 +649,7 @@ Key behaviors:
 
 #### Preventing container restarts per environment
 
-A migration bundle is idempotent (running it twice is safe), but different compute environments need explicit configuration to avoid restarting the container after it exits.
+A migration bundle is idempotent (running it twice is safe), but different compute environments need explicit configuration to avoid restarting the container after it exits. To make a deployment wait for the migrations to succeed before it updates the app, see [Ensure successful migrations deployment](/fundamentals/database-patterns/#ensure-successful-migrations-deployment).
 
 <Tabs syncKey="deploy-target">
 <TabItem label="Azure Container Apps">
@@ -683,6 +687,7 @@ Customize the generated manifest to use a `Job` workload or set `restartPolicy: 
 
 ## See also
 
+- [Aspire database patterns](/fundamentals/database-patterns/)
 - [EF Core migrations](https://learn.microsoft.com/ef/core/managing-schemas/migrations/)
 - [Connection resiliency](https://learn.microsoft.com/ef/core/miscellaneous/connection-resiliency)
 - [Seed data in a database using Aspire](/integrations/databases/efcore/seed-database/)
