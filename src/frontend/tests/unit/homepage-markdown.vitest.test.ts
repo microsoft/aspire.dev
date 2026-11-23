@@ -22,6 +22,7 @@ function homepage(title = 'Compose distributed apps in code.', prefix = '') {
         <div data-apphost-builder>
           <div class="code-lang-group" data-code-lang="csharp"><div class="code-variant" data-variant="frontend">Inactive builder variants</div></div>
           <div class="code-lang-group" data-code-lang="typescript"><div class="code-variant" data-variant="frontend">Default builder variant</div><div class="code-variant" data-variant="database">Inactive builder variants</div></div>
+                    <div class="code-lang-group" data-code-lang="go"><div class="code-variant" data-variant="frontend">Inactive builder variants</div></div>
         </div>
       </section>
       <div class="aspire-home not-content">

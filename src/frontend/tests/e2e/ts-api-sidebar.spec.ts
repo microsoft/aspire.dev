@@ -37,6 +37,28 @@ async function sidebarOn(page: Page): Promise<Locator> {
   return page.locator(sidebarSelector);
 }
 
+type CompactNode = [string, string | CompactNode[]];
+
+function countLinks(nodes: CompactNode[]): number {
+  return nodes.reduce((count, [, value]) => count + (typeof value === 'string' ? 1 : countLinks(value)), 0);
+}
+
+/** Wait for the module tree to replace the server-rendered spine. */
+async function treeLinkCount(page: Page): Promise<number> {
+  await expect(page.locator('.topics-sidebar[data-api-sidebar-tree-state="loaded"]')).toHaveCount(1);
+  const src = await page.locator('.topics-sidebar[data-api-sidebar-tree]').getAttribute('data-api-sidebar-tree');
+  const tree = await (await page.request.get(src!)).json() as { items: CompactNode[] };
+  return countLinks(tree.items);
+}
+
+async function expectSpineHtml(page: Page, path: string, maxLinks: number): Promise<void> {
+  const html = await (await page.request.get(path)).text();
+  const spine = html.match(/<sl-sidebar-state-persist[\s\S]*?<\/sl-sidebar-state-persist>/)?.[0] ?? '';
+  const count = spine.match(/<a\s/g)?.length ?? 0;
+  expect(count).toBeGreaterThan(1);
+  expect(count).toBeLessThanOrEqual(maxLinks);
+}
+
 async function expectLocalAnchors(page: Page, sidebar: Locator): Promise<void> {
   const broken = await sidebar.locator('a[href*="#"]').evaluateAll((anchors) =>
     anchors.flatMap((anchor) => {
@@ -49,12 +71,20 @@ async function expectLocalAnchors(page: Page, sidebar: Locator): Promise<void> {
   expect(broken).toEqual([]);
 }
 
-test('a large module catalog is shared through overview links, not repeated on detail pages', async ({ page }) => {
+test('a large module renders a spine per page and loads its catalog tree once', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  const treeRequests: string[] = [];
+  page.on('request', (req) => {
+    if (new URL(req.url()).pathname.endsWith('/sidebar.json')) treeRequests.push(req.url());
+  });
+  await expectSpineHtml(page, `${modulePath}virtualnetworkproxy/`, 5);
   await page.goto(`${modulePath}virtualnetworkproxy/`);
   let sidebar = await sidebarOn(page);
-  await expect(sidebar.locator('a')).toHaveCount(5);
+  // Search root + the module tree, with the item expanded to its overview and two section links.
+  const treeLinks = await treeLinkCount(page);
+  expect(treeLinks).toBeGreaterThan(1000);
+  await expect(sidebar.locator('a')).toHaveCount(1 + treeLinks + 2);
   await expect(sidebar.locator('a[aria-current="page"]')).toHaveAttribute('href', `${modulePath}virtualnetworkproxy/`);
   await expect(sidebar.getByRole('link', { name: 'Properties', exact: true })).toHaveCount(1);
   await expectLocalAnchors(page, sidebar);
@@ -73,7 +103,8 @@ test('a large module catalog is shared through overview links, not repeated on d
   await firstMethod.click();
   await expect(page).toHaveURL(new URL(methodHref!, page.url()).href);
   sidebar = await sidebarOn(page);
-  await expect(sidebar.locator('a')).toHaveCount(6);
+  // The member page adds its overview and its Signature and Defined on sections.
+  await expect(sidebar.locator('a')).toHaveCount(1 + (await treeLinkCount(page)) + 3);
   await expect(sidebar.locator('a[aria-current="page"]')).toHaveAttribute('href', methodHref!);
   await expectLocalAnchors(page, sidebar);
 
@@ -83,11 +114,14 @@ test('a large module catalog is shared through overview links, not repeated on d
   await sidebar.locator(`a[href="${modulePath}"]`).click();
   await expect(page).toHaveURL(modulePath);
   sidebar = await sidebarOn(page);
-  await expect(sidebar.locator('a')).toHaveCount(5);
+  // The overview keeps its Types, Functions and Enums section links beside the tree.
+  await expect(sidebar.locator('a')).toHaveCount(1 + (await treeLinkCount(page)) + 3);
+  await expect(sidebar.locator('a[aria-current="page"]')).toHaveAttribute('href', modulePath);
   expect(await page.locator('#pkg-namespace-list a').count()).toBeGreaterThan(1000);
   await expectLocalAnchors(page, sidebar);
   await setMobileMenuOpen(page, false);
   await page.locator('#pkg-search-input').fill('VirtualNetworkProxy');
   await expect(page.locator(`#pkg-search-results a[title="VirtualNetworkProxy"][href="${modulePath}virtualnetworkproxy/"]`)).toBeVisible();
+  expect(new Set(treeRequests).size).toBe(1);
   expect(errors).toEqual([]);
 });

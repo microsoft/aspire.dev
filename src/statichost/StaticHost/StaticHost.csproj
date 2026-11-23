@@ -1,32 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <SelfContained>false</SelfContained>
     <PublishAot>false</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <ContainerFamily>noble-chiseled</ContainerFamily>
+    <ContainerFamily>resolute-chiseled</ContainerFamily>
 
-    <!-- Disable default compression formats to specify only brotli. -->
-    <EnableDefaultCompressionFormats>false</EnableDefaultCompressionFormats>
-    <PublishCompressionFormats>brotli</PublishCompressionFormats>
-    <!-- Optimize build times with Optimal Brotli instead of SmallestSize; publish ignores BrotliCompressionLevel: https://github.com/dotnet/sdk/issues/56679 -->
-    <_BlazorBrotliCompressionLevel>Optimal</_BlazorBrotliCompressionLevel>
+    <!--
+      SiteFileMiddleware serves the web root, and Site.targets publishes the site to it. Static web
+      assets would hash, index and compress about 70,000 files on every build, and MapStaticAssets
+      would load that index on every start.
+    -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+    <!-- wwwroot holds a copy of the site in CI and local smoke tests: keep it out of the items. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);wwwroot/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.4.0" />
     <PackageReference Include="Aspire.Azure.Security.KeyVault" Version="13.6.0" />
     <PackageReference Include="Aspire.Microsoft.Azure.StackExchangeRedis" Version="13.6.0" />
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="11.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="11.0.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.20.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.20.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.20.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.10.0" />
+    <PackageReference Include="System.IO.Hashing" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -50,5 +54,5 @@
     <ProjectReference Include="../../frontend/frontend.esproj" PrivateAssets="all" />
   </ItemGroup>
 
-  <Import Project="Caching.targets" />
+  <Import Project="Site.targets" />
 </Project>

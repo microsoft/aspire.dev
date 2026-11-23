@@ -1,5 +1,5 @@
 diff --git a/components/Search.astro b/components/Search.astro
-index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc714330421 100644
+index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..a1ccda6bf9c7beddc4090f1f9069eb7dc5b5b41c 100644
 --- a/components/Search.astro
 +++ b/components/Search.astro
 @@ -59,7 +59,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
@@ -51,13 +51,17 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc7
  
  			// Listen for `ctrl + k` and `cmd + k` keyboard shortcuts.
  			window.addEventListener('keydown', (e) => {
-@@ -121,7 +126,16 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+@@ -121,30 +126,56 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
  					dialog.open ? closeModal() : openModal();
  					e.preventDefault();
  				}
 -			});
 +			}, { signal });
-+
+ 
+-			let translations = {};
+-			try {
+-				translations = JSON.parse(this.dataset.translations || '{}');
+-			} catch {}
 +			this.cleanup = () => {
 +				controller.abort();
 +				if (dialog.open) {
@@ -66,10 +70,26 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc7
 +				}
 +				pagefindUI?.destroy();
 +			};
++
++			// Read when Pagefind initializes: the page can localize `data-translations` first.
++			const readTranslations = () => {
++				try {
++					return JSON.parse(this.dataset.translations || '{}');
++				} catch {
++					return {};
++				}
++			};
++			// The page sets `data-translations-pending` while it localizes them, then
++			// removes it and dispatches `translationsready`.
++			const translationsReady = () =>
++				this.hasAttribute('data-translations-pending')
++					? new Promise<void>((resolve) => {
++							this.addEventListener('translationsready', () => resolve(), { once: true, signal });
++							signal.addEventListener('abort', () => resolve(), { once: true });
++						})
++					: Promise.resolve();
  
- 			let translations = {};
- 			try {
-@@ -132,15 +146,18 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 			const shouldStrip = this.dataset.stripTrailingSlash !== undefined;
  			const stripTrailingSlash = (path: string) => path.replace(/(.)\/(#.*)?$/, '$1$2');
  			const formatURL = shouldStrip ? stripTrailingSlash : (path: string) => path;
  
@@ -82,6 +102,7 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc7
  					// @ts-expect-error — Missing types for @pagefind/default-ui package.
  					const { PagefindUI } = await import('@pagefind/default-ui');
 -					new PagefindUI({
++					await translationsReady();
 +					// Navigation can detach this instance while the module is loading.
 +					if (signal.aborted) return;
 +					pagefindUI = new PagefindUI({
@@ -91,7 +112,12 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc7
  						baseUrl: import.meta.env.BASE_URL,
  						bundlePath: import.meta.env.BASE_URL.replace(/\/$/, '') + '/pagefind/',
  						showImages: false,
-@@ -154,8 +171,19 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+-						translations,
++						translations: readTranslations(),
+ 						showSubResults: true,
+ 						processResult: (result: { url: string; sub_results: Array<{ url: string }> }) => {
+ 							result.url = formatURL(result.url);
+@@ -154,8 +185,19 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
  							});
  						},
  					});
@@ -112,3 +138,67 @@ index d8c80d826995d6c8ce598aa618ddf7ea575ecadc..ec1f9b15f677f0c7ae98160eef1c9dc7
  		}
  	}
  	customElements.define('site-search', SiteSearch);
+diff --git a/components/SidebarSublist.astro b/components/SidebarSublist.astro
+index 457ab20fd3583f521bd756cd2acb5cc57643d60b..f384d361dcc9d7b252a605b9a8c7dbf185fda32c 100644
+--- a/components/SidebarSublist.astro
++++ b/components/SidebarSublist.astro
+@@ -1,7 +1,6 @@
+ ---
+ import { flattenSidebar } from '../utils/navigation';
+ import type { SidebarEntry } from '../utils/routing/types';
+-import Icon from '../user-components/Icon.astro';
+ import Badge from '../user-components/Badge.astro';
+ import SidebarRestorePoint from './SidebarRestorePoint.astro';
+ 
+@@ -48,7 +47,7 @@ const { sublist, nested } = Astro.props;
+ 									/>
+ 								)}
+ 							</span>
+-							<Icon name="right-caret" class="caret" size="1.25rem" />
++							<span class="caret" aria-hidden="true" />
+ 						</summary>
+ 						<SidebarRestorePoint />
+ 						<Astro.self sublist={entry.entries} nested />
+@@ -101,7 +100,14 @@ const { sublist, nested } = Astro.props;
+ 			display: none;
+ 		}
+ 
++		/* Masked from shared CSS instead of an inline SVG repeated for every sidebar group. */
+ 		.caret {
++			display: block;
++			width: 1.25rem;
++			height: 1.25rem;
++			background-color: currentColor;
++			-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z'/%3E%3C/svg%3E") center / contain no-repeat;
++			mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z'/%3E%3C/svg%3E") center / contain no-repeat;
+ 			transition: transform 0.2s ease-in-out;
+ 			flex-shrink: 0;
+ 		}
+@@ -111,6 +117,12 @@ const { sublist, nested } = Astro.props;
+ 		[open] > summary .caret {
+ 			transform: rotateZ(90deg);
+ 		}
++		@media (forced-colors: active) {
++			.caret {
++				forced-color-adjust: none;
++				background-color: CanvasText;
++			}
++		}
+ 
+ 		a {
+ 			display: block;
+diff --git a/utils/routing/index.ts b/utils/routing/index.ts
+index c4af65f6c1c711399b58a984a3301ff56e39e2d5..a56582378a8514b88d5c188484d87a565b5e46c0 100644
+--- a/utils/routing/index.ts
++++ b/utils/routing/index.ts
+@@ -96,7 +96,9 @@ export function getRouteBySlugParam(slugParam: string | undefined): Route | unde
+ }
+ 
+ function getPaths(): Path[] {
+-	return routes.map((route) => ({
++	// Fallback pages aren't emitted: the host serves the default-locale page in place.
++	const pageRoutes = routes.filter((route) => !route.isFallback);
++	return pageRoutes.map((route) => ({
+ 		params: { slug: slugToParam(route.id) },
+ 		props: route,
+ 	}));

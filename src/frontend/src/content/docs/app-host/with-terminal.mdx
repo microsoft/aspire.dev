@@ -6,19 +6,15 @@ description: Configure interactive resource terminals with WithTerminal, choose 
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import ThemeImage from '@components/ThemeImage.astro';
-import terminalResourceDark from '@assets/dashboard/terminals/terminal-resource-dark.png';
+import terminalResourceDark from '@assets/dashboard/terminals/terminal-resource.png';
 import terminalResourceLight from '@assets/dashboard/terminals/terminal-resource-light.png';
-import terminalDetachedDark from '@assets/dashboard/terminals/terminal-detached-dark.png';
+import terminalDetachedDark from '@assets/dashboard/terminals/terminal-detached.png';
 import terminalDetachedLight from '@assets/dashboard/terminals/terminal-detached-light.png';
 import ApiReference from '@components/ApiReference.astro';
 
 If you have a terminal user interface (TUI) application or a shell-based experience that you want to exercise while it runs under Aspire, add <ApiReference name="Aspire.Hosting.TerminalResourceBuilderExtensions.WithTerminal" /> to the resource. Aspire then exposes an interactive terminal session that you can attach to from the [Aspire dashboard](/dashboard/overview/) or from the [`aspire terminal`](/reference/cli/commands/aspire-terminal/) CLI command.
 
 For an introduction to the resource Terminal view, terminal dock, and detached windows, start with [Dashboard terminals](/dashboard/terminals/).
-
-:::caution[Aspire 13.6 preview]
-This page describes resource-terminal behavior and defaults for Aspire 13.6 preview. Use matching AppHost, dashboard, and CLI builds.
-:::
 
 ## Prerequisites
 
@@ -47,7 +43,6 @@ await builder.build().run();
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("repl", "python3", ".", "-i", "-q")
@@ -59,11 +54,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-Start the app with `aspire run`, select `repl` on the dashboard's **Console logs** page, and switch to **Terminal** if needed. At the Python prompt, enter `print("Hello from Aspire")`. You can also run `aspire terminal attach repl` after [enabling the CLI commands](#work-with-terminals-from-the-cli).
-
-<Aside type="caution" title="Experimental">
-`WithTerminal` is an experimental API. Calling it in C# produces the `ASPIRETERMINAL001` diagnostic, which you must acknowledge for your AppHost to build. Suppress it inline with `#pragma warning disable ASPIRETERMINAL001` (as shown in the C# example above), or add `ASPIRETERMINAL001` to `<NoWarn>` in your project file. The shape of the API and its options may change in a future release.
-</Aside>
+Start the app with `aspire run`, select `repl` on the dashboard's **Console logs** page, and switch to **Terminal** if needed. At the Python prompt, enter `print("Hello from Aspire")`. You can also use [`aspire terminal attach repl`](#work-with-terminals-from-the-cli).
 
 ## When to use WithTerminal
 
@@ -105,21 +96,25 @@ To query a running database or cache, use the integration's [`WithRepl()` comman
 
 The terminal session is described by a set of options with sensible defaults:
 
-| Option              | Default | Description                                                                                                                                                     |
-| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Columns`           | `120`   | The initial number of columns for the terminal grid.                                                                                                            |
-| `Rows`              | `30`    | The initial number of rows for the terminal grid.                                                                                                               |
-| `ShowTerminalHost`  | `false` | Whether the hidden per-replica terminal host resources appear in the dashboard and CLI resource lists **and** export their diagnostic logs, metrics, and traces. Set to `true` to diagnose terminal-host startup or connectivity issues. |
+| Option    | Default | Description                                          |
+| --------- | ------- | ---------------------------------------------------- |
+| `Columns` | `132`   | The initial number of columns for the terminal grid. |
+| `Rows`    | `50`    | The initial number of rows for the terminal grid.    |
+
+On the resource **Terminal** page, the dashboard automatically fits the terminal grid to the view when you open the terminal unless you set `Columns` or `Rows`. Setting either dimension, even to its default value, turns off automatic fitting on that page until you request a resize. A configuration callback that doesn't set either dimension keeps automatic fitting. The terminal dock still automatically fits its resource-terminal pane when it opens, even if you set dimensions.
 
 <Aside type="tip">
   `Columns` and `Rows` must each be `1` or greater. Configuring either with zero
-  or a negative value in the `WithTerminal(...)` callback throws an
-  `ArgumentOutOfRangeException` immediately instead of failing later during
-  terminal-host startup.
+  or a negative value in the `WithTerminal(...)` callback fails immediately
+  instead of failing later during terminal-host startup. In C#, the setter
+  throws an `ArgumentOutOfRangeException`.
 </Aside>
 
-<Aside type="note" title="Terminal host telemetry is opt-in">
-By default, the hidden terminal host helper resources don't export logs, metrics, or traces, even when an OTLP endpoint is configured for the app—so they never show up in the dashboard's telemetry resource list (including the **Traces** filter). Setting `ShowTerminalHost = true` both reveals the helper resources and turns on their diagnostic telemetry when an OTLP endpoint is available. This is independent of the parent resource's own telemetry, which is never affected by `WithTerminal`.
+<Aside type="note" title="Terminal host resources">
+  Aspire runs a terminal host resource for each replica to bridge the terminal
+  session. These resources are hidden by default. To inspect their state and
+  logs, select **Show hidden resources** in the dashboard; you don't need to
+  change or restart your AppHost.
 </Aside>
 
 <Aside type="note">
@@ -133,7 +128,7 @@ By default, the hidden terminal host helper resources don't export logs, metrics
 <Tabs syncKey='aspire-lang'>
 <TabItem id='typescript' label='TypeScript'>
 
-TypeScript's `withTerminal()` currently applies the default options. Configuring initial dimensions through a TypeScript options overload isn't supported.
+In TypeScript, pass a `configure` callback to override any of these options:
 
 ```typescript title="apphost.mts" twoslash
 import { createBuilder } from './.aspire/modules/aspire.mjs';
@@ -142,7 +137,12 @@ const builder = await createBuilder();
 
 await builder
   .addExecutable('repl', 'python3', '.', ['-i', '-q'])
-  .withTerminal();
+  .withTerminal({
+    configure: async (options) => {
+      options.columns = 200;
+      options.rows = 50;
+    },
+  });
 
 await builder.build().run();
 ```
@@ -153,7 +153,6 @@ await builder.build().run();
 In C#, pass a callback to override any of these options:
 
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("repl", "python3", ".", "-i", "-q")
@@ -182,7 +181,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 await builder
-  .addProject('agent', '../Agent/Agent.csproj')
+  .addDotnetProject('agent', '../Agent/Agent.csproj')
   .withReplicas(3)
   .withTerminal();
 
@@ -192,13 +191,10 @@ await builder.build().run();
 </TabItem>
 <TabItem id='csharp' label='C#'>
 
-Add a project reference to `Agent.csproj` in your AppHost before using its generated `Projects.Agent` type.
-
 ```csharp title="AppHost.cs"
-#pragma warning disable ASPIRETERMINAL001
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.Agent>("agent")
+builder.AddDotnetProject("agent", "../Agent/Agent.csproj")
     .WithReplicas(3)
     .WithTerminal();
 
@@ -208,7 +204,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-When a resource has more than one replica, choose which one to attach to with `aspire terminal attach <resource> --replica <index>` (indices are 0-based), or pick interactively when prompted.
+When a resource has more than one replica, attach to a specific one by passing its exact resource instance ID, for example `aspire terminal attach agent-abc123`. Run [`aspire describe`](/reference/cli/commands/aspire-describe/) and use the desired replica's value in the **Name** column. If a display name matches multiple instances, the command fails and lists their instance IDs instead of prompting for a replica.
 
 <Aside type="note">
   Add a terminal to a resource only once. Calling `WithTerminal()` more than
@@ -266,7 +262,7 @@ Resource terminals and AppHost-owned dock terminals have different ownership and
 
 In the [Aspire VS Code extension](/get-started/aspire-vscode-extension/), any resource configured with `WithTerminal()` gains an **Open terminal** entry in its right-click context menu. Selecting **Open terminal** runs `aspire terminal attach <resource>` and opens the session as an editor-style terminal tab directly in VS Code—no separate shell window needed.
 
-For multi-replica resources, the extension automatically passes `--replica <index>` so the correct instance is attached. The `--apphost` flag is included when the current AppHost connection information is available, so the command connects without requiring you to specify the AppHost separately.
+For multi-replica resources, the extension automatically passes the exact resource instance ID so the correct instance is attached. The `--apphost` flag is included when the current AppHost connection information is available, so the command connects without requiring you to specify the AppHost separately.
 
 <Aside type="note">
   The **Open terminal** context-menu item is only visible for resources that

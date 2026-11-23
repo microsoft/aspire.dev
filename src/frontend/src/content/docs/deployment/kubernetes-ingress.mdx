@@ -74,8 +74,8 @@ Use `WithPath` on an Ingress (or `WithRoute` on a Gateway) to forward traffic fo
 ```csharp title="AppHost.cs"
 var k8s = builder.AddKubernetesEnvironment("k8s");
 
-var api = builder.AddProject<Projects.Api>("api");
-var web = builder.AddProject<Projects.Web>("web");
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
+var web = builder.AddDotnetProject("web", "../Web/Web.csproj");
 
 var ingress = k8s.AddIngress("public")
     .WithIngressClass("nginx")
@@ -91,17 +91,17 @@ ingress.WithPath("/", web.GetEndpoint("http"));
 ```typescript title="apphost.mts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
 
-const api = await builder.addProject('api');
-const web = await builder.addProject('web');
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
+const web = await builder.addDotnetProject('web', '../Web/Web.csproj');
 
 const ingress = await k8s.addIngress('public');
 await ingress.withIngressClass('nginx');
 await ingress.withHostname('app.example.com');
-await ingress.withTls();
+await ingress.withIngressTlsAuto();
 
 // Route /api/* to the API service and everything else to the web frontend.
-await ingress.withPath('/api', api.getEndpoint('http'));
-await ingress.withPath('/', web.getEndpoint('http'));
+await ingress.withIngressPath('/api', api.getEndpoint('http'));
+await ingress.withIngressPath('/', web.getEndpoint('http'));
 ```
 </TabItem>
 </Tabs>
@@ -134,11 +134,11 @@ ingress.WithPath("/", web.GetEndpoint("http"));
 ```typescript title="apphost.mts"
 const ingress = await k8s.addIngress('public');
 await ingress.withHostname('app.example.com');
-await ingress.withTls();
+await ingress.withIngressTlsAuto();
 
 // Both paths inherit "app.example.com" from withHostname.
-await ingress.withPath('/api', api.getEndpoint('http'));
-await ingress.withPath('/', web.getEndpoint('http'));
+await ingress.withIngressPath('/api', api.getEndpoint('http'));
+await ingress.withIngressPath('/', web.getEndpoint('http'));
 ```
 </TabItem>
 </Tabs>
@@ -195,9 +195,9 @@ const hostname = builder.addParameter('hostname');
 const ingressClass = builder.addParameter('ingressclass');
 
 const ingress = await k8s.addIngress('ingress');
-ingress.withIngressClass(ingressClass);
-ingress.withHostname(hostname);
-ingress.withTls();
+ingress.withIngressClassParam(ingressClass);
+ingress.withIngressHostnameParam(hostname);
+ingress.withIngressTlsAuto();
 ```
 </TabItem>
 </Tabs>

@@ -10,7 +10,7 @@ namespace StaticHost.Live;
 /// </summary>
 /// <remarks>
 /// Missing secrets are <b>not</b> fatal. The corresponding background worker
-/// detects empty values, logs a warning at startup, and stays idle. The SSE
+/// detects empty values, logs a warning at startup, and stays idle. The WebSocket
 /// endpoint still works and reports <c>{ isLive: false }</c>, the header icon
 /// stays in its non-live state, and the site ships fine in any state.
 /// </remarks>
@@ -39,10 +39,11 @@ public sealed class LiveStatusOptions
     public int CoalesceWindowMs { get; set; } = 750;
 
     /// <summary>
-    /// Upper bound for a single <c>/api/live/stream</c> connection. Each stream ends
+    /// Upper bound for a     single <c>/api/live/ws</c> connection. Each socket is closed
     /// after a random lifetime between 80% and 100% of this value, so long-lived
-    /// tabs reconnect periodically instead of holding one request open for days
-    /// and reconnects are spread out. Defaults to 10 minutes.
+        /// tabs reconnect periodically instead of holding one connection open for days
+        /// and reconnects are spread out. Keep it well under Azure Front Door's
+        /// two-hour WebSocket limit. Defaults to 10 minutes.
     /// </summary>
     [Range(60, 24 * 60 * 60)]
     public int StreamMaxLifetimeSeconds { get; set; } = 10 * 60;

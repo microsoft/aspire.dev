@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -20,7 +21,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     /// Maps:
     /// <list type="bullet">
     /// <item><c>GET /api/live</c> — current snapshot as JSON.</item>
-    /// <item><c>GET /api/live/stream</c> — Server-Sent Events stream of state changes (with heartbeats).</item>
+    /// <item><c>GET /api/live/ws</c> — WebSocket stream of state changes (with heartbeats).</item>
     /// <item><c>POST /api/live/twitch/webhook</c> — Twitch EventSub callback (challenge + signed notifications).</item>
     /// <item><c>GET /api/live/youtube/webhook</c> — YouTube WebSub (PubSubHubbub) verification handshake.</item>
     /// <item><c>POST /api/live/youtube/webhook</c> — YouTube WebSub Atom notifications (signed).</item>
@@ -36,7 +37,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             .WithTags("live")
             .DisableAntiforgery();
 
-        // Everything under /api/live is per-request dynamic (snapshots, SSE, and the
+        // Everything under /api/live is per-request dynamic (snapshots, the WebSocket, and the
         // WebSub/EventSub challenge echoes). Mark every response no-store centrally so
         // an edge cache (Azure Front Door) can never serve a stale snapshot or, worse,
         // cache and replay a verification challenge. Individual handlers therefore
@@ -51,9 +52,9 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             .WithName("LiveStatusSnapshot")
             .WithSummary("Returns the current live-status snapshot.");
 
-        group.MapGet("stream", StreamSse)
-            .WithName("LiveStatusStream")
-            .WithSummary("Server-Sent Events stream of live-status changes.");
+        group.MapGet("ws", StreamWebSocket)
+            .WithName("LiveStatusWebSocket")
+            .WithSummary("WebSocket stream of live-status changes. Requires a WebSocket upgrade request.");
 
         group.MapGet("twitch/webhook", TwitchWebhookInfo)
             .WithName("TwitchEventSubWebhookInfo")
@@ -89,64 +90,93 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             statusCode: StatusCodes.Status200OK);
     }
 
-    internal static async Task StreamSse(
+    /// <summary>
+    /// Application-level heartbeat. Azure Front Door closes WebSockets that carry no
+    /// data for five minutes, and browsers do not expose protocol-level pings, so a
+    /// small text message also lets the client detect a silently dead socket.
+    /// </summary>
+    internal static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(15);
+
+    /// <summary>Protocol-level ping interval passed to <c>UseWebSockets</c>.</summary>
+    internal static readonly TimeSpan WebSocketKeepAliveInterval = TimeSpan.FromSeconds(30);
+
+    private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(5);
+    private static readonly ReadOnlyMemory<byte> HeartbeatFrame = """{"type":"hb"}"""u8.ToArray();
+
+    internal static async Task<IResult> StreamWebSocket(
         HttpContext context,
         LiveStatusBroadcaster broadcaster,
         IOptions<LiveStatusOptions> options,
         TimeProvider time,
+        IHostApplicationLifetime hostLifetime,
         CancellationToken cancellationToken)
     {
+        if (!context.WebSockets.IsWebSocketRequest)
+        {
+            return Results.Text(
+                "This endpoint requires a WebSocket upgrade request.",
+                "text/plain",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // Refresh before the upgrade so a Redis failure is a plain HTTP error.
         await broadcaster.RefreshAsync(cancellationToken).ConfigureAwait(false);
 
-        // End every stream within a jittered bound so request durations stay finite
+        // End every socket within a jittered bound so connections stay finite
         // and clients that reconnect after a deployment don't stay synchronized.
         var maxLifetime = TimeSpan.FromSeconds(options.Value.StreamMaxLifetimeSeconds);
         var lifetimeDuration = maxLifetime * (1 - (Random.Shared.NextDouble() * 0.2));
 
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.Headers.ContentType = "text/event-stream";
-        context.Response.Headers["X-Accel-Buffering"] = "no";
         // Cache-Control: no-store is applied to the whole /api/live group by an
         // endpoint filter in MapLiveStatus.
-
-        // Disable response buffering so events flush immediately.
-        var bufferingFeature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature>();
-        bufferingFeature?.DisableBuffering();
+        using var socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
 
         var (reader, unsubscribe) = broadcaster.Subscribe();
         using var _ = unsubscribe;
         using var lifetime = new CancellationTokenSource(lifetimeDuration, time);
-        using var pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
-        using var heartbeat = new PeriodicTimer(TimeSpan.FromSeconds(15), time);
+        // Cancelling a pending receive aborts the socket, so only a dropped client cancels
+        // it. Max lifetime and host shutdown end the loop and then close gracefully.
+        using var receiveCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var pending = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, hostLifetime.ApplicationStopping, lifetime.Token);
+        using var heartbeat = new PeriodicTimer(HeartbeatInterval, time);
         var dataReady = reader.WaitToReadAsync(pending.Token).AsTask();
         var heartbeatReady = heartbeat.WaitForNextTickAsync(pending.Token).AsTask();
+        // Pings, pongs, and the close handshake are only processed while a receive is
+        // pending, so keep one running for the life of the socket.
+        var receive = DrainAsync(socket, receiveCts.Token);
 
         try
         {
             while (!pending.IsCancellationRequested)
             {
-                await Task.WhenAny(dataReady, heartbeatReady).ConfigureAwait(false);
+                await Task.WhenAny(dataReady, heartbeatReady, receive).ConfigureAwait(false);
+                if (receive.IsCompleted)
+                {
+                    break;
+                }
+
                 if (dataReady.IsCompleted)
                 {
                     if (!await dataReady.ConfigureAwait(false)) break;
                     while (reader.TryRead(out var next))
                     {
-                        await context.Response.Body.WriteAsync(next.Frame, pending.Token).ConfigureAwait(false);
+                        await socket.SendAsync(next.Frame, WebSocketMessageType.Text, true, pending.Token)
+                            .ConfigureAwait(false);
                     }
-                    await context.Response.Body.FlushAsync(pending.Token).ConfigureAwait(false);
                     dataReady = reader.WaitToReadAsync(pending.Token).AsTask();
                 }
                 else
                 {
                     if (!await heartbeatReady.ConfigureAwait(false)) break;
-                    await context.Response.WriteAsync(":hb\n\n", pending.Token).ConfigureAwait(false);
-                    await context.Response.Body.FlushAsync(pending.Token).ConfigureAwait(false);
+                    await socket.SendAsync(HeartbeatFrame, WebSocketMessageType.Text, true, pending.Token)
+                        .ConfigureAwait(false);
                     heartbeatReady = heartbeat.WaitForNextTickAsync(pending.Token).AsTask();
                 }
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { /* client disconnected */ }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { /* max lifetime reached; client reconnects */ }
+        catch (OperationCanceledException) { /* client disconnected, max lifetime reached, or host stopping */ }
+        catch (WebSocketException) { /* client went away mid-send */ }
         finally
         {
             await pending.CancelAsync().ConfigureAwait(false);
@@ -155,6 +185,61 @@ public static class LiveStatusEndpointRouteBuilderExtensions
                 await Task.WhenAll(dataReady, heartbeatReady).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (pending.IsCancellationRequested) { /* pending waits cancelled */ }
+        }
+
+        await CloseAsync(
+            socket, receive, receiveCts,
+            clientGone: cancellationToken.IsCancellationRequested,
+            stopping: hostLifetime.ApplicationStopping.IsCancellationRequested).ConfigureAwait(false);
+        return Results.Empty;
+    }
+
+    private static async Task DrainAsync(WebSocket socket, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[128];
+        try
+        {
+            while (socket.State == WebSocketState.Open)
+            {
+                var result = await socket.ReceiveAsync(buffer, cancellationToken).ConfigureAwait(false);
+                if (result.MessageType == WebSocketMessageType.Close) return;
+            }
+        }
+        catch (OperationCanceledException) { /* socket is ending */ }
+        catch (WebSocketException) { /* abrupt disconnect */ }
+    }
+
+    private static async Task CloseAsync(
+        WebSocket socket, Task receive, CancellationTokenSource receiveCts, bool clientGone, bool stopping)
+    {
+        if (clientGone)
+        {
+            // The client is already gone; there is nobody to complete a handshake with.
+            socket.Abort();
+            return;
+        }
+
+        if (socket.State is not (WebSocketState.Open or WebSocketState.CloseReceived)) return;
+
+        try
+        {
+            var clientClosed = socket.State == WebSocketState.CloseReceived;
+            using var timeout = new CancellationTokenSource(CloseTimeout);
+            await socket.CloseOutputAsync(
+                stopping ? WebSocketCloseStatus.EndpointUnavailable : WebSocketCloseStatus.NormalClosure,
+                stopping ? "server shutting down" : clientClosed ? "closing" : "connection lifetime reached",
+                timeout.Token).ConfigureAwait(false);
+
+            // Give the client a moment to acknowledge the close frame.
+            await receive.WaitAsync(CloseTimeout).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or WebSocketException or TimeoutException)
+        {
+            socket.Abort();
+        }
+        finally
+        {
+            await receiveCts.CancelAsync().ConfigureAwait(false);
         }
     }
 

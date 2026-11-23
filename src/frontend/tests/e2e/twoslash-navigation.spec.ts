@@ -2,8 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 const typescriptPage = '/app-host/typescript-apphost/';
+const ollamaPage = '/integrations/ai/ollama/ollama-host/';
 
-async function assertHovers(page: Page) {
+async function waitForHovers(page: Page) {
+  await expect(page.locator('.twoslash-hover > .twoslash-popup-container')).toHaveCount(0);
+}
+
+async function assertHovers(page: Page, tokenLimit = Number.POSITIVE_INFINITY) {
+  await waitForHovers(page);
   const hovers = page.locator('.twoslash-hover:visible');
   await expect(hovers.first()).toBeVisible();
   const count = await hovers.count();
@@ -11,7 +17,7 @@ async function assertHovers(page: Page) {
 
   // Check every token, not just the first: index-based pairing can show a
   // different token's popup, multiple popups, or nothing at all.
-  for (let index = 0; index < count; index++) {
+  for (let index = 0; index < Math.min(count, tokenLimit); index++) {
     const hover = hovers.nth(index);
     const token = (await hover.textContent())!.trim();
     for (let repeat = 0; repeat < 2; repeat++) {
@@ -56,22 +62,64 @@ async function followLink(page: Page, path: string) {
 test.describe('two-slash navigation', () => {
   test.skip(({ isMobile }) => isMobile, 'Mouse hover requires a desktop pointer');
 
-  test('shows the correct popup on direct load, client navigation, and repeated visits', async ({
-    page,
-  }) => {
-    test.setTimeout(120_000);
-    const errors: string[] = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(typescriptPage);
+  test('paints popups above following content in both themes', async ({ page }) => {
+    await page.goto(ollamaPage);
     await dismissCookieConsentIfVisible(page);
-    await page.evaluate(() => Reflect.set(window, '__twoslashSession', true));
-    await assertHovers(page);
+    await waitForHovers(page);
 
-    for (let visit = 0; visit < 2; visit++) {
-      await followLink(page, '/docs/');
-      await followLink(page, typescriptPage);
-      await assertHovers(page);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => {
+        document.documentElement.dataset.theme = value;
+      }, theme);
+      await page.locator('.twoslash-hover', { hasText: 'withReference' }).first().hover();
+
+      const popup = page.locator('.twoslash-popup-container:visible');
+      await expect(popup).toHaveCount(1);
+      await expect
+        .poll(() =>
+          popup.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + Math.min(24, rect.width / 2);
+            const y = rect.top + rect.height / 2;
+            const topElement = document.elementFromPoint(x, y);
+            return {
+              background: getComputedStyle(element).backgroundColor,
+              paintsOnTop: topElement === element || element.contains(topElement),
+            };
+          })
+        )
+        .toEqual({
+          background: theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(39, 33, 46)',
+          paintsOnTop: true,
+        });
+      await page.mouse.move(0, 0);
+      await expect(popup).toHaveCount(0);
     }
-    expect(errors).toEqual([]);
   });
+
+  // Each sweep hovers every token twice and takes roughly 40 seconds in CI.
+  // Give each visit its own test so three sweeps never share one budget.
+  for (const [name, clientVisits] of [
+    ['direct load', 0],
+    ['client navigation', 1],
+    ['repeated client navigation visits', 2],
+  ] as const) {
+    test(`shows the correct popup on ${name}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      await page.goto(typescriptPage);
+      await dismissCookieConsentIfVisible(page);
+      await page.evaluate(() => Reflect.set(window, '__twoslashSession', true));
+
+      for (let visit = 0; visit < clientVisits; visit++) {
+        // Interact before leaving, as a reader would; the final visit checks every token.
+        await assertHovers(page, 1);
+        await followLink(page, '/docs/');
+        await followLink(page, typescriptPage);
+      }
+      await assertHovers(page);
+      expect(errors).toEqual([]);
+    });
+  }
 });

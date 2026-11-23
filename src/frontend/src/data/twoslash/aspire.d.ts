@@ -70,7 +70,7 @@ export declare const ContainerMountType: {
  * Enum Aspire.Hosting.ApplicationModel.EndpointProperty
  */
 
-export type EndpointProperty = "Url" | "Host" | "IPV4Host" | "Port" | "Scheme" | "TargetPort" | "HostAndPort" | "TlsEnabled";
+export type EndpointProperty = "Url" | "Host" | "IPV4Host" | "Port" | "Scheme" | "TargetPort" | "HostAndPort" | "TlsEnabled" | "BrowserOrigins" | "PrimaryBrowserOrigin";
 export declare const EndpointProperty: {
   readonly Url: "Url";
   readonly Host: "Host";
@@ -80,6 +80,8 @@ export declare const EndpointProperty: {
   readonly TargetPort: "TargetPort";
   readonly HostAndPort: "HostAndPort";
   readonly TlsEnabled: "TlsEnabled";
+  readonly BrowserOrigins: "BrowserOrigins";
+  readonly PrimaryBrowserOrigin: "PrimaryBrowserOrigin";
 };
 
 /**
@@ -281,6 +283,102 @@ export declare const Method: {
 };
 
 /**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementBackendProtocol
+ */
+
+export type AzureApiManagementBackendProtocol = "Http" | "Soap";
+export declare const AzureApiManagementBackendProtocol: {
+  readonly Http: "Http";
+  readonly Soap: "Soap";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementDiagnosticVerbosity
+ */
+
+export type AzureApiManagementDiagnosticVerbosity = "Error" | "Information" | "Verbose";
+export declare const AzureApiManagementDiagnosticVerbosity: {
+  readonly Error: "Error";
+  readonly Information: "Information";
+  readonly Verbose: "Verbose";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementHostnameType
+ */
+
+export type AzureApiManagementHostnameType = "ConfigurationApi" | "Proxy" | "DeveloperPortal" | "Portal" | "Management" | "Scm";
+export declare const AzureApiManagementHostnameType: {
+  readonly ConfigurationApi: "ConfigurationApi";
+  readonly Proxy: "Proxy";
+  readonly DeveloperPortal: "DeveloperPortal";
+  readonly Portal: "Portal";
+  readonly Management: "Management";
+  readonly Scm: "Scm";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementOpenApiFormat
+ */
+
+export type AzureApiManagementOpenApiFormat = "OpenApi" | "OpenApiJson" | "SwaggerJson";
+export declare const AzureApiManagementOpenApiFormat: {
+  readonly OpenApi: "OpenApi";
+  readonly OpenApiJson: "OpenApiJson";
+  readonly SwaggerJson: "SwaggerJson";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementProductState
+ */
+
+export type AzureApiManagementProductState = "NotPublished" | "Published";
+export declare const AzureApiManagementProductState: {
+  readonly NotPublished: "NotPublished";
+  readonly Published: "Published";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementSku
+ */
+
+export type AzureApiManagementSku = "Consumption" | "Developer" | "Basic" | "BasicV2" | "Standard" | "StandardV2" | "Premium" | "PremiumV2";
+export declare const AzureApiManagementSku: {
+  readonly Consumption: "Consumption";
+  readonly Developer: "Developer";
+  readonly Basic: "Basic";
+  readonly BasicV2: "BasicV2";
+  readonly Standard: "Standard";
+  readonly StandardV2: "StandardV2";
+  readonly Premium: "Premium";
+  readonly PremiumV2: "PremiumV2";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementSubscriptionState
+ */
+
+export type AzureApiManagementSubscriptionState = "Active" | "Suspended" | "Submitted" | "Rejected" | "Expired" | "Cancelled";
+export declare const AzureApiManagementSubscriptionState: {
+  readonly Active: "Active";
+  readonly Suspended: "Suspended";
+  readonly Submitted: "Submitted";
+  readonly Rejected: "Rejected";
+  readonly Expired: "Expired";
+  readonly Cancelled: "Cancelled";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureApiManagementVirtualNetworkMode
+ */
+
+export type AzureApiManagementVirtualNetworkMode = "External" | "Internal";
+export declare const AzureApiManagementVirtualNetworkMode: {
+  readonly External: "External";
+  readonly Internal: "Internal";
+};
+
+/**
  * Enum Aspire.Hosting.AzureAppConfigurationRole
  */
 
@@ -326,6 +424,39 @@ export declare const AzureContainerRegistryRole: {
 };
 
 /**
+ * Enum Aspire.Hosting.Azure.EntraIdPermissionType
+ */
+
+export type EntraIdPermissionType = "Delegated" | "Application";
+export declare const EntraIdPermissionType: {
+  readonly Delegated: "Delegated";
+  readonly Application: "Application";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.EntraIdSignInAudience
+ */
+
+export type EntraIdSignInAudience = "AzureADMyOrg" | "AzureADMultipleOrgs" | "AzureADandPersonalMicrosoftAccount" | "PersonalMicrosoftAccount";
+export declare const EntraIdSignInAudience: {
+  readonly AzureADMyOrg: "AzureADMyOrg";
+  readonly AzureADMultipleOrgs: "AzureADMultipleOrgs";
+  readonly AzureADandPersonalMicrosoftAccount: "AzureADandPersonalMicrosoftAccount";
+  readonly PersonalMicrosoftAccount: "PersonalMicrosoftAccount";
+};
+
+/**
+ * Enum Aspire.Hosting.EntraIdWellKnownApi
+ */
+
+export type EntraIdWellKnownApi = "MicrosoftGraph" | "AzureResourceManager" | "AzureStorage";
+export declare const EntraIdWellKnownApi: {
+  readonly MicrosoftGraph: "MicrosoftGraph";
+  readonly AzureResourceManager: "AzureResourceManager";
+  readonly AzureStorage: "AzureStorage";
+};
+
+/**
  * Enum Aspire.Hosting.AzureEventHubsRole
  */
 
@@ -334,6 +465,16 @@ export declare const AzureEventHubsRole: {
   readonly AzureEventHubsDataOwner: "AzureEventHubsDataOwner";
   readonly AzureEventHubsDataReceiver: "AzureEventHubsDataReceiver";
   readonly AzureEventHubsDataSender: "AzureEventHubsDataSender";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.AzureFunctionsLanguage
+ */
+
+export type AzureFunctionsLanguage = "TypeScript" | "JavaScript";
+export declare const AzureFunctionsLanguage: {
+  readonly TypeScript: "TypeScript";
+  readonly JavaScript: "JavaScript";
 };
 
 /**
@@ -355,6 +496,16 @@ export declare const AzureKeyVaultRole: {
   readonly KeyVaultSecretsOfficer: "KeyVaultSecretsOfficer";
   readonly KeyVaultSecretsUser: "KeyVaultSecretsUser";
   readonly ManagedHsmContributor: "ManagedHsmContributor";
+};
+
+/**
+ * Enum Aspire.Hosting.Azure.Kubernetes.AksNodePoolMode
+ */
+
+export type AksNodePoolMode = "System" | "User";
+export declare const AksNodePoolMode: {
+  readonly System: "System";
+  readonly User: "User";
 };
 
 /**
@@ -1824,12 +1975,12 @@ export declare const WorkbookSharedTypeKind: {
  * Enum Azure.Provisioning.Cdn.AfdCipherSuiteSetType
  */
 
-export type AfdCipherSuiteSetType = "Tls1_0_2019" | "Tls1_2_2022" | "Tls1_2_2023" | "Customized";
+export type AfdCipherSuiteSetType = "Customized" | "Tls1_0_2019" | "Tls1_2_2022" | "Tls1_2_2023";
 export declare const AfdCipherSuiteSetType: {
+  readonly Customized: "Customized";
   readonly Tls1_0_2019: "Tls1_0_2019";
   readonly Tls1_2_2022: "Tls1_2_2022";
   readonly Tls1_2_2023: "Tls1_2_2023";
-  readonly Customized: "Customized";
 };
 
 /**
@@ -2479,6 +2630,19 @@ export declare const PolicyResourceState: {
 };
 
 /**
+ * Enum Azure.Provisioning.Cdn.PolicySettingsDefaultCustomBlockResponseStatusCode
+ */
+
+export type PolicySettingsDefaultCustomBlockResponseStatusCode = "TwoHundred" | "FourHundredThree" | "FourHundredFive" | "FourHundredSix" | "FourHundredTwentyNine";
+export declare const PolicySettingsDefaultCustomBlockResponseStatusCode: {
+  readonly TwoHundred: "TwoHundred";
+  readonly FourHundredThree: "FourHundredThree";
+  readonly FourHundredFive: "FourHundredFive";
+  readonly FourHundredSix: "FourHundredSix";
+  readonly FourHundredTwentyNine: "FourHundredTwentyNine";
+};
+
+/**
  * Enum Azure.Provisioning.Cdn.PostArgsOperator
  */
 
@@ -2579,12 +2743,12 @@ export declare const QueryStringBehavior: {
  * Enum Azure.Provisioning.Cdn.QueryStringCachingBehavior
  */
 
-export type QueryStringCachingBehavior = "NotSet" | "IgnoreQueryString" | "BypassCaching" | "UseQueryString";
+export type QueryStringCachingBehavior = "IgnoreQueryString" | "BypassCaching" | "UseQueryString" | "NotSet";
 export declare const QueryStringCachingBehavior: {
-  readonly NotSet: "NotSet";
   readonly IgnoreQueryString: "IgnoreQueryString";
   readonly BypassCaching: "BypassCaching";
   readonly UseQueryString: "UseQueryString";
+  readonly NotSet: "NotSet";
 };
 
 /**
@@ -3925,10 +4089,11 @@ export declare const AgentPoolNetworkPortProtocol: {
  * Enum Azure.Provisioning.ContainerService.AgentPoolSshAccess
  */
 
-export type AgentPoolSshAccess = "LocalUser" | "Disabled";
+export type AgentPoolSshAccess = "LocalUser" | "Disabled" | "EntraId";
 export declare const AgentPoolSshAccess: {
   readonly LocalUser: "LocalUser";
   readonly Disabled: "Disabled";
+  readonly EntraId: "EntraId";
 };
 
 /**
@@ -3952,6 +4117,16 @@ export declare const AutoScaleExpander: {
   readonly MostPods: "MostPods";
   readonly Priority: "Priority";
   readonly Random: "Random";
+};
+
+/**
+ * Enum Azure.Provisioning.ContainerService.ContainerNetworkLogs
+ */
+
+export type ContainerNetworkLogs = "Disabled" | "Enabled";
+export declare const ContainerNetworkLogs: {
+  readonly Disabled: "Disabled";
+  readonly Enabled: "Enabled";
 };
 
 /**
@@ -4053,7 +4228,7 @@ export declare const ContainerServiceOSDiskType: {
  * Enum Azure.Provisioning.ContainerService.ContainerServiceOSSku
  */
 
-export type ContainerServiceOSSku = "Ubuntu" | "AzureLinux" | "AzureLinux3" | "CblMariner" | "Windows2019" | "Windows2022" | "Ubuntu2204" | "Ubuntu2404";
+export type ContainerServiceOSSku = "Ubuntu" | "AzureLinux" | "AzureLinux3" | "CblMariner" | "Windows2019" | "Windows2022" | "Ubuntu2204" | "Windows2025" | "Ubuntu2404" | "AzureContainerLinux";
 export declare const ContainerServiceOSSku: {
   readonly Ubuntu: "Ubuntu";
   readonly AzureLinux: "AzureLinux";
@@ -4062,7 +4237,9 @@ export declare const ContainerServiceOSSku: {
   readonly Windows2019: "Windows2019";
   readonly Windows2022: "Windows2022";
   readonly Ubuntu2204: "Ubuntu2204";
+  readonly Windows2025: "Windows2025";
   readonly Ubuntu2404: "Ubuntu2404";
+  readonly AzureContainerLinux: "AzureContainerLinux";
 };
 
 /**
@@ -4162,6 +4339,26 @@ export declare const ContainerServiceWeekDay: {
 };
 
 /**
+ * Enum Azure.Provisioning.ContainerService.DranetMode
+ */
+
+export type DranetMode = "Unmanaged" | "Managed";
+export declare const DranetMode: {
+  readonly Unmanaged: "Unmanaged";
+  readonly Managed: "Managed";
+};
+
+/**
+ * Enum Azure.Provisioning.ContainerService.GatewayApiIstioMode
+ */
+
+export type GatewayApiIstioMode = "Enabled" | "Disabled";
+export declare const GatewayApiIstioMode: {
+  readonly Enabled: "Enabled";
+  readonly Disabled: "Disabled";
+};
+
+/**
  * Enum Azure.Provisioning.ContainerService.GpuInstanceProfile
  */
 
@@ -4192,6 +4389,15 @@ export type KubeletDiskType = "OS" | "Temporary";
 export declare const KubeletDiskType: {
   readonly OS: "OS";
   readonly Temporary: "Temporary";
+};
+
+/**
+ * Enum Azure.Provisioning.ContainerService.KubernetesResourceObjectInfrastructureEncryption
+ */
+
+export type KubernetesResourceObjectInfrastructureEncryption = "Enabled";
+export declare const KubernetesResourceObjectInfrastructureEncryption: {
+  readonly Enabled: "Enabled";
 };
 
 /**
@@ -4299,6 +4505,20 @@ export declare const ManagedClusterAdvancedNetworkPolicy: {
 };
 
 /**
+ * Enum Azure.Provisioning.ContainerService.ManagedClusterIdentityBindingProvisioningState
+ */
+
+export type ManagedClusterIdentityBindingProvisioningState = "Succeeded" | "Failed" | "Canceled" | "Creating" | "Updating" | "Deleting";
+export declare const ManagedClusterIdentityBindingProvisioningState: {
+  readonly Succeeded: "Succeeded";
+  readonly Failed: "Failed";
+  readonly Canceled: "Canceled";
+  readonly Creating: "Creating";
+  readonly Updating: "Updating";
+  readonly Deleting: "Deleting";
+};
+
+/**
  * Enum Azure.Provisioning.ContainerService.ManagedClusterKeyVaultNetworkAccessType
  */
 
@@ -4330,6 +4550,16 @@ export declare const ManagedClusterNamespaceProvisioningState: {
   readonly Succeeded: "Succeeded";
   readonly Failed: "Failed";
   readonly Canceled: "Canceled";
+};
+
+/**
+ * Enum Azure.Provisioning.ContainerService.ManagedClusterNatGatewaySku
+ */
+
+export type ManagedClusterNatGatewaySku = "Standard" | "StandardV2";
+export declare const ManagedClusterNatGatewaySku: {
+  readonly Standard: "Standard";
+  readonly StandardV2: "StandardV2";
 };
 
 /**
@@ -4387,6 +4617,16 @@ export declare const ManagedClusterSkuTier: {
   readonly Premium: "Premium";
   readonly Standard: "Standard";
   readonly Free: "Free";
+};
+
+/**
+ * Enum Azure.Provisioning.ContainerService.ManagedGatewayType
+ */
+
+export type ManagedGatewayType = "Disabled" | "Standard";
+export declare const ManagedGatewayType: {
+  readonly Disabled: "Disabled";
+  readonly Standard: "Standard";
 };
 
 /**
@@ -4511,6 +4751,16 @@ export type ScaleSetPriority = "Spot" | "Regular";
 export declare const ScaleSetPriority: {
   readonly Spot: "Spot";
   readonly Regular: "Regular";
+};
+
+/**
+ * Enum Azure.Provisioning.ContainerService.SchedulerConfigMode
+ */
+
+export type SchedulerConfigMode = "Default" | "ManagedByCRD";
+export declare const SchedulerConfigMode: {
+  readonly Default: "Default";
+  readonly ManagedByCRD: "ManagedByCRD";
 };
 
 /**
@@ -11523,13 +11773,43 @@ export declare const ActiveDirectoryAccountType: {
 };
 
 /**
+ * Enum Azure.Provisioning.Storage.AdvancedPlatformMetricsFilterType
+ */
+
+export type AdvancedPlatformMetricsFilterType = "AllContainersFilter" | "ContainerPrefixFilter" | "ContainerListFilter";
+export declare const AdvancedPlatformMetricsFilterType: {
+  readonly AllContainersFilter: "AllContainersFilter";
+  readonly ContainerPrefixFilter: "ContainerPrefixFilter";
+  readonly ContainerListFilter: "ContainerListFilter";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.AdvancedPlatformMetricsRuleType
+ */
+
+export type AdvancedPlatformMetricsRuleType = "ContainerLevelCapacityMetrics";
+export declare const AdvancedPlatformMetricsRuleType: {
+  readonly ContainerLevelCapacityMetrics: "ContainerLevelCapacityMetrics";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.AIProvider
+ */
+
+export type AIProvider = "OpenAI";
+export declare const AIProvider: {
+  readonly OpenAI: "OpenAI";
+};
+
+/**
  * Enum Azure.Provisioning.Storage.AllowedCopyScope
  */
 
-export type AllowedCopyScope = "PrivateLink" | "Aad";
+export type AllowedCopyScope = "PrivateLink" | "Aad" | "All";
 export declare const AllowedCopyScope: {
   readonly PrivateLink: "PrivateLink";
   readonly Aad: "Aad";
+  readonly All: "All";
 };
 
 /**
@@ -11580,6 +11860,32 @@ export declare const BlobRestoreProgressStatus: {
   readonly InProgress: "InProgress";
   readonly Complete: "Complete";
   readonly Failed: "Failed";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.ContextCacheAccountKind
+ */
+
+export type ContextCacheAccountKind = "Regional" | "DataZone" | "Global";
+export declare const ContextCacheAccountKind: {
+  readonly Regional: "Regional";
+  readonly DataZone: "DataZone";
+  readonly Global: "Global";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.ContextCacheProvisioningState
+ */
+
+export type ContextCacheProvisioningState = "Succeeded" | "Failed" | "Canceled" | "Creating" | "Updating" | "Deleting" | "Accepted";
+export declare const ContextCacheProvisioningState: {
+  readonly Succeeded: "Succeeded";
+  readonly Failed: "Failed";
+  readonly Canceled: "Canceled";
+  readonly Creating: "Creating";
+  readonly Updating: "Updating";
+  readonly Deleting: "Deleting";
+  readonly Accepted: "Accepted";
 };
 
 /**
@@ -11641,16 +11947,6 @@ export declare const EncryptionScopeSource: {
 export type ExecutionIntervalUnit = "Days";
 export declare const ExecutionIntervalUnit: {
   readonly Days: "Days";
-};
-
-/**
- * Enum Azure.Provisioning.Storage.ExecutionTriggerType
- */
-
-export type ExecutionTriggerType = "RunOnce" | "OnSchedule";
-export declare const ExecutionTriggerType: {
-  readonly RunOnce: "RunOnce";
-  readonly OnSchedule: "OnSchedule";
 };
 
 /**
@@ -11728,6 +12024,27 @@ export declare const ImmutableStorageWithVersioningMigrationState: {
 };
 
 /**
+ * Enum Azure.Provisioning.Storage.InfrastructureEncryption
+ */
+
+export type InfrastructureEncryption = "Enabled" | "Disabled";
+export declare const InfrastructureEncryption: {
+  readonly Enabled: "Enabled";
+  readonly Disabled: "Disabled";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.KeyEncryptionKeyIdentityType
+ */
+
+export type KeyEncryptionKeyIdentityType = "SystemAssignedIdentity" | "UserAssignedIdentity" | "DelegatedResourceIdentity";
+export declare const KeyEncryptionKeyIdentityType: {
+  readonly SystemAssignedIdentity: "SystemAssignedIdentity";
+  readonly UserAssignedIdentity: "UserAssignedIdentity";
+  readonly DelegatedResourceIdentity: "DelegatedResourceIdentity";
+};
+
+/**
  * Enum Azure.Provisioning.Storage.LargeFileSharesState
  */
 
@@ -11756,6 +12073,84 @@ export declare const ManagementPolicyRuleType: {
 };
 
 /**
+ * Enum Azure.Provisioning.Storage.MetricsEmitted
+ */
+
+export type MetricsEmitted = "ContainerBlobCount" | "ContainerUsedSize";
+export declare const MetricsEmitted: {
+  readonly ContainerBlobCount: "ContainerBlobCount";
+  readonly ContainerUsedSize: "ContainerUsedSize";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.NativeDataSharingProvisioningState
+ */
+
+export type NativeDataSharingProvisioningState = "Accepted" | "Creating" | "Succeeded" | "Deleting" | "Canceled" | "Failed";
+export declare const NativeDataSharingProvisioningState: {
+  readonly Accepted: "Accepted";
+  readonly Creating: "Creating";
+  readonly Succeeded: "Succeeded";
+  readonly Deleting: "Deleting";
+  readonly Canceled: "Canceled";
+  readonly Failed: "Failed";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.NetworkSecurityPerimeterConfigurationProvisioningState
+ */
+
+export type NetworkSecurityPerimeterConfigurationProvisioningState = "Accepted" | "Succeeded" | "Failed" | "Deleting" | "Canceled";
+export declare const NetworkSecurityPerimeterConfigurationProvisioningState: {
+  readonly Accepted: "Accepted";
+  readonly Succeeded: "Succeeded";
+  readonly Failed: "Failed";
+  readonly Deleting: "Deleting";
+  readonly Canceled: "Canceled";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.NetworkSecurityPerimeterProvisioningIssueSeverity
+ */
+
+export type NetworkSecurityPerimeterProvisioningIssueSeverity = "Warning" | "Error";
+export declare const NetworkSecurityPerimeterProvisioningIssueSeverity: {
+  readonly Warning: "Warning";
+  readonly Error: "Error";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.NetworkSecurityPerimeterProvisioningIssueType
+ */
+
+export type NetworkSecurityPerimeterProvisioningIssueType = "Unknown" | "ConfigurationPropagationFailure";
+export declare const NetworkSecurityPerimeterProvisioningIssueType: {
+  readonly Unknown: "Unknown";
+  readonly ConfigurationPropagationFailure: "ConfigurationPropagationFailure";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.NspAccessRuleDirection
+ */
+
+export type NspAccessRuleDirection = "Inbound" | "Outbound";
+export declare const NspAccessRuleDirection: {
+  readonly Inbound: "Inbound";
+  readonly Outbound: "Outbound";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.PolicyViolationAction
+ */
+
+export type PolicyViolationAction = "None" | "Log" | "Block";
+export declare const PolicyViolationAction: {
+  readonly None: "None";
+  readonly Log: "Log";
+  readonly Block: "Block";
+};
+
+/**
  * Enum Azure.Provisioning.Storage.PostFailoverRedundancy
  */
 
@@ -11778,6 +12173,17 @@ export declare const PostPlannedFailoverRedundancy: {
 };
 
 /**
+ * Enum Azure.Provisioning.Storage.ResourceAssociationAccessMode
+ */
+
+export type ResourceAssociationAccessMode = "Enforced" | "Learning" | "Audit";
+export declare const ResourceAssociationAccessMode: {
+  readonly Enforced: "Enforced";
+  readonly Learning: "Learning";
+  readonly Audit: "Audit";
+};
+
+/**
  * Enum Azure.Provisioning.Storage.RootSquashType
  */
 
@@ -11792,12 +12198,13 @@ export declare const RootSquashType: {
  * Enum Azure.Provisioning.Storage.StorageAccountAccessTier
  */
 
-export type StorageAccountAccessTier = "Hot" | "Cool" | "Premium" | "Cold";
+export type StorageAccountAccessTier = "Hot" | "Cool" | "Premium" | "Cold" | "Smart";
 export declare const StorageAccountAccessTier: {
   readonly Hot: "Hot";
   readonly Cool: "Cool";
   readonly Premium: "Premium";
   readonly Cold: "Cold";
+  readonly Smart: "Smart";
 };
 
 /**
@@ -11818,6 +12225,19 @@ export type StorageAccountKeySource = "Storage" | "KeyVault";
 export declare const StorageAccountKeySource: {
   readonly Storage: "Storage";
   readonly KeyVault: "KeyVault";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.StorageAccountMigrationStatus
+ */
+
+export type StorageAccountMigrationStatus = "Invalid" | "SubmittedForConversion" | "InProgress" | "Complete" | "Failed";
+export declare const StorageAccountMigrationStatus: {
+  readonly Invalid: "Invalid";
+  readonly SubmittedForConversion: "SubmittedForConversion";
+  readonly InProgress: "InProgress";
+  readonly Complete: "Complete";
+  readonly Failed: "Failed";
 };
 
 /**
@@ -11872,6 +12292,45 @@ export type StorageAccountStatus = "Available" | "Unavailable";
 export declare const StorageAccountStatus: {
   readonly Available: "Available";
   readonly Unavailable: "Unavailable";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.StorageAccountZonePlacementPolicy
+ */
+
+export type StorageAccountZonePlacementPolicy = "Any" | "None";
+export declare const StorageAccountZonePlacementPolicy: {
+  readonly Any: "Any";
+  readonly None: "None";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.StorageConnectorDataSourceType
+ */
+
+export type StorageConnectorDataSourceType = "AzureDataShare";
+export declare const StorageConnectorDataSourceType: {
+  readonly AzureDataShare: "AzureDataShare";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.StorageConnectorState
+ */
+
+export type StorageConnectorState = "Active" | "Inactive";
+export declare const StorageConnectorState: {
+  readonly Active: "Active";
+  readonly Inactive: "Inactive";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.StorageDataShareAccessPolicyPermission
+ */
+
+export type StorageDataShareAccessPolicyPermission = "None" | "Read";
+export declare const StorageDataShareAccessPolicyPermission: {
+  readonly None: "None";
+  readonly Read: "Read";
 };
 
 /**
@@ -11944,12 +12403,16 @@ export declare const StorageLeaseStatus: {
  * Enum Azure.Provisioning.Storage.StorageMinimumTlsVersion
  */
 
-export type StorageMinimumTlsVersion = "Tls1_0" | "Tls1_1" | "Tls1_2" | "Tls1_3";
+export type StorageMinimumTlsVersion = "Tls1_0" | "Tls1_1" | "Tls1_2" | "Tls1_3" | "Tls10" | "Tls11" | "Tls12" | "Tls13";
 export declare const StorageMinimumTlsVersion: {
   readonly Tls1_0: "Tls1_0";
   readonly Tls1_1: "Tls1_1";
   readonly Tls1_2: "Tls1_2";
   readonly Tls1_3: "Tls1_3";
+  readonly Tls10: "Tls10";
+  readonly Tls11: "Tls11";
+  readonly Tls12: "Tls12";
+  readonly Tls13: "Tls13";
 };
 
 /**
@@ -11995,22 +12458,6 @@ export declare const StoragePrivateEndpointServiceConnectionStatus: {
   readonly Pending: "Pending";
   readonly Approved: "Approved";
   readonly Rejected: "Rejected";
-};
-
-/**
- * Enum Azure.Provisioning.Storage.StorageProvisioningState
- */
-
-export type StorageProvisioningState = "Creating" | "ResolvingDns" | "Succeeded" | "ValidateSubscriptionQuotaBegin" | "ValidateSubscriptionQuotaEnd" | "Deleting" | "Canceled" | "Failed";
-export declare const StorageProvisioningState: {
-  readonly Creating: "Creating";
-  readonly ResolvingDns: "ResolvingDns";
-  readonly Succeeded: "Succeeded";
-  readonly ValidateSubscriptionQuotaBegin: "ValidateSubscriptionQuotaBegin";
-  readonly ValidateSubscriptionQuotaEnd: "ValidateSubscriptionQuotaEnd";
-  readonly Deleting: "Deleting";
-  readonly Canceled: "Canceled";
-  readonly Failed: "Failed";
 };
 
 /**
@@ -12111,6 +12558,17 @@ export type StorageTaskRunStatus = "InProgress" | "Finished";
 export declare const StorageTaskRunStatus: {
   readonly InProgress: "InProgress";
   readonly Finished: "Finished";
+};
+
+/**
+ * Enum Azure.Provisioning.Storage.TaskExecutionTriggerType
+ */
+
+export type TaskExecutionTriggerType = "RunOnce" | "OnSchedule" | "MockRun";
+export declare const TaskExecutionTriggerType: {
+  readonly RunOnce: "RunOnce";
+  readonly OnSchedule: "OnSchedule";
+  readonly MockRun: "MockRun";
 };
 
 /**
@@ -12536,6 +12994,17 @@ export declare const StableDiffusionCppImageVariant: {
   readonly Musa: "Musa";
 };
 
+/**
+ * Enum CommunityToolkit.Aspire.Hosting.k6.K6SummaryMode
+ */
+
+export type K6SummaryMode = "Compact" | "Full" | "Disabled";
+export declare const K6SummaryMode: {
+  readonly Compact: "Compact";
+  readonly Full: "Full";
+  readonly Disabled: "Disabled";
+};
+
 // ---- DTOs ----
 /**
  * DTO Aspire.Hosting.ApplicationModel.CertificateTrustExecutionConfigurationContext
@@ -12706,7 +13175,17 @@ export interface ResourceUrlAnnotation {
   url?: string;
   displayText?: string;
   endpoint?: EndpointReference;
+  displayOrder?: number;
   displayLocation?: UrlDisplayLocation;
+}
+
+/**
+ * DTO Aspire.Hosting.ApplicationModel.TerminalOptions
+ */
+
+export interface TerminalOptions {
+  columns?: number;
+  rows?: number;
 }
 
 /**
@@ -13049,6 +13528,84 @@ export interface SQSEventSourceOptions {
 }
 
 /**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementBackendOptions
+ */
+
+export interface AzureApiManagementBackendOptions {
+  title?: string;
+  protocol?: AzureApiManagementBackendProtocol;
+  validateCertificateChain?: boolean;
+  validateCertificateName?: boolean;
+  managedIdentityResource?: string;
+  circuitBreaker?: AzureApiManagementCircuitBreakerOptions;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementCircuitBreakerOptions
+ */
+
+export interface AzureApiManagementCircuitBreakerOptions {
+  name?: string;
+  failureCount?: number;
+  failureIntervalSeconds?: number;
+  statusCodeRanges?: AzureApiManagementStatusCodeRange[];
+  tripDurationSeconds?: number;
+  acceptRetryAfter?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementDiagnosticOptions
+ */
+
+export interface AzureApiManagementDiagnosticOptions {
+  samplingPercentage?: number;
+  verbosity?: AzureApiManagementDiagnosticVerbosity;
+  logClientIp?: boolean;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementOptions
+ */
+
+export interface AzureApiManagementOptions {
+  publisherEmail?: string;
+  publisherName?: string;
+  sku?: AzureApiManagementSku;
+  capacity?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementProductOptions
+ */
+
+export interface AzureApiManagementProductOptions {
+  description?: string;
+  terms?: string;
+  subscriptionRequired?: boolean;
+  approvalRequired?: boolean;
+  subscriptionsLimit?: number;
+  state?: AzureApiManagementProductState;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementStatusCodeRange
+ */
+
+export interface AzureApiManagementStatusCodeRange {
+  minimum?: number;
+  maximum?: number;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.AzureApiManagementSubscriptionOptions
+ */
+
+export interface AzureApiManagementSubscriptionOptions {
+  allowTracing?: boolean;
+  state?: AzureApiManagementSubscriptionState;
+}
+
+/**
  * DTO Aspire.Hosting.Azure.AzureContainerAppScaleConfig
  */
 
@@ -13120,6 +13677,62 @@ export interface AzureConnectorNamespaceMcpOperationOptions {
 export interface AzureConnectorNamespaceMcpServerConfigOptions {
   configName?: string;
   description?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.EntraIdCustomApi
+ */
+
+export interface EntraIdCustomApi {
+  displayName?: string;
+  applicationId?: string;
+  resourceUri?: string;
+  baseUrl?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.EntraIdExternalApiPermission
+ */
+
+export interface EntraIdExternalApiPermission {
+  name?: string;
+  type?: EntraIdPermissionType;
+  id?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.EntraIdScopeOptions
+ */
+
+export interface EntraIdScopeOptions {
+  displayName?: string;
+  userConsentDisplayName?: string;
+  userConsentDescription?: string;
+  requiresAdminConsent?: boolean;
+  isEnabled?: boolean;
+  id?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.EntraIdTokenExchangeOptions
+ */
+
+export interface EntraIdTokenExchangeOptions {
+  tokenExchangeUrl?: string;
+  tokenExchangeAuthority?: string;
+}
+
+/**
+ * DTO Aspire.Hosting.Azure.Kubernetes.AksNodePoolConfig
+ */
+
+export interface AksNodePoolConfig {
+  name?: string;
+  mode?: AksNodePoolMode;
+  vmSize?: string;
+  minCount?: number;
+  maxCount?: number;
+  osSku?: string;
 }
 
 /**
@@ -13507,6 +14120,11 @@ export interface CommandLineArgsEditor {
    */
 
   add(value: string | ReferenceExpression | EndpointReference | ParameterResource | IResourceWithConnectionString | IExpressionValue): void;
+  /**
+   * Clears all command-line arguments.
+   */
+
+  clear(): void;
 }
 
 /**
@@ -14156,6 +14774,11 @@ export interface DotnetToolResource extends ExecutableResource, IComputeResource
 
 export interface EndpointReference extends IExpressionValue, IManifestExpressionProvider, IValueProvider, IValueWithReferences {
   /**
+   * Gets a deferred comma-separated list of browser-facing origins associated with this endpoint.
+   */
+
+  browserOrigins: PropertyAccessor<EndpointReferenceExpression>;
+  /**
    * Gets the name of the endpoint associated with the endpoint reference.
    */
 
@@ -14215,6 +14838,11 @@ export interface EndpointReference extends IExpressionValue, IManifestExpression
    */
 
   port: PropertyAccessor<number>;
+  /**
+   * Gets the deferred primary browser-facing origin associated with this endpoint.
+   */
+
+  primaryBrowserOrigin: PropertyAccessor<EndpointReferenceExpression>;
   /**
    * Gets the specified property expression of the endpoint.
    */
@@ -14435,6 +15063,16 @@ export interface ExecutableResource extends IComputeResource, IResource, IResour
    */
 
   withExecutableCommand(command: string): this;
+  /**
+   * Adds VS Code-compatible debug metadata for an executable resource.
+   */
+
+  withExecutableDebugSupport(launchConfigurationType: string, scriptPath: string, options?: { runtimeExecutable?: string; launchMethod?: string }): this;
+  /**
+   * Adds VS Code-compatible debug metadata for an executable resource.
+   */
+
+  withExecutableDebugSupport(launchConfigurationType: string, scriptPath: string, runtimeExecutable?: string, launchMethod?: string): this;
   /**
    * Adds a volume to an executable resource.
    */
@@ -14735,6 +15373,16 @@ export interface IResource {
 
   getResourceName(): string;
   /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
+  /**
    * Subscribes to the BeforeResourceStarted event.
    */
 
@@ -14784,6 +15432,11 @@ export interface IResource {
    */
 
   withContainerRegistry(registry: IResource): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -14900,15 +15553,40 @@ export interface IResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -14946,6 +15624,21 @@ export interface IResourceWithArgs {
    */
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
+  /**
+   * Replaces the arguments to be passed to a resource that supports arguments when it is launched.
+   */
+
+  withArgsReplace(args: string[]): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, options?: { certificateDirectoriesEnvironmentVariable?: string }): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, certificateDirectoriesEnvironmentVariable?: string): this;
 }
 
 /**
@@ -15230,6 +15923,26 @@ export interface LogFacade {
  */
 
 export interface ParameterResource extends IExpressionValue, IManifestExpressionProvider, IResource, IValueProvider {
+  /**
+   * Marks the parameter resource as optional.
+   */
+
+  asOptional(): ParameterResource;
+  /**
+   * Marks the parameter resource as required.
+   */
+
+  asRequired(): ParameterResource;
+  /**
+   * Sets or replaces the value for this parameter.
+   */
+
+  setValueAsync(value?: string, cancellationToken?: cancellationToken): void;
+  /**
+   * Gets the current value for this parameter without waiting for unresolved input.
+   */
+
+  tryGetCurrentValue(): string;
   /**
    * Sets a custom input for the parameter resource from a polyglot AppHost.
    */
@@ -16020,6 +16733,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   tryAddEventingSubscriber(subscribe: (arg: EventingSubscriberRegistrationContext) => Promise<void>): void;
+  /**
+   * Adds an opt-in target that checks for stale generated pipeline output.
+   */
+
+  withOutputDiffing(options?: { targetStep?: string; diffStepName?: string; description?: string }): IDistributedApplicationBuilder;
+  /**
+   * Adds an opt-in target that checks for stale generated pipeline output.
+   */
+
+  withOutputDiffing(targetStep?: string, diffStepName?: string, description?: string): IDistributedApplicationBuilder;
 }
 
 /**
@@ -16610,7 +17333,7 @@ export interface LambdaEmulatorResource extends ExecutableResource, IComputeReso
  * Handle Aspire.Hosting.AWS.Lambda.LambdaProjectResource
  */
 
-export interface LambdaProjectResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+export interface LambdaProjectResource extends ProjectResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
 
   withDynamoDBStreamsEventSource(tableName: string, options?: DynamoDBStreamsEventSourceOptions): this;
 
@@ -16813,6 +17536,349 @@ export interface IAzureKeyVaultSecretReference {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementApiResource
+ */
+
+export interface AzureApiManagementApiResource extends IResource, IResourceWithParent {
+  /**
+   * Adds an explicitly modeled operation to an API.
+   */
+
+  addOperation(name: string, method: string, urlTemplate: string, options?: { displayName?: string; operationName?: string }): AzureApiManagementOperationResource;
+  /**
+   * Adds an explicitly modeled operation to an API.
+   */
+
+  addOperation(name: string, method: string, urlTemplate: string, displayName?: string, operationName?: string): AzureApiManagementOperationResource;
+  /**
+   * Configures an API to route requests to a backend.
+   */
+
+  withApiBackend(backend: AzureApiManagementBackendResource): this;
+  /**
+   * Configures an API to route requests to a backend pool.
+   */
+
+  withApiBackendPool(backend: AzureApiManagementBackendPoolResource): this;
+  /**
+   * Sends API-level API Management diagnostics to Application Insights.
+   */
+
+  withApplicationInsights(applicationInsights: AzureApplicationInsightsResource, options?: AzureApiManagementDiagnosticOptions): this;
+  /**
+   * Appends an XML policy statement to the API-level inbound policy section.
+   */
+
+  withInboundPolicy(policyXml: string): this;
+  /**
+   * Includes a policy fragment in the API-level inbound policy.
+   */
+
+  withInboundPolicyFragment(fragment: AzureApiManagementPolicyFragmentResource): this;
+  /**
+   * Imports an OpenAPI document from a file into an API.
+   */
+
+  withOpenApiDocument(documentPath: string, options?: { format?: AzureApiManagementOpenApiFormat }): this;
+  /**
+   * Imports an OpenAPI document from a file into an API.
+   */
+
+  withOpenApiDocument(documentPath: string, format?: AzureApiManagementOpenApiFormat): this;
+  /**
+   * Imports an OpenAPI document exposed by the API's target compute resource.
+   */
+
+  withOpenApiEndpoint(options?: { documentPath?: string; endpointName?: string; format?: AzureApiManagementOpenApiFormat }): this;
+  /**
+   * Imports an OpenAPI document exposed by the API's target compute resource.
+   */
+
+  withOpenApiEndpoint(documentPath?: string, endpointName?: string, format?: AzureApiManagementOpenApiFormat): this;
+  /**
+   * Replaces the complete API-level policy document.
+   */
+
+  withPolicy(policyXml: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementBackendPoolResource
+ */
+
+export interface AzureApiManagementBackendPoolResource extends IResource, IResourceWithParent {
+  /**
+   * Adds a backend to a load-balancing pool.
+   */
+
+  addBackendPoolMember(backend: AzureApiManagementBackendResource, options?: { priority?: number; weight?: number }): AzureApiManagementBackendPoolResource;
+  /**
+   * Adds a backend to a load-balancing pool.
+   */
+
+  addBackendPoolMember(backend: AzureApiManagementBackendResource, priority?: number, weight?: number): AzureApiManagementBackendPoolResource;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementBackendResource
+ */
+
+export interface AzureApiManagementBackendResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementNamedValueResource
+ */
+
+export interface AzureApiManagementNamedValueResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementOperationResource
+ */
+
+export interface AzureApiManagementOperationResource extends IResource, IResourceWithParent {
+  /**
+   * Appends an XML policy statement to the operation-level inbound policy section.
+   */
+
+  withInboundPolicy(policyXml: string): this;
+  /**
+   * Includes a policy fragment in the operation-level inbound policy.
+   */
+
+  withInboundPolicyFragment(fragment: AzureApiManagementPolicyFragmentResource): this;
+  /**
+   * Replaces the complete operation-level policy document.
+   */
+
+  withPolicy(policyXml: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementPolicyFragmentResource
+ */
+
+export interface AzureApiManagementPolicyFragmentResource extends IResource, IResourceWithParent {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementProductResource
+ */
+
+export interface AzureApiManagementProductResource extends IResource, IResourceWithParent {
+  /**
+   * Adds a subscription scoped to an API Management product.
+   */
+
+  addSubscription(name: string, displayName: string, options?: { options?: AzureApiManagementSubscriptionOptions; subscriptionName?: string }): AzureApiManagementSubscriptionResource;
+  /**
+   * Adds a subscription scoped to an API Management product.
+   */
+
+  addSubscription(name: string, displayName: string, options?: AzureApiManagementSubscriptionOptions, subscriptionName?: string): AzureApiManagementSubscriptionResource;
+  /**
+   * Adds an API to an API Management product.
+   */
+
+  withApi(api: AzureApiManagementApiResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementResource
+ */
+
+export interface AzureApiManagementResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters, IAzurePrivateEndpointTarget {
+  /**
+   * Adds an API that routes requests to an Aspire compute resource.
+   */
+
+  addApi(name: string, target: IComputeResource, path: string, options?: { displayName?: string; subscriptionRequired?: boolean; apiName?: string }): AzureApiManagementApiResource;
+  /**
+   * Adds an API that routes requests to an Aspire compute resource.
+   */
+
+  addApi(name: string, target: IComputeResource, path: string, displayName?: string, subscriptionRequired?: boolean, apiName?: string): AzureApiManagementApiResource;
+  /**
+   * Adds an API whose backend is configured separately.
+   */
+
+  addApiWithoutTarget(name: string, path: string, options?: { displayName?: string; subscriptionRequired?: boolean; apiName?: string }): AzureApiManagementApiResource;
+  /**
+   * Adds an API whose backend is configured separately.
+   */
+
+  addApiWithoutTarget(name: string, path: string, displayName?: string, subscriptionRequired?: boolean, apiName?: string): AzureApiManagementApiResource;
+  /**
+   * Adds an Azure OpenAI deployment as an API Management backend.
+   */
+
+  addAzureOpenAIBackend(name: string, deployment: AzureOpenAIDeploymentResource, options?: { backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds an Azure OpenAI deployment as an API Management backend.
+   */
+
+  addAzureOpenAIBackend(name: string, deployment: AzureOpenAIDeploymentResource, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a configurable backend to the API Management service.
+   */
+
+  addBackend(name: string, uri: ReferenceExpression, options?: { options?: AzureApiManagementBackendOptions; backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds a configurable backend to the API Management service.
+   */
+
+  addBackend(name: string, uri: ReferenceExpression, options?: AzureApiManagementBackendOptions, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a reusable load-balancing pool to the API Management service.
+   */
+
+  addBackendPool(name: string, options?: { displayName?: string; backendPoolName?: string }): AzureApiManagementBackendPoolResource;
+  /**
+   * Adds a reusable load-balancing pool to the API Management service.
+   */
+
+  addBackendPool(name: string, displayName?: string, backendPoolName?: string): AzureApiManagementBackendPoolResource;
+  /**
+   * Adds an Azure Blob Storage service as an API Management backend.
+   */
+
+  addBlobStorageBackend(name: string, blobs: AzureBlobStorageResource, options?: { backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds an Azure Blob Storage service as an API Management backend.
+   */
+
+  addBlobStorageBackend(name: string, blobs: AzureBlobStorageResource, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a Microsoft Foundry OpenAI deployment as an API Management backend.
+   */
+
+  addFoundryBackend(name: string, deployment: FoundryDeploymentResource, options?: { backendName?: string }): AzureApiManagementBackendResource;
+  /**
+   * Adds a Microsoft Foundry OpenAI deployment as an API Management backend.
+   */
+
+  addFoundryBackend(name: string, deployment: FoundryDeploymentResource, backendName?: string): AzureApiManagementBackendResource;
+  /**
+   * Adds a Key Vault-backed named value to the API Management service from a polyglot AppHost.
+   */
+
+  addKeyVaultNamedValue(name: string, vault: AzureKeyVaultResource, secretName: string, options?: { displayName?: string; namedValueName?: string; tags?: string[] }): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a Key Vault-backed named value to the API Management service from a polyglot AppHost.
+   */
+
+  addKeyVaultNamedValue(name: string, vault: AzureKeyVaultResource, secretName: string, displayName?: string, namedValueName?: string, tags?: string[]): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a non-secret named value to the API Management service.
+   */
+
+  addNamedValue(name: string, value: string, options?: { displayName?: string; namedValueName?: string; tags?: string[] }): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a non-secret named value to the API Management service.
+   */
+
+  addNamedValue(name: string, value: string, displayName?: string, namedValueName?: string, tags?: string[]): AzureApiManagementNamedValueResource;
+  /**
+   * Adds an OpenAI-compatible API backed by an API Management load-balancing pool.
+   */
+
+  addOpenAIApi(name: string, path: string, options?: { displayName?: string; subscriptionRequired?: boolean; apiName?: string }): AzureApiManagementApiResource;
+  /**
+   * Adds an OpenAI-compatible API backed by an API Management load-balancing pool.
+   */
+
+  addOpenAIApi(name: string, path: string, displayName?: string, subscriptionRequired?: boolean, apiName?: string): AzureApiManagementApiResource;
+  /**
+   * Adds a reusable policy fragment to the API Management service.
+   */
+
+  addPolicyFragment(name: string, policyXml: string, options?: { description?: string; fragmentName?: string }): AzureApiManagementPolicyFragmentResource;
+  /**
+   * Adds a reusable policy fragment to the API Management service.
+   */
+
+  addPolicyFragment(name: string, policyXml: string, description?: string, fragmentName?: string): AzureApiManagementPolicyFragmentResource;
+  /**
+   * Adds a product to the API Management service.
+   */
+
+  addProduct(name: string, displayName: string, options?: { options?: AzureApiManagementProductOptions; productName?: string }): AzureApiManagementProductResource;
+  /**
+   * Adds a product to the API Management service.
+   */
+
+  addProduct(name: string, displayName: string, options?: AzureApiManagementProductOptions, productName?: string): AzureApiManagementProductResource;
+  /**
+   * Adds a secret parameter as a named value in the API Management service.
+   */
+
+  addSecretNamedValue(name: string, value: string | ParameterResource, options?: { displayName?: string; namedValueName?: string; tags?: string[] }): AzureApiManagementNamedValueResource;
+  /**
+   * Adds a secret parameter as a named value in the API Management service.
+   */
+
+  addSecretNamedValue(name: string, value: string | ParameterResource, displayName?: string, namedValueName?: string, tags?: string[]): AzureApiManagementNamedValueResource;
+  /**
+   * Sends service-level API Management diagnostics to Application Insights.
+   */
+
+  withApplicationInsights(applicationInsights: AzureApplicationInsightsResource, options?: AzureApiManagementDiagnosticOptions): this;
+  /**
+   * Configures the user-assigned managed identity used by API Management.
+   */
+
+  withAzureUserAssignedIdentity(identityResourceBuilder: AzureUserAssignedIdentityResource): this;
+  /**
+   * Injects a classic Developer or Premium API Management service into a virtual network subnet.
+   */
+
+  withClassicVirtualNetwork(subnet: AzureSubnetResource, mode: AzureApiManagementVirtualNetworkMode): this;
+  /**
+   * Configures a custom hostname from a polyglot AppHost using a certificate stored in Azure Key Vault.
+   */
+
+  withCustomDomain(hostname: string, vault: AzureKeyVaultResource, certificateSecretName: string, options?: { type?: AzureApiManagementHostnameType; defaultSslBinding?: boolean; negotiateClientCertificate?: boolean }): this;
+  /**
+   * Configures a custom hostname from a polyglot AppHost using a certificate stored in Azure Key Vault.
+   */
+
+  withCustomDomain(hostname: string, vault: AzureKeyVaultResource, certificateSecretName: string, type?: AzureApiManagementHostnameType, defaultSslBinding?: boolean, negotiateClientCertificate?: boolean): this;
+  /**
+   * Appends an XML policy statement to the service-level inbound policy section.
+   */
+
+  withInboundPolicy(policyXml: string): this;
+  /**
+   * Includes a policy fragment in the service-level inbound policy.
+   */
+
+  withInboundPolicyFragment(fragment: AzureApiManagementPolicyFragmentResource): this;
+  /**
+   * Replaces the complete service-level policy document.
+   */
+
+  withPolicy(policyXml: string): this;
+  /**
+   * Injects a Premium v2 API Management service into a virtual network for private inbound and outbound access.
+   */
+
+  withVirtualNetworkInjection(subnet: AzureSubnetResource): this;
+  /**
+   * Integrates a Standard v2 or Premium v2 API Management service with a virtual network for outbound access.
+   */
+
+  withVirtualNetworkIntegration(subnet: AzureSubnetResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureApiManagementSubscriptionResource
+ */
+
+export interface AzureApiManagementSubscriptionResource extends IResource, IResourceWithParent {
+}
+
+/**
  * Handle Aspire.Hosting.Azure.AzureAppConfigurationEmulatorResource
  */
 
@@ -16860,7 +17926,7 @@ export interface AzureAppConfigurationResource extends AzureBicepResource, Azure
  * Handle Aspire.Hosting.Azure.AppContainers.AzureContainerAppEnvironmentResource
  */
 
-export interface AzureContainerAppEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IComputeEnvironmentWithVolumeMounts, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
+export interface AzureContainerAppEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IComputeEnvironmentWithVolumeMounts, IContainerRegistry, IResource, IResourceWithParameters, IAzureCdnPrivateLinkTarget, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource, IAzureInternalIngressResource {
   /**
    * Configures the container app environment to publish and deploy HTTP applications using Azure Container Apps Express.
    */
@@ -16917,7 +17983,7 @@ export interface AzureContainerAppEnvironmentResource extends AzureBicepResource
  * Handle Aspire.Hosting.Azure.AzureAppServiceEnvironmentResource
  */
 
-export interface AzureAppServiceEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
+export interface AzureAppServiceEnvironmentResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IComputeEnvironmentResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureCdnPrivateLinkTarget, IAzureComputeEnvironmentResource, IAzureContainerRegistry, IAzureDelegatedSubnetResource {
   /**
    * Configures the Azure App Service environment to use the supplied `AzureUserAssignedIdentityResource` as the managed identity that App Service apps use to pull images from the configured container registry (the `AcrPull` identity), instead of having Aspire create a new identity and a new `AcrPull` role assignment.
    */
@@ -17002,6 +18068,11 @@ export interface AzureOpenAIDeploymentResource extends IExpressionValue, IManife
    */
 
   parent: PropertyAccessor<AzureOpenAIResource>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets or sets the name of the deployment.
    */
@@ -17128,12 +18199,12 @@ export interface AzureConnectorNamespaceResource extends AzureBicepResource, Azu
 
 export interface AzureContainerRegistryResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IContainerRegistry, IResource, IResourceWithParameters, IAzureContainerRegistryResource, IAzurePrivateEndpointTarget {
   /**
-   * Adds a scheduled ACR purge task to remove old or unused container images from the registry.
+   * Adds a scheduled ACR purge task to remove image tags and eligible untagged manifests.
    */
 
   withPurgeTask(schedule: string, options?: { filter?: string; ago?: timespan; keep?: number; taskName?: string }): this;
   /**
-   * Adds a scheduled ACR purge task to remove old or unused container images from the registry.
+   * Adds a scheduled ACR purge task to remove image tags and eligible untagged manifests.
    */
 
   withPurgeTask(schedule: string, filter?: string, ago?: timespan, keep?: number, taskName?: string): this;
@@ -17248,6 +18319,203 @@ export interface AzureCosmosDBResource extends AzureBicepResource, AzureProvisio
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.EntraIdApplicationResource
+ */
+
+export interface EntraIdApplicationResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IResource, IResourceWithParameters {
+  /**
+   * References an existing registration without undoing the Azure provisioning setup enabled when this resource was added.
+   */
+
+  asExistingApplication(tenantId: string | ParameterResource, clientId: string | ParameterResource): EntraIdApplicationResource;
+  /**
+   * Gets an expression for the full URI of one of this registration's scopes, such as api://{clientId}/access_as_user.
+   */
+
+  getScopeUri(scopeName: string): ReferenceExpression;
+  /**
+   * Publishes explicit application-role assignments to a managed identity or a compute resource's managed identity.
+   */
+
+  publishWithAppRoleAssignment(identity: AzureUserAssignedIdentityResource | IComputeResource, roleValues: string[]): this;
+  /**
+   * Publishes managed identity federation trust for a registration created by Aspire.
+   */
+
+  publishWithFederatedManagedIdentityCredential(options?: { identity?: IComputeResource | AzureUserAssignedIdentityResource }): this;
+  /**
+   * Publishes managed identity federation trust for a registration created by Aspire.
+   */
+
+  publishWithFederatedManagedIdentityCredential(identity?: IComputeResource | AzureUserAssignedIdentityResource): this;
+  /**
+   * Creates and provisions a short-lived certificate credential for local development.
+   */
+
+  runWithLocalDeveloperCertificateCredential(): EntraIdApplicationResource;
+  /**
+   * Grants tenant-wide consent to delegated permissions that this registration declared for another registration in the AppHost.
+   */
+
+  withAdminConsent(api: EntraIdApplicationResource, scopeNames: string[]): this;
+  /**
+   * Enables ACL-based authorization for daemon-to-API scenarios.
+   */
+
+  withAllowWebApiToBeAuthorizedByACL(): this;
+  /**
+   * Declares that this registration requires delegated permissions to scopes of another registration in the AppHost.
+   */
+
+  withApiPermissions(api: EntraIdApplicationResource, scopeNames: string[]): this;
+  /**
+   * Exposes the registration as an API identified by an application ID URI.
+   */
+
+  withApplicationIdUri(options?: { applicationIdUri?: string }): this;
+  /**
+   * Exposes the registration as an API identified by an application ID URI.
+   */
+
+  withApplicationIdUri(applicationIdUri?: string): this;
+  /**
+   * Appends an application owner supplied as a literal directory object GUID or a parameter.
+   */
+
+  withApplicationOwners(ownerObjectId: string | ParameterResource): this;
+  /**
+   * Declares an application role on a registration created by Aspire.
+   */
+
+  withAppRole(value: string, displayName: string, description: string, options?: { allowedMemberTypes?: string[]; id?: string; isEnabled?: boolean }): this;
+  /**
+   * Declares an application role on a registration created by Aspire.
+   */
+
+  withAppRole(value: string, displayName: string, description: string, allowedMemberTypes?: string[], id?: string, isEnabled?: boolean): this;
+  /**
+   * Adds an accepted audience for this application.
+   */
+
+  withAudience(audience: string): this;
+  /**
+   * Adds a certificate credential from the certificate store by distinguished name.
+   */
+
+  withCertificateDistinguishedName(storePath: string, distinguishedName: string): this;
+  /**
+   * Appends a certificate file credential. The file path is on the consuming resource, not the AppHost.
+   */
+
+  withCertificateFromFile(filePath: string, options?: { password?: string | ParameterResource }): this;
+  /**
+   * Appends a certificate file credential. The file path is on the consuming resource, not the AppHost.
+   */
+
+  withCertificateFromFile(filePath: string, password?: string | ParameterResource): this;
+  /**
+   * Adds a certificate credential using a vault URL or Key Vault resource.
+   */
+
+  withCertificateFromKeyVault(keyVaultUrl: string | AzureKeyVaultResource, certificateName: string): this;
+  /**
+   * Adds a certificate credential from the certificate store by thumbprint.
+   */
+
+  withCertificateThumbprint(storePath: string, thumbprint: string): this;
+  /**
+   * Adds a client capability (e.g., `"cp1"` for Continuous Access Evaluation).
+   */
+
+  withClientCapability(capability: string): this;
+  /**
+   * Adds a client secret credential to this Entra ID application.
+   */
+
+  withClientSecret(clientSecret: string | ParameterResource): this;
+  /**
+   * Grants tenant-wide consent to permissions that this registration declared for an API that is not an Aspire resource.
+   */
+
+  withExternalApiAdminConsent(api: EntraIdWellKnownApi | EntraIdCustomApi, permissions: EntraIdExternalApiPermission[]): this;
+  /**
+   * Declares permissions to a Microsoft first-party or other API that is not an Aspire resource, such as Microsoft Graph.
+   */
+
+  withExternalApiPermissions(api: EntraIdWellKnownApi | EntraIdCustomApi, permissions: EntraIdExternalApiPermission[]): this;
+  /**
+   * Adds an extra query parameter to send to the identity provider.
+   */
+
+  withExtraQueryParameter(key: string, value: string): this;
+  /**
+   * Configures a pre-existing managed identity trust for token acquisition, without provisioning or assigning an identity.
+   */
+
+  withFederatedManagedIdentityCredential(managedIdentityClientId: string, options?: EntraIdTokenExchangeOptions): this;
+  /**
+   * Enables ID-token issuance through implicit and hybrid flows for a registration created by Aspire.
+   */
+
+  withIdTokenIssuance(): this;
+  /**
+   * Configures the Entra ID instance URL. Defaults to `https://login.microsoftonline.com/`.
+   */
+
+  withInstance(instance: string): this;
+  /**
+   * Appends an owner to both the application registration and service principal.
+   */
+
+  withOwners(ownerObjectId: string | ParameterResource): this;
+  /**
+   * Pre-authorizes a client application to request some of this registration's scopes without any consent prompt.
+   */
+
+  withPreAuthorizedApplication(client: EntraIdApplicationResource, scopeNames: string[]): this;
+  /**
+   * Appends web redirect URIs supplied as a literal, a parameter, or an endpoint.
+   */
+
+  withRedirectUris(redirectUri: string | ParameterResource | EndpointReference, options?: { callbackPaths?: string[] }): this;
+  /**
+   * Appends web redirect URIs supplied as a literal, a parameter, or an endpoint.
+   */
+
+  withRedirectUris(redirectUri: string | ParameterResource | EndpointReference, callbackPaths?: string[]): this;
+  /**
+   * Exposes a delegated permission scope that clients can request to call this registration as an API.
+   */
+
+  withScope(name: string, description: string, options?: EntraIdScopeOptions): this;
+  /**
+   * Sends the `x5c` claim (the public key of the certificate) with token requests.
+   */
+
+  withSendX5C(): this;
+  /**
+   * Appends a service principal owner supplied as a literal directory object GUID or a parameter.
+   */
+
+  withServicePrincipalOwners(ownerObjectId: string | ParameterResource): this;
+  /**
+   * Appends a signed assertion file credential, such as an AKS workload identity token.
+   */
+
+  withSignedAssertionFile(options?: { filePath?: string }): this;
+  /**
+   * Appends a signed assertion file credential, such as an AKS workload identity token.
+   */
+
+  withSignedAssertionFile(filePath?: string): this;
+  /**
+   * Configures which accounts can sign in to this application.
+   */
+
+  withSignInAudience(signInAudience: EntraIdSignInAudience): this;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.AzureEventHubConsumerGroupResource
  */
 
@@ -17289,6 +18557,11 @@ export interface AzureEventHubResource extends IExpressionValue, IManifestExpres
    */
 
   partitionCount: PropertyAccessor<number>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * The event hub name.
    */
@@ -17355,6 +18628,33 @@ export interface AzureFrontDoorResource extends AzureBicepResource, AzureProvisi
    */
 
   withOrigin(resource: IComputeResource): this;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureFunctionsAppResource
+ */
+
+export interface AzureFunctionsAppResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Gets the directory that contains the Azure Functions app.
+   */
+
+  appDirectory: PropertyAccessor<string>;
+  /**
+   * Gets the authoring language used by the Azure Functions app.
+   */
+
+  language: PropertyAccessor<AzureFunctionsLanguage>;
+  /**
+   * Gets the Azure Functions worker runtime for the app.
+   */
+
+  workerRuntime: PropertyAccessor<string>;
+  /**
+   * Configures the Azure Functions app resource to use the specified Azure Storage resource as its host storage.
+   */
+
+  withHostStorage(storage: AzureStorageResource): this;
 }
 
 /**
@@ -17497,15 +18797,10 @@ export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, 
 
   addLoadBalancer(name: string, subnet: AzureSubnetResource): AzureKubernetesLoadBalancerResource;
   /**
-   * Adds a node pool to the AKS cluster.
+   * Adds a node pool to the AKS cluster using a configuration callback.
    */
 
-  addNodePool(name: string, options?: { vmSize?: string; minCount?: number; maxCount?: number }): AksNodePoolResource;
-  /**
-   * Adds a node pool to the AKS cluster.
-   */
-
-  addNodePool(name: string, vmSize?: string, minCount?: number, maxCount?: number): AksNodePoolResource;
+  addNodePool(name: string, configure: (obj: AksNodePoolConfig) => Promise<void>): AksNodePoolResource;
   /**
    * Adds a Kubernetes PersistentVolumeClaim resource to an AKS environment
    */
@@ -17522,15 +18817,10 @@ export interface AzureKubernetesEnvironmentResource extends AzureBicepResource, 
 
   withSubnet(subnet: AzureSubnetResource): this;
   /**
-   * Replaces the default system node pool with a customized configuration.
+   * Replaces the system node pool using a configuration callback.
    */
 
-  withSystemNodePool(options?: { vmSize?: string; minCount?: number; maxCount?: number }): this;
-  /**
-   * Replaces the default system node pool with a customized configuration.
-   */
-
-  withSystemNodePool(vmSize?: string, minCount?: number, maxCount?: number): this;
+  withSystemNodePool(configure: (obj: AksNodePoolConfig) => Promise<void>): this;
   /**
    * Enables or disables workload identity on the AKS environment, allowing pods to authenticate to Azure services using federated credentials.
    */
@@ -17586,6 +18876,11 @@ export interface AzureKustoClusterResource extends AzureBicepResource, AzureProv
 
   nameOutputReference: PropertyAccessor<BicepOutputReference>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the Kusto cluster.
    */
 
@@ -17629,6 +18924,11 @@ export interface AzureKustoReadWriteDatabaseResource extends IExpressionValue, I
    */
 
   parent: PropertyAccessor<AzureKustoClusterResource>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the database creation script from the resource annotation if it exists. If not, creates the default database creation script.
    */
@@ -55408,48 +56708,6 @@ export interface Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfAfdCustom
 }
 
 /**
- * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfCdnCustomDomainProxy
- */
-
-export interface Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfCdnCustomDomainProxy {
-  /**
-   * Invokes the Add method
-   */
-
-  add(value: CdnCustomDomainProxy): void;
-  /**
-   * Invokes the Clear method
-   */
-
-  clear(): void;
-  /**
-   * Gets the Count property
-   */
-
-  count: PropertyAccessor<number>;
-  /**
-   * Invokes the Get method
-   */
-
-  get(index: number): CdnCustomDomainProxy;
-  /**
-   * Invokes the Insert method
-   */
-
-  insert(index: number, value: CdnCustomDomainProxy): void;
-  /**
-   * Invokes the RemoveAt method
-   */
-
-  removeAt(index: number): void;
-  /**
-   * Invokes the Set method
-   */
-
-  set(index: number, value: CdnCustomDomainProxy): void;
-}
-
-/**
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfCustomRuleMatchConditionProxy
  */
 
@@ -56795,7 +58053,7 @@ export interface CacheConfigurationProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.CacheExpirationActionPropertiesProxy
  */
 
-export interface CacheExpirationActionPropertiesProxy {
+export interface CacheExpirationActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Gets or sets the CacheBehavior provisioning property.
    */
@@ -56847,7 +58105,7 @@ export interface CacheExpirationActionPropertiesProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.CacheKeyQueryStringActionPropertiesProxy
  */
 
-export interface CacheKeyQueryStringActionPropertiesProxy {
+export interface CacheKeyQueryStringActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Clears the QueryParameters provisioning property.
    */
@@ -56901,7 +58159,7 @@ export interface CdnAzureLocationProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.CdnCertificateSourceProxy
  */
 
-export interface CdnCertificateSourceProxy {
+export interface CdnCertificateSourceProxy extends CertificateSourcePropertiesProxy {
   /**
    * Gets or sets the CertificateType provisioning property.
    */
@@ -56940,7 +58198,12 @@ export interface CdnCustomDomainProxy extends ProvisionableResourceProxy {
 
   clearName(): void;
   /**
-   * Gets the CustomDomainHttpsContent provisioning property.
+   * Clears the ValidationData provisioning property.
+   */
+
+  clearValidationData(): void;
+  /**
+   * Gets or sets the CustomDomainHttpsContent provisioning property.
    */
 
   customDomainHttpsContent: PropertyAccessor<CustomDomainHttpsContentProxy>;
@@ -56985,6 +58248,11 @@ export interface CdnCustomDomainProxy extends ProvisionableResourceProxy {
 
   resourceState: PropertyAccessor<BicepValueProxy | CustomDomainResourceState>;
   /**
+   * Gets or sets the CustomDomainHttpsContent provisioning property.
+   */
+
+  setCustomDomainHttpsContent(value: CustomDomainHttpsContentProxy): CdnCustomDomainProxy;
+  /**
    * Gets or sets the HostName provisioning property.
    */
 
@@ -57000,12 +58268,17 @@ export interface CdnCustomDomainProxy extends ProvisionableResourceProxy {
 
   setParent(value: CdnEndpointProxy): CdnCustomDomainProxy;
   /**
+   * Gets or sets the ValidationData provisioning property.
+   */
+
+  setValidationData(value: BicepValueProxy | string): CdnCustomDomainProxy;
+  /**
    * Gets the SystemData provisioning property.
    */
 
   systemData: PropertyAccessor<CdnSystemDataProxy>;
   /**
-   * Gets the ValidationData provisioning property.
+   * Gets or sets the ValidationData provisioning property.
    */
 
   validationData: PropertyAccessor<BicepValueProxy | string>;
@@ -57086,11 +58359,6 @@ export interface CdnEndpointProxy extends ProvisionableResourceProxy {
    */
 
   contentTypesToCompress: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfStringProxy>;
-  /**
-   * Gets the CustomDomains provisioning property.
-   */
-
-  customDomains: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfCdnCustomDomainProxy>;
   /**
    * Gets the DeepCreatedCustomDomains provisioning property.
    */
@@ -57328,6 +58596,16 @@ export interface CdnManagedHttpsContentProxy extends CustomDomainHttpsContentPro
    */
 
   certificateSourceParameters: PropertyAccessor<CdnCertificateSourceProxy>;
+  /**
+   * Clears the MinimumTlsVersion provisioning property.
+   */
+
+  clearMinimumTlsVersion(): void;
+  /**
+   * Clears the ProtocolType provisioning property.
+   */
+
+  clearProtocolType(): void;
   /**
    * Gets or sets the CertificateSourceParameters provisioning property.
    */
@@ -58173,10 +59451,17 @@ export interface CdnWritableSubResourceProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.CertificateSourcePropertiesProxy
+ */
+
+export interface CertificateSourcePropertiesProxy {
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.ClientPortMatchConditionProxy
  */
 
-export interface ClientPortMatchConditionProxy {
+export interface ClientPortMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the ClientPortOperator provisioning property.
    */
@@ -58233,7 +59518,7 @@ export interface ClientPortMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.CookiesMatchConditionProxy
  */
 
-export interface CookiesMatchConditionProxy {
+export interface CookiesMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the CookiesOperator provisioning property.
    */
@@ -58307,16 +59592,6 @@ export interface CookiesMatchConditionProxy {
 
 export interface CustomDomainHttpsContentProxy {
   /**
-   * Clears the MinimumTlsVersion provisioning property.
-   */
-
-  clearMinimumTlsVersion(): void;
-  /**
-   * Clears the ProtocolType provisioning property.
-   */
-
-  clearProtocolType(): void;
-  /**
    * Gets or sets the MinimumTlsVersion provisioning property.
    */
 
@@ -58389,11 +59664,6 @@ export interface CustomerCertificatePropertiesProxy extends FrontDoorSecretPrope
 
   setSecretVersion(value: BicepValueProxy | string): CustomerCertificatePropertiesProxy;
   /**
-   * Gets or sets the SubjectAlternativeNames provisioning property.
-   */
-
-  setSubjectAlternativeNames(value: Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfStringProxy): CustomerCertificatePropertiesProxy;
-  /**
    * Gets or sets the UseLatestVersion provisioning property.
    */
 
@@ -58404,7 +59674,7 @@ export interface CustomerCertificatePropertiesProxy extends FrontDoorSecretPrope
 
   subject: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the SubjectAlternativeNames provisioning property.
+   * Gets the SubjectAlternativeNames provisioning property.
    */
 
   subjectAlternativeNames: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Cdn_Generated_ListOfStringProxy>;
@@ -58866,6 +60136,13 @@ export interface DeepCreatedOriginProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.DeliveryRuleActionPropertiesProxy
+ */
+
+export interface DeliveryRuleActionPropertiesProxy {
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.DeliveryRuleActionProxy
  */
 
@@ -58921,6 +60198,13 @@ export interface DeliveryRuleClientPortConditionProxy extends DeliveryRuleCondit
    */
 
   setProperties(value: ClientPortMatchConditionProxy): DeliveryRuleClientPortConditionProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.DeliveryRuleConditionPropertiesProxy
+ */
+
+export interface DeliveryRuleConditionPropertiesProxy {
 }
 
 /**
@@ -59297,7 +60581,7 @@ export interface DeliveryRuleSslProtocolConditionProxy extends DeliveryRuleCondi
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.DeliveryRuleSslProtocolMatchConditionProxy
  */
 
-export interface DeliveryRuleSslProtocolMatchConditionProxy {
+export interface DeliveryRuleSslProtocolMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -60794,7 +62078,7 @@ export interface GeoFilterProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.HeaderActionPropertiesProxy
  */
 
-export interface HeaderActionPropertiesProxy {
+export interface HeaderActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Clears the HeaderAction provisioning property.
    */
@@ -60913,7 +62197,7 @@ export interface HealthProbeSettingsProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.HostNameMatchConditionProxy
  */
 
-export interface HostNameMatchConditionProxy {
+export interface HostNameMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the HostNameOperator provisioning property.
    */
@@ -61007,7 +62291,7 @@ export interface HttpErrorRangeProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.HttpVersionMatchConditionProxy
  */
 
-export interface HttpVersionMatchConditionProxy {
+export interface HttpVersionMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the HttpVersionOperator provisioning property.
    */
@@ -61064,7 +62348,7 @@ export interface HttpVersionMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.IsDeviceMatchConditionProxy
  */
 
-export interface IsDeviceMatchConditionProxy {
+export interface IsDeviceMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the IsDeviceOperator provisioning property.
    */
@@ -61121,7 +62405,7 @@ export interface IsDeviceMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.KeyVaultCertificateSourceProxy
  */
 
-export interface KeyVaultCertificateSourceProxy {
+export interface KeyVaultCertificateSourceProxy extends CertificateSourcePropertiesProxy {
   /**
    * Clears the DeleteRule provisioning property.
    */
@@ -61518,7 +62802,7 @@ export interface OriginAuthenticationPropertiesProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.OriginGroupOverrideActionPropertiesProxy
  */
 
-export interface OriginGroupOverrideActionPropertiesProxy {
+export interface OriginGroupOverrideActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Clears the OriginGroupId provisioning property.
    */
@@ -61591,42 +62875,10 @@ export interface OriginGroupOverrideProxy {
 }
 
 /**
- * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.PolicySettingsDefaultCustomBlockResponseStatusCodeProxy
- */
-
-export interface PolicySettingsDefaultCustomBlockResponseStatusCodeProxy {
-  /**
-   * Gets the FourHundredFive provisioning property.
-   */
-
-  fourHundredFive: PropertyAccessor<PolicySettingsDefaultCustomBlockResponseStatusCodeProxy>;
-  /**
-   * Gets the FourHundredSix provisioning property.
-   */
-
-  fourHundredSix: PropertyAccessor<PolicySettingsDefaultCustomBlockResponseStatusCodeProxy>;
-  /**
-   * Gets the FourHundredThree provisioning property.
-   */
-
-  fourHundredThree: PropertyAccessor<PolicySettingsDefaultCustomBlockResponseStatusCodeProxy>;
-  /**
-   * Gets the FourHundredTwentyNine provisioning property.
-   */
-
-  fourHundredTwentyNine: PropertyAccessor<PolicySettingsDefaultCustomBlockResponseStatusCodeProxy>;
-  /**
-   * Gets the TwoHundred provisioning property.
-   */
-
-  twoHundred: PropertyAccessor<PolicySettingsDefaultCustomBlockResponseStatusCodeProxy>;
-}
-
-/**
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.PostArgsMatchConditionProxy
  */
 
-export interface PostArgsMatchConditionProxy {
+export interface PostArgsMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -61797,7 +63049,7 @@ export interface ProfileScrubbingRulesProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.QueryStringMatchConditionProxy
  */
 
-export interface QueryStringMatchConditionProxy {
+export interface QueryStringMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -61891,7 +63143,7 @@ export interface RateLimitRuleProxy extends CustomRuleProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.RemoteAddressMatchConditionProxy
  */
 
-export interface RemoteAddressMatchConditionProxy {
+export interface RemoteAddressMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -61948,7 +63200,7 @@ export interface RemoteAddressMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.RequestBodyMatchConditionProxy
  */
 
-export interface RequestBodyMatchConditionProxy {
+export interface RequestBodyMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62005,7 +63257,7 @@ export interface RequestBodyMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.RequestHeaderMatchConditionProxy
  */
 
-export interface RequestHeaderMatchConditionProxy {
+export interface RequestHeaderMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62077,7 +63329,7 @@ export interface RequestHeaderMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.RequestMethodMatchConditionProxy
  */
 
-export interface RequestMethodMatchConditionProxy {
+export interface RequestMethodMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62134,7 +63386,7 @@ export interface RequestMethodMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.RequestSchemeMatchConditionProxy
  */
 
-export interface RequestSchemeMatchConditionProxy {
+export interface RequestSchemeMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62191,7 +63443,7 @@ export interface RequestSchemeMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.RequestUriMatchConditionProxy
  */
 
-export interface RequestUriMatchConditionProxy {
+export interface RequestUriMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62327,7 +63579,7 @@ export interface RouteCacheCompressionSettingsProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.RouteConfigurationOverrideActionPropertiesProxy
  */
 
-export interface RouteConfigurationOverrideActionPropertiesProxy {
+export interface RouteConfigurationOverrideActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Gets or sets the CacheConfiguration provisioning property.
    */
@@ -62420,7 +63672,7 @@ export interface SecurityPolicyWebApplicationFirewallProxy extends SecurityPolic
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.ServerPortMatchConditionProxy
  */
 
-export interface ServerPortMatchConditionProxy {
+export interface ServerPortMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62559,7 +63811,7 @@ export interface SharedPrivateLinkResourcePropertiesProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.SocketAddressMatchConditionProxy
  */
 
-export interface SocketAddressMatchConditionProxy {
+export interface SocketAddressMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62616,7 +63868,7 @@ export interface SocketAddressMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.UriFileExtensionMatchConditionProxy
  */
 
-export interface UriFileExtensionMatchConditionProxy {
+export interface UriFileExtensionMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62673,7 +63925,7 @@ export interface UriFileExtensionMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.UriFileNameMatchConditionProxy
  */
 
-export interface UriFileNameMatchConditionProxy {
+export interface UriFileNameMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62730,7 +63982,7 @@ export interface UriFileNameMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.UriPathMatchConditionProxy
  */
 
-export interface UriPathMatchConditionProxy {
+export interface UriPathMatchConditionProxy extends DeliveryRuleConditionPropertiesProxy {
   /**
    * Clears the NegateCondition provisioning property.
    */
@@ -62787,7 +64039,7 @@ export interface UriPathMatchConditionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.UriRedirectActionPropertiesProxy
  */
 
-export interface UriRedirectActionPropertiesProxy {
+export interface UriRedirectActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Clears the CustomFragment provisioning property.
    */
@@ -62901,7 +64153,7 @@ export interface UriRedirectActionProxy extends DeliveryRuleActionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.UriRewriteActionPropertiesProxy
  */
 
-export interface UriRewriteActionPropertiesProxy {
+export interface UriRewriteActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Clears the Destination provisioning property.
    */
@@ -62970,7 +64222,7 @@ export interface UriRewriteActionProxy extends DeliveryRuleActionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.Cdn.Generated.UriSigningActionPropertiesProxy
  */
 
-export interface UriSigningActionPropertiesProxy {
+export interface UriSigningActionPropertiesProxy extends DeliveryRuleActionPropertiesProxy {
   /**
    * Gets or sets the Algorithm provisioning property.
    */
@@ -63226,6 +64478,11 @@ export interface WafPolicySettingsProxy {
 
   clearDefaultCustomBlockResponseBody(): void;
   /**
+   * Clears the DefaultCustomBlockResponseStatusCode provisioning property.
+   */
+
+  clearDefaultCustomBlockResponseStatusCode(): void;
+  /**
    * Clears the DefaultRedirectUri provisioning property.
    */
 
@@ -63249,7 +64506,7 @@ export interface WafPolicySettingsProxy {
    * Gets or sets the DefaultCustomBlockResponseStatusCode provisioning property.
    */
 
-  defaultCustomBlockResponseStatusCode: PropertyAccessor<PolicySettingsDefaultCustomBlockResponseStatusCodeProxy>;
+  defaultCustomBlockResponseStatusCode: PropertyAccessor<BicepValueProxy | PolicySettingsDefaultCustomBlockResponseStatusCode>;
   /**
    * Gets or sets the DefaultRedirectUri provisioning property.
    */
@@ -63274,7 +64531,7 @@ export interface WafPolicySettingsProxy {
    * Gets or sets the DefaultCustomBlockResponseStatusCode provisioning property.
    */
 
-  setDefaultCustomBlockResponseStatusCode(value: PolicySettingsDefaultCustomBlockResponseStatusCodeProxy): WafPolicySettingsProxy;
+  setDefaultCustomBlockResponseStatusCode(value: BicepValueProxy | PolicySettingsDefaultCustomBlockResponseStatusCode): WafPolicySettingsProxy;
   /**
    * Gets or sets the DefaultRedirectUri provisioning property.
    */
@@ -63297,6 +64554,46 @@ export interface WafPolicySettingsProxy {
  */
 
 export interface AadAuthTypeConnectionPropertiesProxy extends CognitiveServicesConnectionPropertiesProxy {
+  /**
+   * Clears the Category provisioning property.
+   */
+
+  clearCategory(): void;
+  /**
+   * Clears the Error provisioning property.
+   */
+
+  clearError(): void;
+  /**
+   * Clears the ExpiryOn provisioning property.
+   */
+
+  clearExpiryOn(): void;
+  /**
+   * Clears the IsSharedToAll provisioning property.
+   */
+
+  clearIsSharedToAll(): void;
+  /**
+   * Clears the PeRequirement provisioning property.
+   */
+
+  clearPeRequirement(): void;
+  /**
+   * Clears the PeStatus provisioning property.
+   */
+
+  clearPeStatus(): void;
+  /**
+   * Clears the Target provisioning property.
+   */
+
+  clearTarget(): void;
+  /**
+   * Clears the UseWorkspaceManagedIdentity provisioning property.
+   */
+
+  clearUseWorkspaceManagedIdentity(): void;
 }
 
 /**
@@ -65757,46 +67054,6 @@ export interface CognitiveServicesConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -66069,6 +67326,11 @@ export interface CognitiveServicesConnectionUsernamePasswordProxy {
  */
 
 export interface CognitiveServicesEncryptionScopePropertiesProxy extends ServiceAccountEncryptionPropertiesProxy {
+  /**
+   * Clears the KeySource provisioning property.
+   */
+
+  clearKeySource(): void;
   /**
    * Clears the State provisioning property.
    */
@@ -68765,11 +70027,6 @@ export interface ServiceAccountCallRateLimitProxy {
 
 export interface ServiceAccountEncryptionPropertiesProxy {
   /**
-   * Clears the KeySource provisioning property.
-   */
-
-  clearKeySource(): void;
-  /**
    * Gets or sets the KeySource provisioning property.
    */
 
@@ -70743,15 +72000,30 @@ export interface ContainerRegistryDockerBuildContentProxy extends ContainerRegis
 
   clearAgentCpu(): void;
   /**
+   * Clears the AgentPoolName provisioning property.
+   */
+
+  clearAgentPoolName(): void;
+  /**
    * Clears the DockerFilePath provisioning property.
    */
 
   clearDockerFilePath(): void;
   /**
+   * Clears the IsArchiveEnabled provisioning property.
+   */
+
+  clearIsArchiveEnabled(): void;
+  /**
    * Clears the IsPushEnabled provisioning property.
    */
 
   clearIsPushEnabled(): void;
+  /**
+   * Clears the LogTemplate provisioning property.
+   */
+
+  clearLogTemplate(): void;
   /**
    * Clears the NoCache provisioning property.
    */
@@ -70884,6 +72156,16 @@ export interface ContainerRegistryDockerBuildStepProxy extends ContainerRegistry
    */
 
   arguments: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryRunArgumentProxy>;
+  /**
+   * Clears the ContextAccessToken provisioning property.
+   */
+
+  clearContextAccessToken(): void;
+  /**
+   * Clears the ContextPath provisioning property.
+   */
+
+  clearContextPath(): void;
   /**
    * Clears the DockerFilePath provisioning property.
    */
@@ -72480,21 +73762,6 @@ export interface ContainerRegistryRunContentProxy {
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
-  /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
 
@@ -73754,16 +75021,6 @@ export interface ContainerRegistryTaskStepPropertiesProxy {
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
   /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
-  /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
 
@@ -74792,6 +76049,58 @@ export interface SourceCodeRepoPropertiesProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.AgentPoolAutoScaleProfileProxy
+ */
+
+export interface AgentPoolAutoScaleProfileProxy {
+  /**
+   * Clears the MaxCount provisioning property.
+   */
+
+  clearMaxCount(): void;
+  /**
+   * Clears the MinCount provisioning property.
+   */
+
+  clearMinCount(): void;
+  /**
+   * Clears the Size provisioning property.
+   */
+
+  clearSize(): void;
+  /**
+   * Gets or sets the MaxCount provisioning property.
+   */
+
+  maxCount: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the MinCount provisioning property.
+   */
+
+  minCount: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the MaxCount provisioning property.
+   */
+
+  setMaxCount(value: BicepValueProxy | number): AgentPoolAutoScaleProfileProxy;
+  /**
+   * Gets or sets the MinCount provisioning property.
+   */
+
+  setMinCount(value: BicepValueProxy | number): AgentPoolAutoScaleProfileProxy;
+  /**
+   * Gets or sets the Size provisioning property.
+   */
+
+  setSize(value: BicepValueProxy | string): AgentPoolAutoScaleProfileProxy;
+  /**
+   * Gets or sets the Size provisioning property.
+   */
+
+  size: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.AgentPoolNetworkPortRangeProxy
  */
 
@@ -74859,6 +76168,16 @@ export interface AgentPoolNetworkProfileProxy {
 
   applicationSecurityGroups: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy>;
   /**
+   * Clears the DranetMode provisioning property.
+   */
+
+  clearDranetMode(): void;
+  /**
+   * Gets or sets the DranetMode provisioning property.
+   */
+
+  dranetMode: PropertyAccessor<BicepValueProxy | DranetMode>;
+  /**
    * Gets or sets the NodePublicIPTags provisioning property.
    */
 
@@ -74874,10 +76193,64 @@ export interface AgentPoolNetworkProfileProxy {
 
   setApplicationSecurityGroups(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy): AgentPoolNetworkProfileProxy;
   /**
+   * Gets or sets the DranetMode provisioning property.
+   */
+
+  setDranetMode(value: BicepValueProxy | DranetMode): AgentPoolNetworkProfileProxy;
+  /**
    * Gets or sets the NodePublicIPTags provisioning property.
    */
 
   setNodePublicIPTags(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfContainerServiceIPTagProxy): AgentPoolNetworkProfileProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.AgentPoolRecentlyUsedVersionProxy
+ */
+
+export interface AgentPoolRecentlyUsedVersionProxy {
+  /**
+   * Gets the LastUsedOn provisioning property.
+   */
+
+  lastUsedOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  /**
+   * Gets the NodeImageVersion provisioning property.
+   */
+
+  nodeImageVersion: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the OrchestratorVersion provisioning property.
+   */
+
+  orchestratorVersion: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.AgentPoolScaleProfileProxy
+ */
+
+export interface AgentPoolScaleProfileProxy {
+  /**
+   * Gets or sets the Autoscale provisioning property.
+   */
+
+  autoscale: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolAutoScaleProfileProxy>;
+  /**
+   * Gets or sets the Manual provisioning property.
+   */
+
+  manual: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManualScaleProfileProxy>;
+  /**
+   * Gets or sets the Autoscale provisioning property.
+   */
+
+  setAutoscale(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolAutoScaleProfileProxy): AgentPoolScaleProfileProxy;
+  /**
+   * Gets or sets the Manual provisioning property.
+   */
+
+  setManual(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManualScaleProfileProxy): AgentPoolScaleProfileProxy;
 }
 
 /**
@@ -75060,35 +76433,15 @@ export interface AgentPoolSnapshotProxy extends ProvisionableResourceProxy {
 
 export interface AgentPoolUpgradeProfilePropertiesUpgradesItemProxy {
   /**
-   * Clears the IsPreview provisioning property.
-   */
-
-  clearIsPreview(): void;
-  /**
-   * Clears the KubernetesVersion provisioning property.
-   */
-
-  clearKubernetesVersion(): void;
-  /**
-   * Gets or sets the IsPreview provisioning property.
+   * Gets the IsPreview provisioning property.
    */
 
   isPreview: PropertyAccessor<BicepValueProxy | boolean>;
   /**
-   * Gets or sets the KubernetesVersion provisioning property.
+   * Gets the KubernetesVersion provisioning property.
    */
 
   kubernetesVersion: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Gets or sets the IsPreview provisioning property.
-   */
-
-  setIsPreview(value: BicepValueProxy | boolean): AgentPoolUpgradeProfilePropertiesUpgradesItemProxy;
-  /**
-   * Gets or sets the KubernetesVersion provisioning property.
-   */
-
-  setKubernetesVersion(value: BicepValueProxy | string): AgentPoolUpgradeProfilePropertiesUpgradesItemProxy;
 }
 
 /**
@@ -75102,47 +76455,27 @@ export interface AgentPoolUpgradeProfileProxy extends ProvisionableResourceProxy
 
   addTo(infrastructure: AzureResourceInfrastructure): void;
   /**
-   * Clears the KubernetesVersion provisioning property.
-   */
-
-  clearKubernetesVersion(): void;
-  /**
-   * Clears the LatestNodeImageVersion provisioning property.
-   */
-
-  clearLatestNodeImageVersion(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the OSType provisioning property.
-   */
-
-  clearOSType(): void;
-  /**
    * Gets the Id provisioning property.
    */
 
   id: PropertyAccessor<BicepValueProxy>;
   /**
-   * Gets or sets the KubernetesVersion provisioning property.
+   * Gets the KubernetesVersion provisioning property.
    */
 
   kubernetesVersion: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the LatestNodeImageVersion provisioning property.
+   * Gets the LatestNodeImageVersion provisioning property.
    */
 
   latestNodeImageVersion: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the Name provisioning property.
+   * Gets the Name provisioning property.
    */
 
   name: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the OSType provisioning property.
+   * Gets the OSType provisioning property.
    */
 
   oSType: PropertyAccessor<BicepValueProxy | ContainerServiceOSType>;
@@ -75152,42 +76485,22 @@ export interface AgentPoolUpgradeProfileProxy extends ProvisionableResourceProxy
 
   parent: PropertyAccessor<ContainerServiceAgentPoolProxy>;
   /**
-   * Gets or sets the KubernetesVersion provisioning property.
+   * Gets the RecentlyUsedVersions provisioning property.
    */
 
-  setKubernetesVersion(value: BicepValueProxy | string): AgentPoolUpgradeProfileProxy;
-  /**
-   * Gets or sets the LatestNodeImageVersion provisioning property.
-   */
-
-  setLatestNodeImageVersion(value: BicepValueProxy | string): AgentPoolUpgradeProfileProxy;
-  /**
-   * Gets or sets the Name provisioning property.
-   */
-
-  setName(value: BicepValueProxy | string): AgentPoolUpgradeProfileProxy;
-  /**
-   * Gets or sets the OSType provisioning property.
-   */
-
-  setOSType(value: BicepValueProxy | ContainerServiceOSType): AgentPoolUpgradeProfileProxy;
+  recentlyUsedVersions: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolRecentlyUsedVersionProxy>;
   /**
    * Gets or sets the Parent provisioning property.
    */
 
   setParent(value: ContainerServiceAgentPoolProxy): AgentPoolUpgradeProfileProxy;
   /**
-   * Gets or sets the Upgrades provisioning property.
-   */
-
-  setUpgrades(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolUpgradeProfilePropertiesUpgradesItemProxy): AgentPoolUpgradeProfileProxy;
-  /**
    * Gets the SystemData provisioning property.
    */
 
   systemData: PropertyAccessor<ContainerServiceSystemDataProxy>;
   /**
-   * Gets or sets the Upgrades provisioning property.
+   * Gets the Upgrades provisioning property.
    */
 
   upgrades: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolUpgradeProfilePropertiesUpgradesItemProxy>;
@@ -75535,6 +76848,48 @@ export interface Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_Di
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolAutoScaleProfileProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolAutoScaleProfileProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: AgentPoolAutoScaleProfileProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): AgentPoolAutoScaleProfileProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: AgentPoolAutoScaleProfileProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: AgentPoolAutoScaleProfileProxy): void;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolNetworkPortRangeProxy
  */
 
@@ -75574,6 +76929,48 @@ export interface Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_Li
    */
 
   set(index: number, value: AgentPoolNetworkPortRangeProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolRecentlyUsedVersionProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolRecentlyUsedVersionProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: AgentPoolRecentlyUsedVersionProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): AgentPoolRecentlyUsedVersionProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: AgentPoolRecentlyUsedVersionProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: AgentPoolRecentlyUsedVersionProxy): void;
 }
 
 /**
@@ -76459,6 +77856,48 @@ export interface Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_Li
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy): void;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManualScaleProfileProxy
  */
 
@@ -76674,27 +78113,12 @@ export interface Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_Li
 
 export interface CompatibleVersionsProxy {
   /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Gets or sets the Name provisioning property.
+   * Gets the Name provisioning property.
    */
 
   name: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the Name provisioning property.
-   */
-
-  setName(value: BicepValueProxy | string): CompatibleVersionsProxy;
-  /**
-   * Gets or sets the Versions provisioning property.
-   */
-
-  setVersions(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): CompatibleVersionsProxy;
-  /**
-   * Gets or sets the Versions provisioning property.
+   * Gets the Versions provisioning property.
    */
 
   versions: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy>;
@@ -76766,6 +78190,11 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   clearHostGroupId(): void;
   /**
+   * Clears the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  clearIsArtifactStreamingEnabled(): void;
+  /**
    * Clears the IsAutoScalingEnabled provisioning property.
    */
 
@@ -76781,10 +78210,10 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   clearIsFipsEnabled(): void;
   /**
-   * Clears the IsNodePublicIpEnabled provisioning property.
+   * Clears the IsNodePublicIPEnabled provisioning property.
    */
 
-  clearIsNodePublicIpEnabled(): void;
+  clearIsNodePublicIPEnabled(): void;
   /**
    * Clears the IsUltraSsdEnabled provisioning property.
    */
@@ -76825,6 +78254,11 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
    */
 
   clearName(): void;
+  /**
+   * Clears the NodeImageVersion provisioning property.
+   */
+
+  clearNodeImageVersion(): void;
   /**
    * Clears the NodePublicIPPrefixId provisioning property.
    */
@@ -76961,6 +78395,11 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   id: PropertyAccessor<BicepValueProxy>;
   /**
+   * Gets or sets the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  isArtifactStreamingEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
    * Gets or sets the IsAutoScalingEnabled provisioning property.
    */
 
@@ -76976,10 +78415,10 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   isFipsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
-   * Gets or sets the IsNodePublicIpEnabled provisioning property.
+   * Gets or sets the IsNodePublicIPEnabled provisioning property.
    */
 
-  isNodePublicIpEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  isNodePublicIPEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the IsUltraSsdEnabled provisioning property.
    */
@@ -77041,7 +78480,7 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   networkProfile: PropertyAccessor<AgentPoolNetworkProfileProxy>;
   /**
-   * Gets the NodeImageVersion provisioning property.
+   * Gets or sets the NodeImageVersion provisioning property.
    */
 
   nodeImageVersion: PropertyAccessor<BicepValueProxy | string>;
@@ -77181,6 +78620,11 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   setHostGroupId(value: BicepValueProxy): ContainerServiceAgentPoolProxy;
   /**
+   * Gets or sets the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  setIsArtifactStreamingEnabled(value: BicepValueProxy | boolean): ContainerServiceAgentPoolProxy;
+  /**
    * Gets or sets the IsAutoScalingEnabled provisioning property.
    */
 
@@ -77196,10 +78640,10 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   setIsFipsEnabled(value: BicepValueProxy | boolean): ContainerServiceAgentPoolProxy;
   /**
-   * Gets or sets the IsNodePublicIpEnabled provisioning property.
+   * Gets or sets the IsNodePublicIPEnabled provisioning property.
    */
 
-  setIsNodePublicIpEnabled(value: BicepValueProxy | boolean): ContainerServiceAgentPoolProxy;
+  setIsNodePublicIPEnabled(value: BicepValueProxy | boolean): ContainerServiceAgentPoolProxy;
   /**
    * Gets or sets the IsUltraSsdEnabled provisioning property.
    */
@@ -77260,6 +78704,11 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
    */
 
   setNetworkProfile(value: AgentPoolNetworkProfileProxy): ContainerServiceAgentPoolProxy;
+  /**
+   * Gets or sets the NodeImageVersion provisioning property.
+   */
+
+  setNodeImageVersion(value: BicepValueProxy | string): ContainerServiceAgentPoolProxy;
   /**
    * Gets or sets the NodeLabels provisioning property.
    */
@@ -77366,10 +78815,10 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   setVirtualMachineNodesStatus(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolVirtualMachineNodesProxy): ContainerServiceAgentPoolProxy;
   /**
-   * Gets or sets the VirtualMachinesScaleManual provisioning property.
+   * Gets or sets the VirtualMachinesScale provisioning property.
    */
 
-  setVirtualMachinesScaleManual(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManualScaleProfileProxy): ContainerServiceAgentPoolProxy;
+  setVirtualMachinesScale(value: AgentPoolScaleProfileProxy): ContainerServiceAgentPoolProxy;
   /**
    * Gets or sets the VmSize provisioning property.
    */
@@ -77421,10 +78870,10 @@ export interface ContainerServiceAgentPoolProxy extends ProvisionableResourcePro
 
   virtualMachineNodesStatus: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolVirtualMachineNodesProxy>;
   /**
-   * Gets or sets the VirtualMachinesScaleManual provisioning property.
+   * Gets or sets the VirtualMachinesScale provisioning property.
    */
 
-  virtualMachinesScaleManual: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManualScaleProfileProxy>;
+  virtualMachinesScale: PropertyAccessor<AgentPoolScaleProfileProxy>;
   /**
    * Gets or sets the VmSize provisioning property.
    */
@@ -77679,7 +79128,7 @@ export interface ContainerServiceMachineProxy extends ProvisionableResourceProxy
 
   parent: PropertyAccessor<ContainerServiceAgentPoolProxy>;
   /**
-   * Gets or sets the Properties provisioning property.
+   * Gets the Properties provisioning property.
    */
 
   properties: PropertyAccessor<ContainerServiceMachinePropertiesProxy>;
@@ -77693,11 +79142,6 @@ export interface ContainerServiceMachineProxy extends ProvisionableResourceProxy
    */
 
   setParent(value: ContainerServiceAgentPoolProxy): ContainerServiceMachineProxy;
-  /**
-   * Gets or sets the Properties provisioning property.
-   */
-
-  setProperties(value: ContainerServiceMachinePropertiesProxy): ContainerServiceMachineProxy;
   /**
    * Gets the SystemData provisioning property.
    */
@@ -78093,10 +79537,10 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   autoUpgradeProfile: PropertyAccessor<ManagedClusterAutoUpgradeProfileProxy>;
   /**
-   * Gets or sets the AzureMonitorMetrics provisioning property.
+   * Gets or sets the AzureMonitorProfile provisioning property.
    */
 
-  azureMonitorMetrics: PropertyAccessor<ManagedClusterMonitorProfileMetricsProxy>;
+  azureMonitorProfile: PropertyAccessor<ManagedClusterAzureMonitorProfileProxy>;
   /**
    * Gets the AzurePortalFqdn provisioning property.
    */
@@ -78127,6 +79571,11 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
    */
 
   clearIsAIToolchainOperatorEnabled(): void;
+  /**
+   * Clears the IsFipsEnabled provisioning property.
+   */
+
+  clearIsFipsEnabled(): void;
   /**
    * Clears the IsLocalAccountsDisabled provisioning property.
    */
@@ -78183,6 +79632,11 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   clearSupportPlan(): void;
   /**
+   * Clears the UpstreamSchedulerConfigMode provisioning property.
+   */
+
+  clearUpstreamSchedulerConfigMode(): void;
+  /**
    * Gets or sets the ClusterIdentity provisioning property.
    */
 
@@ -78228,6 +79682,11 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   fqdnSubdomain: PropertyAccessor<BicepValueProxy | string>;
   /**
+   * Gets or sets the HostedSystemProfile provisioning property.
+   */
+
+  hostedSystemProfile: PropertyAccessor<ManagedClusterHostedSystemProfileProxy>;
+  /**
    * Gets or sets the HttpProxyConfig provisioning property.
    */
 
@@ -78243,15 +79702,20 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   identityProfile: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfContainerServiceUserAssignedIdentityProxy>;
   /**
-   * Gets or sets the IngressWebAppRouting provisioning property.
+   * Gets or sets the IngressProfile provisioning property.
    */
 
-  ingressWebAppRouting: PropertyAccessor<ManagedClusterIngressProfileWebAppRoutingProxy>;
+  ingressProfile: PropertyAccessor<ManagedClusterIngressProfileProxy>;
   /**
    * Gets or sets the IsAIToolchainOperatorEnabled provisioning property.
    */
 
   isAIToolchainOperatorEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsFipsEnabled provisioning property.
+   */
+
+  isFipsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the IsLocalAccountsDisabled provisioning property.
    */
@@ -78403,10 +79867,10 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   setAutoUpgradeProfile(value: ManagedClusterAutoUpgradeProfileProxy): ContainerServiceManagedClusterProxy;
   /**
-   * Gets or sets the AzureMonitorMetrics provisioning property.
+   * Gets or sets the AzureMonitorProfile provisioning property.
    */
 
-  setAzureMonitorMetrics(value: ManagedClusterMonitorProfileMetricsProxy): ContainerServiceManagedClusterProxy;
+  setAzureMonitorProfile(value: ManagedClusterAzureMonitorProfileProxy): ContainerServiceManagedClusterProxy;
   /**
    * Gets or sets the BootstrapProfile provisioning property.
    */
@@ -78438,6 +79902,11 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   setFqdnSubdomain(value: BicepValueProxy | string): ContainerServiceManagedClusterProxy;
   /**
+   * Gets or sets the HostedSystemProfile provisioning property.
+   */
+
+  setHostedSystemProfile(value: ManagedClusterHostedSystemProfileProxy): ContainerServiceManagedClusterProxy;
+  /**
    * Gets or sets the HttpProxyConfig provisioning property.
    */
 
@@ -78448,15 +79917,20 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   setIdentityProfile(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfContainerServiceUserAssignedIdentityProxy): ContainerServiceManagedClusterProxy;
   /**
-   * Gets or sets the IngressWebAppRouting provisioning property.
+   * Gets or sets the IngressProfile provisioning property.
    */
 
-  setIngressWebAppRouting(value: ManagedClusterIngressProfileWebAppRoutingProxy): ContainerServiceManagedClusterProxy;
+  setIngressProfile(value: ManagedClusterIngressProfileProxy): ContainerServiceManagedClusterProxy;
   /**
    * Gets or sets the IsAIToolchainOperatorEnabled provisioning property.
    */
 
   setIsAIToolchainOperatorEnabled(value: BicepValueProxy | boolean): ContainerServiceManagedClusterProxy;
+  /**
+   * Gets or sets the IsFipsEnabled provisioning property.
+   */
+
+  setIsFipsEnabled(value: BicepValueProxy | boolean): ContainerServiceManagedClusterProxy;
   /**
    * Gets or sets the IsLocalAccountsDisabled provisioning property.
    */
@@ -78578,6 +80052,11 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
 
   setUpgradeOverrideSettings(value: UpgradeOverrideSettingsProxy): ContainerServiceManagedClusterProxy;
   /**
+   * Gets or sets the UpstreamSchedulerConfigMode provisioning property.
+   */
+
+  setUpstreamSchedulerConfigMode(value: BicepValueProxy | SchedulerConfigMode): ContainerServiceManagedClusterProxy;
+  /**
    * Gets or sets the WindowsProfile provisioning property.
    */
 
@@ -78622,6 +80101,11 @@ export interface ContainerServiceManagedClusterProxy extends ProvisionableResour
    */
 
   upgradeOverrideSettings: PropertyAccessor<UpgradeOverrideSettingsProxy>;
+  /**
+   * Gets or sets the UpstreamSchedulerConfigMode provisioning property.
+   */
+
+  upstreamSchedulerConfigMode: PropertyAccessor<BicepValueProxy | SchedulerConfigMode>;
   /**
    * Gets or sets the WindowsProfile provisioning property.
    */
@@ -79420,35 +80904,35 @@ export interface ContainerServiceTimeInWeekProxy {
 
 export interface ContainerServiceTimeSpanProxy {
   /**
-   * Clears the EndOn provisioning property.
+   * Clears the EndsOn provisioning property.
    */
 
-  clearEndOn(): void;
+  clearEndsOn(): void;
   /**
-   * Clears the StartOn provisioning property.
+   * Clears the StartsOn provisioning property.
    */
 
-  clearStartOn(): void;
+  clearStartsOn(): void;
   /**
-   * Gets or sets the EndOn provisioning property.
+   * Gets or sets the EndsOn provisioning property.
    */
 
-  endOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  endsOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
   /**
-   * Gets or sets the EndOn provisioning property.
+   * Gets or sets the EndsOn provisioning property.
    */
 
-  setEndOn(value: BicepValueProxy | datetimeoffset): ContainerServiceTimeSpanProxy;
+  setEndsOn(value: BicepValueProxy | datetimeoffset): ContainerServiceTimeSpanProxy;
   /**
-   * Gets or sets the StartOn provisioning property.
+   * Gets or sets the StartsOn provisioning property.
    */
 
-  setStartOn(value: BicepValueProxy | datetimeoffset): ContainerServiceTimeSpanProxy;
+  setStartsOn(value: BicepValueProxy | datetimeoffset): ContainerServiceTimeSpanProxy;
   /**
-   * Gets or sets the StartOn provisioning property.
+   * Gets or sets the StartsOn provisioning property.
    */
 
-  startOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  startsOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
 }
 
 /**
@@ -79692,6 +81176,43 @@ export interface ContainerServiceWritableSubResourceProxy {
    */
 
   setId(value: BicepValueProxy): ContainerServiceWritableSubResourceProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.IdentityBindingManagedIdentityProfileProxy
+ */
+
+export interface IdentityBindingManagedIdentityProfileProxy {
+  /**
+   * Clears the ResourceId provisioning property.
+   */
+
+  clearResourceId(): void;
+  /**
+   * Gets the ClientId provisioning property.
+   */
+
+  clientId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the ObjectId provisioning property.
+   */
+
+  objectId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  resourceId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  setResourceId(value: BicepValueProxy): IdentityBindingManagedIdentityProfileProxy;
+  /**
+   * Gets the TenantId provisioning property.
+   */
+
+  tenantId: PropertyAccessor<BicepValueProxy | string>;
 }
 
 /**
@@ -80473,52 +81994,7 @@ export interface ManagedClusterAadProfileProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAddonProfileIdentityProxy
  */
 
-export interface ManagedClusterAddonProfileIdentityProxy {
-  /**
-   * Clears the ClientId provisioning property.
-   */
-
-  clearClientId(): void;
-  /**
-   * Clears the ObjectId provisioning property.
-   */
-
-  clearObjectId(): void;
-  /**
-   * Clears the ResourceId provisioning property.
-   */
-
-  clearResourceId(): void;
-  /**
-   * Gets or sets the ClientId provisioning property.
-   */
-
-  clientId: PropertyAccessor<BicepValueProxy | guid>;
-  /**
-   * Gets or sets the ObjectId provisioning property.
-   */
-
-  objectId: PropertyAccessor<BicepValueProxy | guid>;
-  /**
-   * Gets or sets the ResourceId provisioning property.
-   */
-
-  resourceId: PropertyAccessor<BicepValueProxy>;
-  /**
-   * Gets or sets the ClientId provisioning property.
-   */
-
-  setClientId(value: BicepValueProxy | guid): ManagedClusterAddonProfileIdentityProxy;
-  /**
-   * Gets or sets the ObjectId provisioning property.
-   */
-
-  setObjectId(value: BicepValueProxy | guid): ManagedClusterAddonProfileIdentityProxy;
-  /**
-   * Gets or sets the ResourceId provisioning property.
-   */
-
-  setResourceId(value: BicepValueProxy): ManagedClusterAddonProfileIdentityProxy;
+export interface ManagedClusterAddonProfileIdentityProxy extends ContainerServiceUserAssignedIdentity_1Proxy {
 }
 
 /**
@@ -80673,10 +82149,10 @@ export interface ManagedClusterAdvancedNetworkingSecurityProxy {
 }
 
 /**
- * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAgentPoolProfileProxy
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAgentPoolProfilePropertiesProxy
  */
 
-export interface ManagedClusterAgentPoolProfileProxy {
+export interface ManagedClusterAgentPoolProfilePropertiesProxy {
   /**
    * Gets or sets the AgentPoolType provisioning property.
    */
@@ -80692,196 +82168,6 @@ export interface ManagedClusterAgentPoolProfileProxy {
    */
 
   capacityReservationGroupId: PropertyAccessor<BicepValueProxy>;
-  /**
-   * Clears the AgentPoolType provisioning property.
-   */
-
-  clearAgentPoolType(): void;
-  /**
-   * Clears the CapacityReservationGroupId provisioning property.
-   */
-
-  clearCapacityReservationGroupId(): void;
-  /**
-   * Clears the Count provisioning property.
-   */
-
-  clearCount(): void;
-  /**
-   * Clears the CreationDataSourceResourceId provisioning property.
-   */
-
-  clearCreationDataSourceResourceId(): void;
-  /**
-   * Clears the GatewayPublicIPPrefixSize provisioning property.
-   */
-
-  clearGatewayPublicIPPrefixSize(): void;
-  /**
-   * Clears the GpuDriver provisioning property.
-   */
-
-  clearGpuDriver(): void;
-  /**
-   * Clears the GpuInstanceProfile provisioning property.
-   */
-
-  clearGpuInstanceProfile(): void;
-  /**
-   * Clears the HostGroupId provisioning property.
-   */
-
-  clearHostGroupId(): void;
-  /**
-   * Clears the IsAutoScalingEnabled provisioning property.
-   */
-
-  clearIsAutoScalingEnabled(): void;
-  /**
-   * Clears the IsEncryptionAtHostEnabled provisioning property.
-   */
-
-  clearIsEncryptionAtHostEnabled(): void;
-  /**
-   * Clears the IsFipsEnabled provisioning property.
-   */
-
-  clearIsFipsEnabled(): void;
-  /**
-   * Clears the IsNodePublicIpEnabled provisioning property.
-   */
-
-  clearIsNodePublicIpEnabled(): void;
-  /**
-   * Clears the IsUltraSsdEnabled provisioning property.
-   */
-
-  clearIsUltraSsdEnabled(): void;
-  /**
-   * Clears the KubeletDiskType provisioning property.
-   */
-
-  clearKubeletDiskType(): void;
-  /**
-   * Clears the MaxCount provisioning property.
-   */
-
-  clearMaxCount(): void;
-  /**
-   * Clears the MaxPods provisioning property.
-   */
-
-  clearMaxPods(): void;
-  /**
-   * Clears the MessageOfTheDay provisioning property.
-   */
-
-  clearMessageOfTheDay(): void;
-  /**
-   * Clears the MinCount provisioning property.
-   */
-
-  clearMinCount(): void;
-  /**
-   * Clears the Mode provisioning property.
-   */
-
-  clearMode(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the NodePublicIPPrefixId provisioning property.
-   */
-
-  clearNodePublicIPPrefixId(): void;
-  /**
-   * Clears the OrchestratorVersion provisioning property.
-   */
-
-  clearOrchestratorVersion(): void;
-  /**
-   * Clears the OSDiskSizeInGB provisioning property.
-   */
-
-  clearOSDiskSizeInGB(): void;
-  /**
-   * Clears the OSDiskType provisioning property.
-   */
-
-  clearOSDiskType(): void;
-  /**
-   * Clears the OSSku provisioning property.
-   */
-
-  clearOSSku(): void;
-  /**
-   * Clears the OSType provisioning property.
-   */
-
-  clearOSType(): void;
-  /**
-   * Clears the PodIPAllocationMode provisioning property.
-   */
-
-  clearPodIPAllocationMode(): void;
-  /**
-   * Clears the PodSubnetId provisioning property.
-   */
-
-  clearPodSubnetId(): void;
-  /**
-   * Clears the PowerStateCode provisioning property.
-   */
-
-  clearPowerStateCode(): void;
-  /**
-   * Clears the ProximityPlacementGroupId provisioning property.
-   */
-
-  clearProximityPlacementGroupId(): void;
-  /**
-   * Clears the ScaleDownMode provisioning property.
-   */
-
-  clearScaleDownMode(): void;
-  /**
-   * Clears the ScaleSetEvictionPolicy provisioning property.
-   */
-
-  clearScaleSetEvictionPolicy(): void;
-  /**
-   * Clears the ScaleSetPriority provisioning property.
-   */
-
-  clearScaleSetPriority(): void;
-  /**
-   * Clears the SpotMaxPrice provisioning property.
-   */
-
-  clearSpotMaxPrice(): void;
-  /**
-   * Clears the VmSize provisioning property.
-   */
-
-  clearVmSize(): void;
-  /**
-   * Clears the VnetSubnetId provisioning property.
-   */
-
-  clearVnetSubnetId(): void;
-  /**
-   * Clears the WindowsIsOutboundNatDisabled provisioning property.
-   */
-
-  clearWindowsIsOutboundNatDisabled(): void;
-  /**
-   * Clears the WorkloadRuntime provisioning property.
-   */
-
-  clearWorkloadRuntime(): void;
   /**
    * Gets or sets the Count provisioning property.
    */
@@ -80923,6 +82209,11 @@ export interface ManagedClusterAgentPoolProfileProxy {
 
   hostGroupId: PropertyAccessor<BicepValueProxy>;
   /**
+   * Gets or sets the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  isArtifactStreamingEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
    * Gets or sets the IsAutoScalingEnabled provisioning property.
    */
 
@@ -80938,10 +82229,10 @@ export interface ManagedClusterAgentPoolProfileProxy {
 
   isFipsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
-   * Gets or sets the IsNodePublicIpEnabled provisioning property.
+   * Gets or sets the IsNodePublicIPEnabled provisioning property.
    */
 
-  isNodePublicIpEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  isNodePublicIPEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the IsUltraSsdEnabled provisioning property.
    */
@@ -80993,17 +82284,12 @@ export interface ManagedClusterAgentPoolProfileProxy {
 
   mode: PropertyAccessor<BicepValueProxy | AgentPoolMode>;
   /**
-   * Gets or sets the Name provisioning property.
-   */
-
-  name: PropertyAccessor<BicepValueProxy | string>;
-  /**
    * Gets or sets the NetworkProfile provisioning property.
    */
 
   networkProfile: PropertyAccessor<AgentPoolNetworkProfileProxy>;
   /**
-   * Gets the NodeImageVersion provisioning property.
+   * Gets or sets the NodeImageVersion provisioning property.
    */
 
   nodeImageVersion: PropertyAccessor<BicepValueProxy | string>;
@@ -81096,252 +82382,257 @@ export interface ManagedClusterAgentPoolProfileProxy {
    * Gets or sets the AgentPoolType provisioning property.
    */
 
-  setAgentPoolType(value: BicepValueProxy | AgentPoolType): ManagedClusterAgentPoolProfileProxy;
+  setAgentPoolType(value: BicepValueProxy | AgentPoolType): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the AvailabilityZones provisioning property.
    */
 
-  setAvailabilityZones(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): ManagedClusterAgentPoolProfileProxy;
+  setAvailabilityZones(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the CapacityReservationGroupId provisioning property.
    */
 
-  setCapacityReservationGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfileProxy;
+  setCapacityReservationGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the Count provisioning property.
    */
 
-  setCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfileProxy;
+  setCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the CreationDataSourceResourceId provisioning property.
    */
 
-  setCreationDataSourceResourceId(value: BicepValueProxy): ManagedClusterAgentPoolProfileProxy;
+  setCreationDataSourceResourceId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the GatewayPublicIPPrefixSize provisioning property.
    */
 
-  setGatewayPublicIPPrefixSize(value: BicepValueProxy | number): ManagedClusterAgentPoolProfileProxy;
+  setGatewayPublicIPPrefixSize(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the GpuDriver provisioning property.
    */
 
-  setGpuDriver(value: BicepValueProxy | AgentPoolGpuDriver): ManagedClusterAgentPoolProfileProxy;
+  setGpuDriver(value: BicepValueProxy | AgentPoolGpuDriver): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the GpuInstanceProfile provisioning property.
    */
 
-  setGpuInstanceProfile(value: BicepValueProxy | GpuInstanceProfile): ManagedClusterAgentPoolProfileProxy;
+  setGpuInstanceProfile(value: BicepValueProxy | GpuInstanceProfile): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the HostGroupId provisioning property.
    */
 
-  setHostGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfileProxy;
+  setHostGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  setIsArtifactStreamingEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the IsAutoScalingEnabled provisioning property.
    */
 
-  setIsAutoScalingEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfileProxy;
+  setIsAutoScalingEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the IsEncryptionAtHostEnabled provisioning property.
    */
 
-  setIsEncryptionAtHostEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfileProxy;
+  setIsEncryptionAtHostEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the IsFipsEnabled provisioning property.
    */
 
-  setIsFipsEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfileProxy;
+  setIsFipsEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
-   * Gets or sets the IsNodePublicIpEnabled provisioning property.
+   * Gets or sets the IsNodePublicIPEnabled provisioning property.
    */
 
-  setIsNodePublicIpEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfileProxy;
+  setIsNodePublicIPEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the IsUltraSsdEnabled provisioning property.
    */
 
-  setIsUltraSsdEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfileProxy;
+  setIsUltraSsdEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the KubeletConfig provisioning property.
    */
 
-  setKubeletConfig(value: KubeletConfigProxy): ManagedClusterAgentPoolProfileProxy;
+  setKubeletConfig(value: KubeletConfigProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the KubeletDiskType provisioning property.
    */
 
-  setKubeletDiskType(value: BicepValueProxy | KubeletDiskType): ManagedClusterAgentPoolProfileProxy;
+  setKubeletDiskType(value: BicepValueProxy | KubeletDiskType): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the LinuxOSConfig provisioning property.
    */
 
-  setLinuxOSConfig(value: LinuxOSConfigProxy): ManagedClusterAgentPoolProfileProxy;
+  setLinuxOSConfig(value: LinuxOSConfigProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the LocalDnsProfile provisioning property.
    */
 
-  setLocalDnsProfile(value: LocalDnsProfileProxy): ManagedClusterAgentPoolProfileProxy;
+  setLocalDnsProfile(value: LocalDnsProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the MaxCount provisioning property.
    */
 
-  setMaxCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfileProxy;
+  setMaxCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the MaxPods provisioning property.
    */
 
-  setMaxPods(value: BicepValueProxy | number): ManagedClusterAgentPoolProfileProxy;
+  setMaxPods(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the MessageOfTheDay provisioning property.
    */
 
-  setMessageOfTheDay(value: BicepValueProxy | string): ManagedClusterAgentPoolProfileProxy;
+  setMessageOfTheDay(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the MinCount provisioning property.
    */
 
-  setMinCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfileProxy;
+  setMinCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the Mode provisioning property.
    */
 
-  setMode(value: BicepValueProxy | AgentPoolMode): ManagedClusterAgentPoolProfileProxy;
-  /**
-   * Gets or sets the Name provisioning property.
-   */
-
-  setName(value: BicepValueProxy | string): ManagedClusterAgentPoolProfileProxy;
+  setMode(value: BicepValueProxy | AgentPoolMode): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the NetworkProfile provisioning property.
    */
 
-  setNetworkProfile(value: AgentPoolNetworkProfileProxy): ManagedClusterAgentPoolProfileProxy;
+  setNetworkProfile(value: AgentPoolNetworkProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the NodeImageVersion provisioning property.
+   */
+
+  setNodeImageVersion(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the NodeLabels provisioning property.
    */
 
-  setNodeLabels(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy): ManagedClusterAgentPoolProfileProxy;
+  setNodeLabels(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the NodePublicIPPrefixId provisioning property.
    */
 
-  setNodePublicIPPrefixId(value: BicepValueProxy): ManagedClusterAgentPoolProfileProxy;
+  setNodePublicIPPrefixId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the NodeTaints provisioning property.
    */
 
-  setNodeTaints(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): ManagedClusterAgentPoolProfileProxy;
+  setNodeTaints(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the OrchestratorVersion provisioning property.
    */
 
-  setOrchestratorVersion(value: BicepValueProxy | string): ManagedClusterAgentPoolProfileProxy;
+  setOrchestratorVersion(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the OSDiskSizeInGB provisioning property.
    */
 
-  setOSDiskSizeInGB(value: BicepValueProxy | number): ManagedClusterAgentPoolProfileProxy;
+  setOSDiskSizeInGB(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the OSDiskType provisioning property.
    */
 
-  setOSDiskType(value: BicepValueProxy | ContainerServiceOSDiskType): ManagedClusterAgentPoolProfileProxy;
+  setOSDiskType(value: BicepValueProxy | ContainerServiceOSDiskType): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the OSSku provisioning property.
    */
 
-  setOSSku(value: BicepValueProxy | ContainerServiceOSSku): ManagedClusterAgentPoolProfileProxy;
+  setOSSku(value: BicepValueProxy | ContainerServiceOSSku): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the OSType provisioning property.
    */
 
-  setOSType(value: BicepValueProxy | ContainerServiceOSType): ManagedClusterAgentPoolProfileProxy;
+  setOSType(value: BicepValueProxy | ContainerServiceOSType): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the PodIPAllocationMode provisioning property.
    */
 
-  setPodIPAllocationMode(value: BicepValueProxy | PodIPAllocationMode): ManagedClusterAgentPoolProfileProxy;
+  setPodIPAllocationMode(value: BicepValueProxy | PodIPAllocationMode): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the PodSubnetId provisioning property.
    */
 
-  setPodSubnetId(value: BicepValueProxy): ManagedClusterAgentPoolProfileProxy;
+  setPodSubnetId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the PowerStateCode provisioning property.
    */
 
-  setPowerStateCode(value: BicepValueProxy | ContainerServiceStateCode): ManagedClusterAgentPoolProfileProxy;
+  setPowerStateCode(value: BicepValueProxy | ContainerServiceStateCode): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the ProximityPlacementGroupId provisioning property.
    */
 
-  setProximityPlacementGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfileProxy;
+  setProximityPlacementGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the ScaleDownMode provisioning property.
    */
 
-  setScaleDownMode(value: BicepValueProxy | ScaleDownMode): ManagedClusterAgentPoolProfileProxy;
+  setScaleDownMode(value: BicepValueProxy | ScaleDownMode): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the ScaleSetEvictionPolicy provisioning property.
    */
 
-  setScaleSetEvictionPolicy(value: BicepValueProxy | ScaleSetEvictionPolicy): ManagedClusterAgentPoolProfileProxy;
+  setScaleSetEvictionPolicy(value: BicepValueProxy | ScaleSetEvictionPolicy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the ScaleSetPriority provisioning property.
    */
 
-  setScaleSetPriority(value: BicepValueProxy | ScaleSetPriority): ManagedClusterAgentPoolProfileProxy;
+  setScaleSetPriority(value: BicepValueProxy | ScaleSetPriority): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the SecurityProfile provisioning property.
    */
 
-  setSecurityProfile(value: AgentPoolSecurityProfileProxy): ManagedClusterAgentPoolProfileProxy;
+  setSecurityProfile(value: AgentPoolSecurityProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the SpotMaxPrice provisioning property.
    */
 
-  setSpotMaxPrice(value: BicepValueProxy | number): ManagedClusterAgentPoolProfileProxy;
+  setSpotMaxPrice(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the Tags provisioning property.
    */
 
-  setTags(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy): ManagedClusterAgentPoolProfileProxy;
+  setTags(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the UpgradeSettings provisioning property.
    */
 
-  setUpgradeSettings(value: AgentPoolUpgradeSettingsProxy): ManagedClusterAgentPoolProfileProxy;
+  setUpgradeSettings(value: AgentPoolUpgradeSettingsProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the VirtualMachineNodesStatus provisioning property.
    */
 
-  setVirtualMachineNodesStatus(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolVirtualMachineNodesProxy): ManagedClusterAgentPoolProfileProxy;
+  setVirtualMachineNodesStatus(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolVirtualMachineNodesProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
-   * Gets or sets the VirtualMachinesScaleManual provisioning property.
+   * Gets or sets the VirtualMachinesScale provisioning property.
    */
 
-  setVirtualMachinesScaleManual(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManualScaleProfileProxy): ManagedClusterAgentPoolProfileProxy;
+  setVirtualMachinesScale(value: AgentPoolScaleProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the VmSize provisioning property.
    */
 
-  setVmSize(value: BicepValueProxy | string): ManagedClusterAgentPoolProfileProxy;
+  setVmSize(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the VnetSubnetId provisioning property.
    */
 
-  setVnetSubnetId(value: BicepValueProxy): ManagedClusterAgentPoolProfileProxy;
+  setVnetSubnetId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the WindowsIsOutboundNatDisabled provisioning property.
    */
 
-  setWindowsIsOutboundNatDisabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfileProxy;
+  setWindowsIsOutboundNatDisabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the WorkloadRuntime provisioning property.
    */
 
-  setWorkloadRuntime(value: BicepValueProxy | WorkloadRuntime): ManagedClusterAgentPoolProfileProxy;
+  setWorkloadRuntime(value: BicepValueProxy | WorkloadRuntime): ManagedClusterAgentPoolProfilePropertiesProxy;
   /**
    * Gets or sets the SpotMaxPrice provisioning property.
    */
@@ -81368,10 +82659,10 @@ export interface ManagedClusterAgentPoolProfileProxy {
 
   virtualMachineNodesStatus: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolVirtualMachineNodesProxy>;
   /**
-   * Gets or sets the VirtualMachinesScaleManual provisioning property.
+   * Gets or sets the VirtualMachinesScale provisioning property.
    */
 
-  virtualMachinesScaleManual: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManualScaleProfileProxy>;
+  virtualMachinesScale: PropertyAccessor<AgentPoolScaleProfileProxy>;
   /**
    * Gets or sets the VmSize provisioning property.
    */
@@ -81392,6 +82683,223 @@ export interface ManagedClusterAgentPoolProfileProxy {
    */
 
   workloadRuntime: PropertyAccessor<BicepValueProxy | WorkloadRuntime>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAgentPoolProfileProxy
+ */
+
+export interface ManagedClusterAgentPoolProfileProxy extends ManagedClusterAgentPoolProfilePropertiesProxy {
+  /**
+   * Clears the AgentPoolType provisioning property.
+   */
+
+  clearAgentPoolType(): void;
+  /**
+   * Clears the CapacityReservationGroupId provisioning property.
+   */
+
+  clearCapacityReservationGroupId(): void;
+  /**
+   * Clears the Count provisioning property.
+   */
+
+  clearCount(): void;
+  /**
+   * Clears the CreationDataSourceResourceId provisioning property.
+   */
+
+  clearCreationDataSourceResourceId(): void;
+  /**
+   * Clears the GatewayPublicIPPrefixSize provisioning property.
+   */
+
+  clearGatewayPublicIPPrefixSize(): void;
+  /**
+   * Clears the GpuDriver provisioning property.
+   */
+
+  clearGpuDriver(): void;
+  /**
+   * Clears the GpuInstanceProfile provisioning property.
+   */
+
+  clearGpuInstanceProfile(): void;
+  /**
+   * Clears the HostGroupId provisioning property.
+   */
+
+  clearHostGroupId(): void;
+  /**
+   * Clears the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  clearIsArtifactStreamingEnabled(): void;
+  /**
+   * Clears the IsAutoScalingEnabled provisioning property.
+   */
+
+  clearIsAutoScalingEnabled(): void;
+  /**
+   * Clears the IsEncryptionAtHostEnabled provisioning property.
+   */
+
+  clearIsEncryptionAtHostEnabled(): void;
+  /**
+   * Clears the IsFipsEnabled provisioning property.
+   */
+
+  clearIsFipsEnabled(): void;
+  /**
+   * Clears the IsNodePublicIPEnabled provisioning property.
+   */
+
+  clearIsNodePublicIPEnabled(): void;
+  /**
+   * Clears the IsUltraSsdEnabled provisioning property.
+   */
+
+  clearIsUltraSsdEnabled(): void;
+  /**
+   * Clears the KubeletDiskType provisioning property.
+   */
+
+  clearKubeletDiskType(): void;
+  /**
+   * Clears the MaxCount provisioning property.
+   */
+
+  clearMaxCount(): void;
+  /**
+   * Clears the MaxPods provisioning property.
+   */
+
+  clearMaxPods(): void;
+  /**
+   * Clears the MessageOfTheDay provisioning property.
+   */
+
+  clearMessageOfTheDay(): void;
+  /**
+   * Clears the MinCount provisioning property.
+   */
+
+  clearMinCount(): void;
+  /**
+   * Clears the Mode provisioning property.
+   */
+
+  clearMode(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Clears the NodeImageVersion provisioning property.
+   */
+
+  clearNodeImageVersion(): void;
+  /**
+   * Clears the NodePublicIPPrefixId provisioning property.
+   */
+
+  clearNodePublicIPPrefixId(): void;
+  /**
+   * Clears the OrchestratorVersion provisioning property.
+   */
+
+  clearOrchestratorVersion(): void;
+  /**
+   * Clears the OSDiskSizeInGB provisioning property.
+   */
+
+  clearOSDiskSizeInGB(): void;
+  /**
+   * Clears the OSDiskType provisioning property.
+   */
+
+  clearOSDiskType(): void;
+  /**
+   * Clears the OSSku provisioning property.
+   */
+
+  clearOSSku(): void;
+  /**
+   * Clears the OSType provisioning property.
+   */
+
+  clearOSType(): void;
+  /**
+   * Clears the PodIPAllocationMode provisioning property.
+   */
+
+  clearPodIPAllocationMode(): void;
+  /**
+   * Clears the PodSubnetId provisioning property.
+   */
+
+  clearPodSubnetId(): void;
+  /**
+   * Clears the PowerStateCode provisioning property.
+   */
+
+  clearPowerStateCode(): void;
+  /**
+   * Clears the ProximityPlacementGroupId provisioning property.
+   */
+
+  clearProximityPlacementGroupId(): void;
+  /**
+   * Clears the ScaleDownMode provisioning property.
+   */
+
+  clearScaleDownMode(): void;
+  /**
+   * Clears the ScaleSetEvictionPolicy provisioning property.
+   */
+
+  clearScaleSetEvictionPolicy(): void;
+  /**
+   * Clears the ScaleSetPriority provisioning property.
+   */
+
+  clearScaleSetPriority(): void;
+  /**
+   * Clears the SpotMaxPrice provisioning property.
+   */
+
+  clearSpotMaxPrice(): void;
+  /**
+   * Clears the VmSize provisioning property.
+   */
+
+  clearVmSize(): void;
+  /**
+   * Clears the VnetSubnetId provisioning property.
+   */
+
+  clearVnetSubnetId(): void;
+  /**
+   * Clears the WindowsIsOutboundNatDisabled provisioning property.
+   */
+
+  clearWindowsIsOutboundNatDisabled(): void;
+  /**
+   * Clears the WorkloadRuntime provisioning property.
+   */
+
+  clearWorkloadRuntime(): void;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): ManagedClusterAgentPoolProfileProxy;
 }
 
 /**
@@ -81846,6 +83354,271 @@ export interface ManagedClusterAutoUpgradeProfileProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy
+ */
+
+export interface ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy {
+  /**
+   * Clears the GrpcPort provisioning property.
+   */
+
+  clearGrpcPort(): void;
+  /**
+   * Clears the HttpPort provisioning property.
+   */
+
+  clearHttpPort(): void;
+  /**
+   * Clears the IsAppMonitoringOpenTelemetryLogsAndTracesEnabled provisioning property.
+   */
+
+  clearIsAppMonitoringOpenTelemetryLogsAndTracesEnabled(): void;
+  /**
+   * Gets or sets the GrpcPort provisioning property.
+   */
+
+  grpcPort: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the HttpPort provisioning property.
+   */
+
+  httpPort: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the IsAppMonitoringOpenTelemetryLogsAndTracesEnabled provisioning property.
+   */
+
+  isAppMonitoringOpenTelemetryLogsAndTracesEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the GrpcPort provisioning property.
+   */
+
+  setGrpcPort(value: BicepValueProxy | number): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy;
+  /**
+   * Gets or sets the HttpPort provisioning property.
+   */
+
+  setHttpPort(value: BicepValueProxy | number): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy;
+  /**
+   * Gets or sets the IsAppMonitoringOpenTelemetryLogsAndTracesEnabled provisioning property.
+   */
+
+  setIsAppMonitoringOpenTelemetryLogsAndTracesEnabled(value: BicepValueProxy | boolean): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy
+ */
+
+export interface ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy {
+  /**
+   * Clears the GrpcPort provisioning property.
+   */
+
+  clearGrpcPort(): void;
+  /**
+   * Clears the HttpPort provisioning property.
+   */
+
+  clearHttpPort(): void;
+  /**
+   * Clears the IsAppMonitoringOpenTelemetryMetricsEnabled provisioning property.
+   */
+
+  clearIsAppMonitoringOpenTelemetryMetricsEnabled(): void;
+  /**
+   * Gets or sets the GrpcPort provisioning property.
+   */
+
+  grpcPort: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the HttpPort provisioning property.
+   */
+
+  httpPort: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the IsAppMonitoringOpenTelemetryMetricsEnabled provisioning property.
+   */
+
+  isAppMonitoringOpenTelemetryMetricsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the GrpcPort provisioning property.
+   */
+
+  setGrpcPort(value: BicepValueProxy | number): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy;
+  /**
+   * Gets or sets the HttpPort provisioning property.
+   */
+
+  setHttpPort(value: BicepValueProxy | number): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy;
+  /**
+   * Gets or sets the IsAppMonitoringOpenTelemetryMetricsEnabled provisioning property.
+   */
+
+  setIsAppMonitoringOpenTelemetryMetricsEnabled(value: BicepValueProxy | boolean): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAzureMonitorProfileAppMonitoringProxy
+ */
+
+export interface ManagedClusterAzureMonitorProfileAppMonitoringProxy {
+  /**
+   * Clears the IsAppMonitoringAutoInstrumentationEnabled provisioning property.
+   */
+
+  clearIsAppMonitoringAutoInstrumentationEnabled(): void;
+  /**
+   * Gets or sets the IsAppMonitoringAutoInstrumentationEnabled provisioning property.
+   */
+
+  isAppMonitoringAutoInstrumentationEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the OpenTelemetryLogsAndTraces provisioning property.
+   */
+
+  openTelemetryLogsAndTraces: PropertyAccessor<ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy>;
+  /**
+   * Gets or sets the OpenTelemetryMetrics provisioning property.
+   */
+
+  openTelemetryMetrics: PropertyAccessor<ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy>;
+  /**
+   * Gets or sets the IsAppMonitoringAutoInstrumentationEnabled provisioning property.
+   */
+
+  setIsAppMonitoringAutoInstrumentationEnabled(value: BicepValueProxy | boolean): ManagedClusterAzureMonitorProfileAppMonitoringProxy;
+  /**
+   * Gets or sets the OpenTelemetryLogsAndTraces provisioning property.
+   */
+
+  setOpenTelemetryLogsAndTraces(value: ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy): ManagedClusterAzureMonitorProfileAppMonitoringProxy;
+  /**
+   * Gets or sets the OpenTelemetryMetrics provisioning property.
+   */
+
+  setOpenTelemetryMetrics(value: ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy): ManagedClusterAzureMonitorProfileAppMonitoringProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAzureMonitorProfileContainerInsightsProxy
+ */
+
+export interface ManagedClusterAzureMonitorProfileContainerInsightsProxy {
+  /**
+   * Clears the ContainerNetworkLogs provisioning property.
+   */
+
+  clearContainerNetworkLogs(): void;
+  /**
+   * Clears the IsContainerInsightsEnabled provisioning property.
+   */
+
+  clearIsContainerInsightsEnabled(): void;
+  /**
+   * Clears the IsPrometheusMetricsScrapingDisabled provisioning property.
+   */
+
+  clearIsPrometheusMetricsScrapingDisabled(): void;
+  /**
+   * Clears the LogAnalyticsWorkspaceResourceId provisioning property.
+   */
+
+  clearLogAnalyticsWorkspaceResourceId(): void;
+  /**
+   * Clears the SyslogPort provisioning property.
+   */
+
+  clearSyslogPort(): void;
+  /**
+   * Gets or sets the ContainerNetworkLogs provisioning property.
+   */
+
+  containerNetworkLogs: PropertyAccessor<BicepValueProxy | ContainerNetworkLogs>;
+  /**
+   * Gets or sets the IsContainerInsightsEnabled provisioning property.
+   */
+
+  isContainerInsightsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsPrometheusMetricsScrapingDisabled provisioning property.
+   */
+
+  isPrometheusMetricsScrapingDisabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the LogAnalyticsWorkspaceResourceId provisioning property.
+   */
+
+  logAnalyticsWorkspaceResourceId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the ContainerNetworkLogs provisioning property.
+   */
+
+  setContainerNetworkLogs(value: BicepValueProxy | ContainerNetworkLogs): ManagedClusterAzureMonitorProfileContainerInsightsProxy;
+  /**
+   * Gets or sets the IsContainerInsightsEnabled provisioning property.
+   */
+
+  setIsContainerInsightsEnabled(value: BicepValueProxy | boolean): ManagedClusterAzureMonitorProfileContainerInsightsProxy;
+  /**
+   * Gets or sets the IsPrometheusMetricsScrapingDisabled provisioning property.
+   */
+
+  setIsPrometheusMetricsScrapingDisabled(value: BicepValueProxy | boolean): ManagedClusterAzureMonitorProfileContainerInsightsProxy;
+  /**
+   * Gets or sets the LogAnalyticsWorkspaceResourceId provisioning property.
+   */
+
+  setLogAnalyticsWorkspaceResourceId(value: BicepValueProxy): ManagedClusterAzureMonitorProfileContainerInsightsProxy;
+  /**
+   * Gets or sets the SyslogPort provisioning property.
+   */
+
+  setSyslogPort(value: BicepValueProxy | number): ManagedClusterAzureMonitorProfileContainerInsightsProxy;
+  /**
+   * Gets or sets the SyslogPort provisioning property.
+   */
+
+  syslogPort: PropertyAccessor<BicepValueProxy | number>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterAzureMonitorProfileProxy
+ */
+
+export interface ManagedClusterAzureMonitorProfileProxy {
+  /**
+   * Gets or sets the AppMonitoring provisioning property.
+   */
+
+  appMonitoring: PropertyAccessor<ManagedClusterAzureMonitorProfileAppMonitoringProxy>;
+  /**
+   * Gets or sets the ContainerInsights provisioning property.
+   */
+
+  containerInsights: PropertyAccessor<ManagedClusterAzureMonitorProfileContainerInsightsProxy>;
+  /**
+   * Gets or sets the Metrics provisioning property.
+   */
+
+  metrics: PropertyAccessor<ManagedClusterMonitorProfileMetricsProxy>;
+  /**
+   * Gets or sets the AppMonitoring provisioning property.
+   */
+
+  setAppMonitoring(value: ManagedClusterAzureMonitorProfileAppMonitoringProxy): ManagedClusterAzureMonitorProfileProxy;
+  /**
+   * Gets or sets the ContainerInsights provisioning property.
+   */
+
+  setContainerInsights(value: ManagedClusterAzureMonitorProfileContainerInsightsProxy): ManagedClusterAzureMonitorProfileProxy;
+  /**
+   * Gets or sets the Metrics provisioning property.
+   */
+
+  setMetrics(value: ManagedClusterMonitorProfileMetricsProxy): ManagedClusterAzureMonitorProfileProxy;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterBootstrapProfileProxy
  */
 
@@ -81950,6 +83723,58 @@ export interface ManagedClusterDelegatedIdentityProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterHostedSystemProfileProxy
+ */
+
+export interface ManagedClusterHostedSystemProfileProxy {
+  /**
+   * Clears the IsHostedSystemAddonsEnabled provisioning property.
+   */
+
+  clearIsHostedSystemAddonsEnabled(): void;
+  /**
+   * Clears the NodeSubnetId provisioning property.
+   */
+
+  clearNodeSubnetId(): void;
+  /**
+   * Clears the SystemNodeSubnetId provisioning property.
+   */
+
+  clearSystemNodeSubnetId(): void;
+  /**
+   * Gets or sets the IsHostedSystemAddonsEnabled provisioning property.
+   */
+
+  isHostedSystemAddonsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the NodeSubnetId provisioning property.
+   */
+
+  nodeSubnetId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the IsHostedSystemAddonsEnabled provisioning property.
+   */
+
+  setIsHostedSystemAddonsEnabled(value: BicepValueProxy | boolean): ManagedClusterHostedSystemProfileProxy;
+  /**
+   * Gets or sets the NodeSubnetId provisioning property.
+   */
+
+  setNodeSubnetId(value: BicepValueProxy): ManagedClusterHostedSystemProfileProxy;
+  /**
+   * Gets or sets the SystemNodeSubnetId provisioning property.
+   */
+
+  setSystemNodeSubnetId(value: BicepValueProxy): ManagedClusterHostedSystemProfileProxy;
+  /**
+   * Gets or sets the SystemNodeSubnetId provisioning property.
+   */
+
+  systemNodeSubnetId: PropertyAccessor<BicepValueProxy>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterHttpProxyConfigProxy
  */
 
@@ -82027,6 +83852,95 @@ export interface ManagedClusterHttpProxyConfigProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterIdentityBindingPropertiesProxy
+ */
+
+export interface ManagedClusterIdentityBindingPropertiesProxy {
+  /**
+   * Gets or sets the ManagedIdentity provisioning property.
+   */
+
+  managedIdentity: PropertyAccessor<IdentityBindingManagedIdentityProfileProxy>;
+  /**
+   * Gets the OidcIssuerUri provisioning property.
+   */
+
+  oidcIssuerUri: PropertyAccessor<BicepValueProxy | uri>;
+  /**
+   * Gets the ProvisioningState provisioning property.
+   */
+
+  provisioningState: PropertyAccessor<BicepValueProxy | ManagedClusterIdentityBindingProvisioningState>;
+  /**
+   * Gets or sets the ManagedIdentity provisioning property.
+   */
+
+  setManagedIdentity(value: IdentityBindingManagedIdentityProfileProxy): ManagedClusterIdentityBindingPropertiesProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterIdentityBindingProxy
+ */
+
+export interface ManagedClusterIdentityBindingProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the ETag provisioning property.
+   */
+
+  eTag: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<ContainerServiceManagedClusterProxy>;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<ManagedClusterIdentityBindingPropertiesProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): ManagedClusterIdentityBindingProxy;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: ContainerServiceManagedClusterProxy): ManagedClusterIdentityBindingProxy;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  setProperties(value: ManagedClusterIdentityBindingPropertiesProxy): ManagedClusterIdentityBindingProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<ContainerServiceSystemDataProxy>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterIdentityProxy
  */
 
@@ -82079,10 +83993,47 @@ export interface ManagedClusterIdentityProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterIngressProfileProxy
+ */
+
+export interface ManagedClusterIngressProfileProxy {
+  /**
+   * Clears the GatewayApiInstallation provisioning property.
+   */
+
+  clearGatewayApiInstallation(): void;
+  /**
+   * Gets or sets the GatewayApiInstallation provisioning property.
+   */
+
+  gatewayApiInstallation: PropertyAccessor<BicepValueProxy | ManagedGatewayType>;
+  /**
+   * Gets or sets the GatewayApiInstallation provisioning property.
+   */
+
+  setGatewayApiInstallation(value: BicepValueProxy | ManagedGatewayType): ManagedClusterIngressProfileProxy;
+  /**
+   * Gets or sets the WebAppRouting provisioning property.
+   */
+
+  setWebAppRouting(value: ManagedClusterIngressProfileWebAppRoutingProxy): ManagedClusterIngressProfileProxy;
+  /**
+   * Gets or sets the WebAppRouting provisioning property.
+   */
+
+  webAppRouting: PropertyAccessor<ManagedClusterIngressProfileWebAppRoutingProxy>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterIngressProfileWebAppRoutingProxy
  */
 
 export interface ManagedClusterIngressProfileWebAppRoutingProxy {
+  /**
+   * Clears the GatewayApiImplementationsIstioMode provisioning property.
+   */
+
+  clearGatewayApiImplementationsIstioMode(): void;
   /**
    * Clears the IsEnabled provisioning property.
    */
@@ -82098,6 +84049,11 @@ export interface ManagedClusterIngressProfileWebAppRoutingProxy {
    */
 
   dnsZoneResourceIds: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy>;
+  /**
+   * Gets or sets the GatewayApiImplementationsIstioMode provisioning property.
+   */
+
+  gatewayApiImplementationsIstioMode: PropertyAccessor<BicepValueProxy | GatewayApiIstioMode>;
   /**
    * Gets the Identity provisioning property.
    */
@@ -82118,6 +84074,11 @@ export interface ManagedClusterIngressProfileWebAppRoutingProxy {
    */
 
   setDnsZoneResourceIds(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy): ManagedClusterIngressProfileWebAppRoutingProxy;
+  /**
+   * Gets or sets the GatewayApiImplementationsIstioMode provisioning property.
+   */
+
+  setGatewayApiImplementationsIstioMode(value: BicepValueProxy | GatewayApiIstioMode): ManagedClusterIngressProfileWebAppRoutingProxy;
   /**
    * Gets or sets the IsEnabled provisioning property.
    */
@@ -82270,6 +84231,43 @@ export interface ManagedClusterLoadBalancerProfileProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterManagedOutboundIPProfileProxy
+ */
+
+export interface ManagedClusterManagedOutboundIPProfileProxy {
+  /**
+   * Clears the Count provisioning property.
+   */
+
+  clearCount(): void;
+  /**
+   * Clears the CountIPv6 provisioning property.
+   */
+
+  clearCountIPv6(): void;
+  /**
+   * Gets or sets the Count provisioning property.
+   */
+
+  count: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the CountIPv6 provisioning property.
+   */
+
+  countIPv6: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the Count provisioning property.
+   */
+
+  setCount(value: BicepValueProxy | number): ManagedClusterManagedOutboundIPProfileProxy;
+  /**
+   * Gets or sets the CountIPv6 provisioning property.
+   */
+
+  setCountIPv6(value: BicepValueProxy | number): ManagedClusterManagedOutboundIPProfileProxy;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterMonitorProfileKubeStateMetricsProxy
  */
 
@@ -82312,10 +84310,20 @@ export interface ManagedClusterMonitorProfileKubeStateMetricsProxy {
 
 export interface ManagedClusterMonitorProfileMetricsProxy {
   /**
+   * Clears the IsControlPlaneEnabled provisioning property.
+   */
+
+  clearIsControlPlaneEnabled(): void;
+  /**
    * Clears the IsEnabled provisioning property.
    */
 
   clearIsEnabled(): void;
+  /**
+   * Gets or sets the IsControlPlaneEnabled provisioning property.
+   */
+
+  isControlPlaneEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the IsEnabled provisioning property.
    */
@@ -82326,6 +84334,11 @@ export interface ManagedClusterMonitorProfileMetricsProxy {
    */
 
   kubeStateMetrics: PropertyAccessor<ManagedClusterMonitorProfileKubeStateMetricsProxy>;
+  /**
+   * Gets or sets the IsControlPlaneEnabled provisioning property.
+   */
+
+  setIsControlPlaneEnabled(value: BicepValueProxy | boolean): ManagedClusterMonitorProfileMetricsProxy;
   /**
    * Gets or sets the IsEnabled provisioning property.
    */
@@ -82523,10 +84536,10 @@ export interface ManagedClusterNatGatewayProfileProxy {
 
   clearIdleTimeoutInMinutes(): void;
   /**
-   * Clears the ManagedOutboundIPCount provisioning property.
+   * Clears the Sku provisioning property.
    */
 
-  clearManagedOutboundIPCount(): void;
+  clearSku(): void;
   /**
    * Gets the EffectiveOutboundIPs provisioning property.
    */
@@ -82538,20 +84551,50 @@ export interface ManagedClusterNatGatewayProfileProxy {
 
   idleTimeoutInMinutes: PropertyAccessor<BicepValueProxy | number>;
   /**
-   * Gets or sets the ManagedOutboundIPCount provisioning property.
+   * Gets or sets the ManagedOutboundIPProfile provisioning property.
    */
 
-  managedOutboundIPCount: PropertyAccessor<BicepValueProxy | number>;
+  managedOutboundIPProfile: PropertyAccessor<ManagedClusterManagedOutboundIPProfileProxy>;
+  /**
+   * Gets or sets the OutboundPublicIPPrefixes provisioning property.
+   */
+
+  outboundPublicIPPrefixes: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy>;
+  /**
+   * Gets or sets the OutboundPublicIPs provisioning property.
+   */
+
+  outboundPublicIPs: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy>;
   /**
    * Gets or sets the IdleTimeoutInMinutes provisioning property.
    */
 
   setIdleTimeoutInMinutes(value: BicepValueProxy | number): ManagedClusterNatGatewayProfileProxy;
   /**
-   * Gets or sets the ManagedOutboundIPCount provisioning property.
+   * Gets or sets the ManagedOutboundIPProfile provisioning property.
    */
 
-  setManagedOutboundIPCount(value: BicepValueProxy | number): ManagedClusterNatGatewayProfileProxy;
+  setManagedOutboundIPProfile(value: ManagedClusterManagedOutboundIPProfileProxy): ManagedClusterNatGatewayProfileProxy;
+  /**
+   * Gets or sets the OutboundPublicIPPrefixes provisioning property.
+   */
+
+  setOutboundPublicIPPrefixes(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy): ManagedClusterNatGatewayProfileProxy;
+  /**
+   * Gets or sets the OutboundPublicIPs provisioning property.
+   */
+
+  setOutboundPublicIPs(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfResourceIdentifierProxy): ManagedClusterNatGatewayProfileProxy;
+  /**
+   * Gets or sets the Sku provisioning property.
+   */
+
+  setSku(value: BicepValueProxy | ManagedClusterNatGatewaySku): ManagedClusterNatGatewayProfileProxy;
+  /**
+   * Gets or sets the Sku provisioning property.
+   */
+
+  sku: PropertyAccessor<BicepValueProxy | ManagedClusterNatGatewaySku>;
 }
 
 /**
@@ -82728,57 +84771,22 @@ export interface ManagedClusterPodIdentityProfileProxy {
 
 export interface ManagedClusterPodIdentityProvisioningErrorDetailProxy {
   /**
-   * Clears the Code provisioning property.
-   */
-
-  clearCode(): void;
-  /**
-   * Clears the Message provisioning property.
-   */
-
-  clearMessage(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Gets or sets the Code provisioning property.
+   * Gets the Code provisioning property.
    */
 
   code: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the Details provisioning property.
+   * Gets the Details provisioning property.
    */
 
   details: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterPodIdentityProvisioningErrorDetailProxy>;
   /**
-   * Gets or sets the Message provisioning property.
+   * Gets the Message provisioning property.
    */
 
   message: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the Code provisioning property.
-   */
-
-  setCode(value: BicepValueProxy | string): ManagedClusterPodIdentityProvisioningErrorDetailProxy;
-  /**
-   * Gets or sets the Details provisioning property.
-   */
-
-  setDetails(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterPodIdentityProvisioningErrorDetailProxy): ManagedClusterPodIdentityProvisioningErrorDetailProxy;
-  /**
-   * Gets or sets the Message provisioning property.
-   */
-
-  setMessage(value: BicepValueProxy | string): ManagedClusterPodIdentityProvisioningErrorDetailProxy;
-  /**
-   * Gets or sets the Target provisioning property.
-   */
-
-  setTarget(value: BicepValueProxy | string): ManagedClusterPodIdentityProvisioningErrorDetailProxy;
-  /**
-   * Gets or sets the Target provisioning property.
+   * Gets the Target provisioning property.
    */
 
   target: PropertyAccessor<BicepValueProxy | string>;
@@ -82862,57 +84870,22 @@ export interface ManagedClusterPodIdentityProxy {
 
 export interface ManagedClusterPoolUpgradeProfileProxy {
   /**
-   * Clears the KubernetesVersion provisioning property.
-   */
-
-  clearKubernetesVersion(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the OSType provisioning property.
-   */
-
-  clearOSType(): void;
-  /**
-   * Gets or sets the KubernetesVersion provisioning property.
+   * Gets the KubernetesVersion provisioning property.
    */
 
   kubernetesVersion: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the Name provisioning property.
+   * Gets the Name provisioning property.
    */
 
   name: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the OSType provisioning property.
+   * Gets the OSType provisioning property.
    */
 
   oSType: PropertyAccessor<BicepValueProxy | ContainerServiceOSType>;
   /**
-   * Gets or sets the KubernetesVersion provisioning property.
-   */
-
-  setKubernetesVersion(value: BicepValueProxy | string): ManagedClusterPoolUpgradeProfileProxy;
-  /**
-   * Gets or sets the Name provisioning property.
-   */
-
-  setName(value: BicepValueProxy | string): ManagedClusterPoolUpgradeProfileProxy;
-  /**
-   * Gets or sets the OSType provisioning property.
-   */
-
-  setOSType(value: BicepValueProxy | ContainerServiceOSType): ManagedClusterPoolUpgradeProfileProxy;
-  /**
-   * Gets or sets the Upgrades provisioning property.
-   */
-
-  setUpgrades(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterPoolUpgradeProfileUpgradesItemProxy): ManagedClusterPoolUpgradeProfileProxy;
-  /**
-   * Gets or sets the Upgrades provisioning property.
+   * Gets the Upgrades provisioning property.
    */
 
   upgrades: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterPoolUpgradeProfileUpgradesItemProxy>;
@@ -82924,35 +84897,15 @@ export interface ManagedClusterPoolUpgradeProfileProxy {
 
 export interface ManagedClusterPoolUpgradeProfileUpgradesItemProxy {
   /**
-   * Clears the IsPreview provisioning property.
-   */
-
-  clearIsPreview(): void;
-  /**
-   * Clears the KubernetesVersion provisioning property.
-   */
-
-  clearKubernetesVersion(): void;
-  /**
-   * Gets or sets the IsPreview provisioning property.
+   * Gets the IsPreview provisioning property.
    */
 
   isPreview: PropertyAccessor<BicepValueProxy | boolean>;
   /**
-   * Gets or sets the KubernetesVersion provisioning property.
+   * Gets the KubernetesVersion provisioning property.
    */
 
   kubernetesVersion: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Gets or sets the IsPreview provisioning property.
-   */
-
-  setIsPreview(value: BicepValueProxy | boolean): ManagedClusterPoolUpgradeProfileUpgradesItemProxy;
-  /**
-   * Gets or sets the KubernetesVersion provisioning property.
-   */
-
-  setKubernetesVersion(value: BicepValueProxy | string): ManagedClusterPoolUpgradeProfileUpgradesItemProxy;
 }
 
 /**
@@ -82981,6 +84934,11 @@ export interface ManagedClusterSecurityProfileDefenderProxy {
 
   logAnalyticsWorkspaceResourceId: PropertyAccessor<BicepValueProxy>;
   /**
+   * Gets or sets the SecurityGating provisioning property.
+   */
+
+  securityGating: PropertyAccessor<ManagedClusterSecurityProfileDefenderSecurityGatingProxy>;
+  /**
    * Gets or sets the IsSecurityMonitoringEnabled provisioning property.
    */
 
@@ -82990,6 +84948,90 @@ export interface ManagedClusterSecurityProfileDefenderProxy {
    */
 
   setLogAnalyticsWorkspaceResourceId(value: BicepValueProxy): ManagedClusterSecurityProfileDefenderProxy;
+  /**
+   * Gets or sets the SecurityGating provisioning property.
+   */
+
+  setSecurityGating(value: ManagedClusterSecurityProfileDefenderSecurityGatingProxy): ManagedClusterSecurityProfileDefenderProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy
+ */
+
+export interface ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy {
+  /**
+   * Gets or sets the AzureContainerRegistry provisioning property.
+   */
+
+  azureContainerRegistry: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Clears the AzureContainerRegistry provisioning property.
+   */
+
+  clearAzureContainerRegistry(): void;
+  /**
+   * Gets or sets the Identity provisioning property.
+   */
+
+  identity: PropertyAccessor<ContainerServiceUserAssignedIdentity_1Proxy>;
+  /**
+   * Gets or sets the AzureContainerRegistry provisioning property.
+   */
+
+  setAzureContainerRegistry(value: BicepValueProxy | string): ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy;
+  /**
+   * Gets or sets the Identity provisioning property.
+   */
+
+  setIdentity(value: ContainerServiceUserAssignedIdentity_1Proxy): ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.ManagedClusterSecurityProfileDefenderSecurityGatingProxy
+ */
+
+export interface ManagedClusterSecurityProfileDefenderSecurityGatingProxy {
+  /**
+   * Clears the IsSecretAccessAllowed provisioning property.
+   */
+
+  clearIsSecretAccessAllowed(): void;
+  /**
+   * Clears the IsSecurityGatingEnabled provisioning property.
+   */
+
+  clearIsSecurityGatingEnabled(): void;
+  /**
+   * Gets or sets the Identities provisioning property.
+   */
+
+  identities: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy>;
+  /**
+   * Gets or sets the IsSecretAccessAllowed provisioning property.
+   */
+
+  isSecretAccessAllowed: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsSecurityGatingEnabled provisioning property.
+   */
+
+  isSecurityGatingEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the Identities provisioning property.
+   */
+
+  setIdentities(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy): ManagedClusterSecurityProfileDefenderSecurityGatingProxy;
+  /**
+   * Gets or sets the IsSecretAccessAllowed provisioning property.
+   */
+
+  setIsSecretAccessAllowed(value: BicepValueProxy | boolean): ManagedClusterSecurityProfileDefenderSecurityGatingProxy;
+  /**
+   * Gets or sets the IsSecurityGatingEnabled provisioning property.
+   */
+
+  setIsSecurityGatingEnabled(value: BicepValueProxy | boolean): ManagedClusterSecurityProfileDefenderSecurityGatingProxy;
 }
 
 /**
@@ -83107,6 +85149,11 @@ export interface ManagedClusterSecurityProfileProxy {
 
   azureKeyVaultKms: PropertyAccessor<ManagedClusterSecurityProfileKeyVaultKmsProxy>;
   /**
+   * Clears the InfrastructureEncryption provisioning property.
+   */
+
+  clearInfrastructureEncryption(): void;
+  /**
    * Clears the IsWorkloadIdentityEnabled provisioning property.
    */
 
@@ -83121,6 +85168,11 @@ export interface ManagedClusterSecurityProfileProxy {
    */
 
   imageCleaner: PropertyAccessor<ManagedClusterSecurityProfileImageCleanerProxy>;
+  /**
+   * Gets or sets the InfrastructureEncryption provisioning property.
+   */
+
+  infrastructureEncryption: PropertyAccessor<BicepValueProxy | KubernetesResourceObjectInfrastructureEncryption>;
   /**
    * Gets or sets the IsWorkloadIdentityEnabled provisioning property.
    */
@@ -83141,6 +85193,11 @@ export interface ManagedClusterSecurityProfileProxy {
    */
 
   setImageCleaner(value: ManagedClusterSecurityProfileImageCleanerProxy): ManagedClusterSecurityProfileProxy;
+  /**
+   * Gets or sets the InfrastructureEncryption provisioning property.
+   */
+
+  setInfrastructureEncryption(value: BicepValueProxy | KubernetesResourceObjectInfrastructureEncryption): ManagedClusterSecurityProfileProxy;
   /**
    * Gets or sets the IsWorkloadIdentityEnabled provisioning property.
    */
@@ -83300,17 +85357,12 @@ export interface ManagedClusterUpgradeProfileProxy extends ProvisionableResource
 
   addTo(infrastructure: AzureResourceInfrastructure): void;
   /**
-   * Gets or sets the AgentPoolProfiles provisioning property.
+   * Gets the AgentPoolProfiles provisioning property.
    */
 
   agentPoolProfiles: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterPoolUpgradeProfileProxy>;
   /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Gets or sets the ControlPlaneProfile provisioning property.
+   * Gets the ControlPlaneProfile provisioning property.
    */
 
   controlPlaneProfile: PropertyAccessor<ManagedClusterPoolUpgradeProfileProxy>;
@@ -83320,7 +85372,7 @@ export interface ManagedClusterUpgradeProfileProxy extends ProvisionableResource
 
   id: PropertyAccessor<BicepValueProxy>;
   /**
-   * Gets or sets the Name provisioning property.
+   * Gets the Name provisioning property.
    */
 
   name: PropertyAccessor<BicepValueProxy | string>;
@@ -83329,21 +85381,6 @@ export interface ManagedClusterUpgradeProfileProxy extends ProvisionableResource
    */
 
   parent: PropertyAccessor<ContainerServiceManagedClusterProxy>;
-  /**
-   * Gets or sets the AgentPoolProfiles provisioning property.
-   */
-
-  setAgentPoolProfiles(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfManagedClusterPoolUpgradeProfileProxy): ManagedClusterUpgradeProfileProxy;
-  /**
-   * Gets or sets the ControlPlaneProfile provisioning property.
-   */
-
-  setControlPlaneProfile(value: ManagedClusterPoolUpgradeProfileProxy): ManagedClusterUpgradeProfileProxy;
-  /**
-   * Gets or sets the Name provisioning property.
-   */
-
-  setName(value: BicepValueProxy | string): ManagedClusterUpgradeProfileProxy;
   /**
    * Gets or sets the Parent provisioning property.
    */
@@ -83545,7 +85582,7 @@ export interface MeshRevisionProfileProxy extends ProvisionableResourceProxy {
 
   id: PropertyAccessor<BicepValueProxy>;
   /**
-   * Gets or sets the MeshRevisions provisioning property.
+   * Gets the MeshRevisions provisioning property.
    */
 
   meshRevisions: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfMeshRevisionProxy>;
@@ -83554,11 +85591,6 @@ export interface MeshRevisionProfileProxy extends ProvisionableResourceProxy {
    */
 
   name: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Gets or sets the MeshRevisions provisioning property.
-   */
-
-  setMeshRevisions(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfMeshRevisionProxy): MeshRevisionProfileProxy;
   /**
    * Gets or sets the Name provisioning property.
    */
@@ -83577,37 +85609,17 @@ export interface MeshRevisionProfileProxy extends ProvisionableResourceProxy {
 
 export interface MeshRevisionProxy {
   /**
-   * Clears the Revision provisioning property.
-   */
-
-  clearRevision(): void;
-  /**
-   * Gets or sets the CompatibleWith provisioning property.
+   * Gets the CompatibleWith provisioning property.
    */
 
   compatibleWith: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfCompatibleVersionsProxy>;
   /**
-   * Gets or sets the Revision provisioning property.
+   * Gets the Revision provisioning property.
    */
 
   revision: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Gets or sets the CompatibleWith provisioning property.
-   */
-
-  setCompatibleWith(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfCompatibleVersionsProxy): MeshRevisionProxy;
-  /**
-   * Gets or sets the Revision provisioning property.
-   */
-
-  setRevision(value: BicepValueProxy | string): MeshRevisionProxy;
-  /**
-   * Gets or sets the Upgrades provisioning property.
-   */
-
-  setUpgrades(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): MeshRevisionProxy;
-  /**
-   * Gets or sets the Upgrades provisioning property.
+   * Gets the Upgrades provisioning property.
    */
 
   upgrades: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy>;
@@ -83617,42 +85629,7 @@ export interface MeshRevisionProxy {
  * Handle Aspire.Hosting.Azure.Provisioning.ContainerService.Generated.MeshUpgradeProfilePropertiesProxy
  */
 
-export interface MeshUpgradeProfilePropertiesProxy {
-  /**
-   * Clears the Revision provisioning property.
-   */
-
-  clearRevision(): void;
-  /**
-   * Gets or sets the CompatibleWith provisioning property.
-   */
-
-  compatibleWith: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfCompatibleVersionsProxy>;
-  /**
-   * Gets or sets the Revision provisioning property.
-   */
-
-  revision: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Gets or sets the CompatibleWith provisioning property.
-   */
-
-  setCompatibleWith(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfCompatibleVersionsProxy): MeshUpgradeProfilePropertiesProxy;
-  /**
-   * Gets or sets the Revision provisioning property.
-   */
-
-  setRevision(value: BicepValueProxy | string): MeshUpgradeProfilePropertiesProxy;
-  /**
-   * Gets or sets the Upgrades provisioning property.
-   */
-
-  setUpgrades(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): MeshUpgradeProfilePropertiesProxy;
-  /**
-   * Gets or sets the Upgrades provisioning property.
-   */
-
-  upgrades: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy>;
+export interface MeshUpgradeProfilePropertiesProxy extends MeshRevisionProxy {
 }
 
 /**
@@ -83686,7 +85663,7 @@ export interface MeshUpgradeProfileProxy extends ProvisionableResourceProxy {
 
   parent: PropertyAccessor<ContainerServiceManagedClusterProxy>;
   /**
-   * Gets or sets the Properties provisioning property.
+   * Gets the Properties provisioning property.
    */
 
   properties: PropertyAccessor<MeshUpgradeProfilePropertiesProxy>;
@@ -83700,11 +85677,6 @@ export interface MeshUpgradeProfileProxy extends ProvisionableResourceProxy {
    */
 
   setParent(value: ContainerServiceManagedClusterProxy): MeshUpgradeProfileProxy;
-  /**
-   * Gets or sets the Properties provisioning property.
-   */
-
-  setProperties(value: MeshUpgradeProfilePropertiesProxy): MeshUpgradeProfileProxy;
   /**
    * Gets the SystemData provisioning property.
    */
@@ -83874,10 +85846,10 @@ export interface SysctlConfigProxy {
 
   clearFsNrOpen(): void;
   /**
-   * Clears the IsNetIpv4TcpTwReuseEnabled provisioning property.
+   * Clears the IsNetIPv4TcpTwReuseEnabled provisioning property.
    */
 
-  clearIsNetIpv4TcpTwReuseEnabled(): void;
+  clearIsNetIPv4TcpTwReuseEnabled(): void;
   /**
    * Clears the KernelThreadsMax provisioning property.
    */
@@ -84014,10 +85986,10 @@ export interface SysctlConfigProxy {
 
   fsNrOpen: PropertyAccessor<BicepValueProxy | number>;
   /**
-   * Gets or sets the IsNetIpv4TcpTwReuseEnabled provisioning property.
+   * Gets or sets the IsNetIPv4TcpTwReuseEnabled provisioning property.
    */
 
-  isNetIpv4TcpTwReuseEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  isNetIPv4TcpTwReuseEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the KernelThreadsMax provisioning property.
    */
@@ -84139,10 +86111,10 @@ export interface SysctlConfigProxy {
 
   setFsNrOpen(value: BicepValueProxy | number): SysctlConfigProxy;
   /**
-   * Gets or sets the IsNetIpv4TcpTwReuseEnabled provisioning property.
+   * Gets or sets the IsNetIPv4TcpTwReuseEnabled provisioning property.
    */
 
-  setIsNetIpv4TcpTwReuseEnabled(value: BicepValueProxy | boolean): SysctlConfigProxy;
+  setIsNetIPv4TcpTwReuseEnabled(value: BicepValueProxy | boolean): SysctlConfigProxy;
   /**
    * Gets or sets the KernelThreadsMax provisioning property.
    */
@@ -87771,6 +89743,16 @@ export interface CassandraViewGetPropertiesOptionsProxy {
 
 export interface CassandraViewGetPropertiesResourceProxy extends CassandraViewResourceProxy {
   /**
+   * Clears the Id provisioning property.
+   */
+
+  clearId(): void;
+  /**
+   * Clears the ViewDefinition provisioning property.
+   */
+
+  clearViewDefinition(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -87894,16 +89876,6 @@ export interface CassandraViewGetResultProxy extends ProvisionableResourceProxy 
  */
 
 export interface CassandraViewResourceProxy {
-  /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the ViewDefinition provisioning property.
-   */
-
-  clearViewDefinition(): void;
   /**
    * Gets or sets the Id provisioning property.
    */
@@ -90486,6 +92458,21 @@ export interface CosmosDBServiceProxy extends ProvisionableResourceProxy {
 
 export interface CosmosDBSqlClientEncryptionKeyPropertiesProxy extends CosmosDBSqlClientEncryptionKeyResourceInfoProxy {
   /**
+   * Clears the EncryptionAlgorithm provisioning property.
+   */
+
+  clearEncryptionAlgorithm(): void;
+  /**
+   * Clears the Id provisioning property.
+   */
+
+  clearId(): void;
+  /**
+   * Clears the WrappedDataEncryptionKey provisioning property.
+   */
+
+  clearWrappedDataEncryptionKey(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -90564,21 +92551,6 @@ export interface CosmosDBSqlClientEncryptionKeyProxy extends ProvisionableResour
  */
 
 export interface CosmosDBSqlClientEncryptionKeyResourceInfoProxy {
-  /**
-   * Clears the EncryptionAlgorithm provisioning property.
-   */
-
-  clearEncryptionAlgorithm(): void;
-  /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the WrappedDataEncryptionKey provisioning property.
-   */
-
-  clearWrappedDataEncryptionKey(): void;
   /**
    * Gets or sets the EncryptionAlgorithm provisioning property.
    */
@@ -91980,6 +93952,16 @@ export interface CosmosDBTablePropertiesOptionsProxy {
 
 export interface CosmosDBTablePropertiesResourceProxy extends CosmosDBTableResourceInfoProxy {
   /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the TableName provisioning property.
+   */
+
+  clearTableName(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -92103,16 +94085,6 @@ export interface CosmosDBTableProxy extends ProvisionableResourceProxy {
  */
 
 export interface CosmosDBTableResourceInfoProxy {
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the TableName provisioning property.
-   */
-
-  clearTableName(): void;
   /**
    * Gets or sets the CreateMode provisioning property.
    */
@@ -93179,6 +95151,16 @@ export interface ExtendedCosmosDBSqlUserDefinedFunctionResourceInfoProxy extends
 
 export interface ExtendedGremlinDatabaseResourceInfoProxy extends GremlinDatabaseResourceInfoProxy {
   /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the DatabaseName provisioning property.
+   */
+
+  clearDatabaseName(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -93200,6 +95182,26 @@ export interface ExtendedGremlinDatabaseResourceInfoProxy extends GremlinDatabas
  */
 
 export interface ExtendedGremlinGraphResourceInfoProxy extends GremlinGraphResourceInfoProxy {
+  /**
+   * Clears the AnalyticalStorageTtl provisioning property.
+   */
+
+  clearAnalyticalStorageTtl(): void;
+  /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the DefaultTtl provisioning property.
+   */
+
+  clearDefaultTtl(): void;
+  /**
+   * Clears the GraphName provisioning property.
+   */
+
+  clearGraphName(): void;
   /**
    * Gets the ETag provisioning property.
    */
@@ -93223,6 +95225,21 @@ export interface ExtendedGremlinGraphResourceInfoProxy extends GremlinGraphResou
 
 export interface ExtendedMongoDBCollectionResourceInfoProxy extends MongoDBCollectionResourceInfoProxy {
   /**
+   * Clears the AnalyticalStorageTtl provisioning property.
+   */
+
+  clearAnalyticalStorageTtl(): void;
+  /**
+   * Clears the CollectionName provisioning property.
+   */
+
+  clearCollectionName(): void;
+  /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -93245,6 +95262,16 @@ export interface ExtendedMongoDBCollectionResourceInfoProxy extends MongoDBColle
 
 export interface ExtendedMongoDBDatabaseResourceInfoProxy extends MongoDBDatabaseResourceInfoProxy {
   /**
+   * Clears the CreateMode provisioning property.
+   */
+
+  clearCreateMode(): void;
+  /**
+   * Clears the DatabaseName provisioning property.
+   */
+
+  clearDatabaseName(): void;
+  /**
    * Gets the ETag provisioning property.
    */
 
@@ -93266,6 +95293,11 @@ export interface ExtendedMongoDBDatabaseResourceInfoProxy extends MongoDBDatabas
  */
 
 export interface ExtendedThroughputSettingsResourceInfoProxy extends ThroughputSettingsResourceInfoProxy {
+  /**
+   * Clears the Throughput provisioning property.
+   */
+
+  clearThroughput(): void;
   /**
    * Gets the ETag provisioning property.
    */
@@ -93626,16 +95658,6 @@ export interface GremlinDatabaseProxy extends ProvisionableResourceProxy {
 
 export interface GremlinDatabaseResourceInfoProxy {
   /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
-  /**
    * Gets or sets the CreateMode provisioning property.
    */
 
@@ -93930,26 +95952,6 @@ export interface GremlinGraphResourceInfoProxy {
    */
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
-  /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DefaultTtl provisioning property.
-   */
-
-  clearDefaultTtl(): void;
-  /**
-   * Clears the GraphName provisioning property.
-   */
-
-  clearGraphName(): void;
   /**
    * Gets or sets the ConflictResolutionPolicy provisioning property.
    */
@@ -94544,21 +96546,6 @@ export interface MongoDBCollectionResourceInfoProxy {
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
   /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CollectionName provisioning property.
-   */
-
-  clearCollectionName(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
    * Gets or sets the CollectionName provisioning property.
    */
 
@@ -94841,16 +96828,6 @@ export interface MongoDBDatabaseProxy extends ProvisionableResourceProxy {
  */
 
 export interface MongoDBDatabaseResourceInfoProxy {
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
   /**
    * Gets or sets the CreateMode provisioning property.
    */
@@ -95755,11 +97732,6 @@ export interface ThroughputSettingsResourceInfoProxy {
 
   autoscaleSettings: PropertyAccessor<AutoscaleSettingsResourceInfoProxy>;
   /**
-   * Clears the Throughput provisioning property.
-   */
-
-  clearThroughput(): void;
-  /**
    * Gets the InstantMaximumThroughput provisioning property.
    */
 
@@ -95794,6 +97766,1434 @@ export interface ThroughputSettingsResourceInfoProxy {
    */
 
   throughput: PropertyAccessor<BicepValueProxy | number>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphAppRoleProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphAppRoleProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: MicrosoftGraphAppRoleProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): MicrosoftGraphAppRoleProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: MicrosoftGraphAppRoleProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: MicrosoftGraphAppRoleProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphKeyCredentialProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphKeyCredentialProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: MicrosoftGraphKeyCredentialProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: MicrosoftGraphKeyCredentialProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: MicrosoftGraphKeyCredentialProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPermissionScopeProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPermissionScopeProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: MicrosoftGraphPermissionScopeProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: MicrosoftGraphPermissionScopeProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: MicrosoftGraphPermissionScopeProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPreAuthorizedApplicationProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPreAuthorizedApplicationProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: MicrosoftGraphPreAuthorizedApplicationProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): MicrosoftGraphPreAuthorizedApplicationProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: MicrosoftGraphPreAuthorizedApplicationProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: MicrosoftGraphPreAuthorizedApplicationProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphRequiredResourceAccessProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphRequiredResourceAccessProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: MicrosoftGraphRequiredResourceAccessProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): MicrosoftGraphRequiredResourceAccessProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: MicrosoftGraphRequiredResourceAccessProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: MicrosoftGraphRequiredResourceAccessProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphResourceAccessProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphResourceAccessProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: MicrosoftGraphResourceAccessProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): MicrosoftGraphResourceAccessProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: MicrosoftGraphResourceAccessProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: MicrosoftGraphResourceAccessProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: BicepValueProxy | string): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): BicepValueProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: BicepValueProxy | string): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: BicepValueProxy | string): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphApplicationProxy
+ */
+
+export interface MicrosoftGraphApplicationProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Gets the AppId provisioning property.
+   */
+
+  appId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the AppRoles provisioning property.
+   */
+
+  appRoles: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphAppRoleProxy>;
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Clears the DisplayName provisioning property.
+   */
+
+  clearDisplayName(): void;
+  /**
+   * Clears the EnableAccessTokenIssuance provisioning property.
+   */
+
+  clearEnableAccessTokenIssuance(): void;
+  /**
+   * Clears the EnableIdTokenIssuance provisioning property.
+   */
+
+  clearEnableIdTokenIssuance(): void;
+  /**
+   * Clears the GroupMembershipClaims provisioning property.
+   */
+
+  clearGroupMembershipClaims(): void;
+  /**
+   * Clears the HomePageUrl provisioning property.
+   */
+
+  clearHomePageUrl(): void;
+  /**
+   * Clears the IsFallbackPublicClient provisioning property.
+   */
+
+  clearIsFallbackPublicClient(): void;
+  /**
+   * Clears the LogoutUrl provisioning property.
+   */
+
+  clearLogoutUrl(): void;
+  /**
+   * Clears the Notes provisioning property.
+   */
+
+  clearNotes(): void;
+  /**
+   * Clears the RequestedAccessTokenVersion provisioning property.
+   */
+
+  clearRequestedAccessTokenVersion(): void;
+  /**
+   * Clears the ServiceManagementReference provisioning property.
+   */
+
+  clearServiceManagementReference(): void;
+  /**
+   * Clears the SignInAudience provisioning property.
+   */
+
+  clearSignInAudience(): void;
+  /**
+   * Clears the UniqueName provisioning property.
+   */
+
+  clearUniqueName(): void;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  displayName: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the EnableAccessTokenIssuance provisioning property.
+   */
+
+  enableAccessTokenIssuance: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the EnableIdTokenIssuance provisioning property.
+   */
+
+  enableIdTokenIssuance: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the GroupMembershipClaims provisioning property.
+   */
+
+  groupMembershipClaims: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the HomePageUrl provisioning property.
+   */
+
+  homePageUrl: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the IdentifierUris provisioning property.
+   */
+
+  identifierUris: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the IsFallbackPublicClient provisioning property.
+   */
+
+  isFallbackPublicClient: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the KeyCredentials provisioning property.
+   */
+
+  keyCredentials: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphKeyCredentialProxy>;
+  /**
+   * Gets or sets the LogoutUrl provisioning property.
+   */
+
+  logoutUrl: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Notes provisioning property.
+   */
+
+  notes: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Owners provisioning property.
+   */
+
+  owners: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the PermissionScopes provisioning property.
+   */
+
+  permissionScopes: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPermissionScopeProxy>;
+  /**
+   * Gets or sets the PreAuthorizedApplications provisioning property.
+   */
+
+  preAuthorizedApplications: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPreAuthorizedApplicationProxy>;
+  /**
+   * Gets or sets the PublicClientRedirectUris provisioning property.
+   */
+
+  publicClientRedirectUris: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the RedirectUris provisioning property.
+   */
+
+  redirectUris: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the RequestedAccessTokenVersion provisioning property.
+   */
+
+  requestedAccessTokenVersion: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the RequiredResourceAccess provisioning property.
+   */
+
+  requiredResourceAccess: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphRequiredResourceAccessProxy>;
+  /**
+   * Gets or sets the ServiceManagementReference provisioning property.
+   */
+
+  serviceManagementReference: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the AppRoles provisioning property.
+   */
+
+  setAppRoles(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphAppRoleProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  setDescription(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  setDisplayName(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the EnableAccessTokenIssuance provisioning property.
+   */
+
+  setEnableAccessTokenIssuance(value: BicepValueProxy | boolean): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the EnableIdTokenIssuance provisioning property.
+   */
+
+  setEnableIdTokenIssuance(value: BicepValueProxy | boolean): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the GroupMembershipClaims provisioning property.
+   */
+
+  setGroupMembershipClaims(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the HomePageUrl provisioning property.
+   */
+
+  setHomePageUrl(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the IdentifierUris provisioning property.
+   */
+
+  setIdentifierUris(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the IsFallbackPublicClient provisioning property.
+   */
+
+  setIsFallbackPublicClient(value: BicepValueProxy | boolean): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the KeyCredentials provisioning property.
+   */
+
+  setKeyCredentials(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphKeyCredentialProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the LogoutUrl provisioning property.
+   */
+
+  setLogoutUrl(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the Notes provisioning property.
+   */
+
+  setNotes(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the Owners provisioning property.
+   */
+
+  setOwners(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the PermissionScopes provisioning property.
+   */
+
+  setPermissionScopes(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPermissionScopeProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the PreAuthorizedApplications provisioning property.
+   */
+
+  setPreAuthorizedApplications(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphPreAuthorizedApplicationProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the PublicClientRedirectUris provisioning property.
+   */
+
+  setPublicClientRedirectUris(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the RedirectUris provisioning property.
+   */
+
+  setRedirectUris(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the RequestedAccessTokenVersion provisioning property.
+   */
+
+  setRequestedAccessTokenVersion(value: BicepValueProxy | number): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the RequiredResourceAccess provisioning property.
+   */
+
+  setRequiredResourceAccess(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphRequiredResourceAccessProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the ServiceManagementReference provisioning property.
+   */
+
+  setServiceManagementReference(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the SignInAudience provisioning property.
+   */
+
+  setSignInAudience(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the SpaRedirectUris provisioning property.
+   */
+
+  setSpaRedirectUris(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  setTags(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the UniqueName provisioning property.
+   */
+
+  setUniqueName(value: BicepValueProxy | string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets or sets the SignInAudience provisioning property.
+   */
+
+  signInAudience: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the SpaRedirectUris provisioning property.
+   */
+
+  spaRedirectUris: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  tags: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the UniqueName provisioning property.
+   */
+
+  uniqueName: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphAppRoleAssignedToProxy
+ */
+
+export interface MicrosoftGraphAppRoleAssignedToProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Gets or sets the AppRoleId provisioning property.
+   */
+
+  appRoleId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Clears the AppRoleId provisioning property.
+   */
+
+  clearAppRoleId(): void;
+  /**
+   * Clears the PrincipalId provisioning property.
+   */
+
+  clearPrincipalId(): void;
+  /**
+   * Clears the ResourceId provisioning property.
+   */
+
+  clearResourceId(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the PrincipalId provisioning property.
+   */
+
+  principalId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  resourceId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the AppRoleId provisioning property.
+   */
+
+  setAppRoleId(value: BicepValueProxy | string): MicrosoftGraphAppRoleAssignedToProxy;
+  /**
+   * Gets or sets the PrincipalId provisioning property.
+   */
+
+  setPrincipalId(value: BicepValueProxy | string): MicrosoftGraphAppRoleAssignedToProxy;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  setResourceId(value: BicepValueProxy | string): MicrosoftGraphAppRoleAssignedToProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphAppRoleProxy
+ */
+
+export interface MicrosoftGraphAppRoleProxy {
+  /**
+   * Gets or sets the AllowedMemberTypes provisioning property.
+   */
+
+  allowedMemberTypes: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Clears the DisplayName provisioning property.
+   */
+
+  clearDisplayName(): void;
+  /**
+   * Clears the Id provisioning property.
+   */
+
+  clearId(): void;
+  /**
+   * Clears the IsEnabled provisioning property.
+   */
+
+  clearIsEnabled(): void;
+  /**
+   * Clears the Value provisioning property.
+   */
+
+  clearValue(): void;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  displayName: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  isEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the AllowedMemberTypes provisioning property.
+   */
+
+  setAllowedMemberTypes(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphAppRoleProxy;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  setDescription(value: BicepValueProxy | string): MicrosoftGraphAppRoleProxy;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  setDisplayName(value: BicepValueProxy | string): MicrosoftGraphAppRoleProxy;
+  /**
+   * Gets or sets the Id provisioning property.
+   */
+
+  setId(value: BicepValueProxy | string): MicrosoftGraphAppRoleProxy;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  setIsEnabled(value: BicepValueProxy | boolean): MicrosoftGraphAppRoleProxy;
+  /**
+   * Gets or sets the Value provisioning property.
+   */
+
+  setValue(value: BicepValueProxy | string): MicrosoftGraphAppRoleProxy;
+  /**
+   * Gets or sets the Value provisioning property.
+   */
+
+  value: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphExistingServicePrincipalProxy
+ */
+
+export interface MicrosoftGraphExistingServicePrincipalProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): MicrosoftGraphExistingServicePrincipalProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphFederatedIdentityCredentialProxy
+ */
+
+export interface MicrosoftGraphFederatedIdentityCredentialProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Gets or sets the Audiences provisioning property.
+   */
+
+  audiences: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Clears the Issuer provisioning property.
+   */
+
+  clearIssuer(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Clears the Subject provisioning property.
+   */
+
+  clearSubject(): void;
+  /**
+   * Gets or sets the Issuer provisioning property.
+   */
+
+  issuer: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Audiences provisioning property.
+   */
+
+  setAudiences(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphFederatedIdentityCredentialProxy;
+  /**
+   * Gets or sets the Issuer provisioning property.
+   */
+
+  setIssuer(value: BicepValueProxy | string): MicrosoftGraphFederatedIdentityCredentialProxy;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): MicrosoftGraphFederatedIdentityCredentialProxy;
+  /**
+   * Gets or sets the Subject provisioning property.
+   */
+
+  setSubject(value: BicepValueProxy | string): MicrosoftGraphFederatedIdentityCredentialProxy;
+  /**
+   * Gets or sets the Subject provisioning property.
+   */
+
+  subject: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphKeyCredentialProxy
+ */
+
+export interface MicrosoftGraphKeyCredentialProxy {
+  /**
+   * Clears the CustomKeyIdentifier provisioning property.
+   */
+
+  clearCustomKeyIdentifier(): void;
+  /**
+   * Clears the DisplayName provisioning property.
+   */
+
+  clearDisplayName(): void;
+  /**
+   * Clears the EndDateTime provisioning property.
+   */
+
+  clearEndDateTime(): void;
+  /**
+   * Clears the Key provisioning property.
+   */
+
+  clearKey(): void;
+  /**
+   * Clears the KeyId provisioning property.
+   */
+
+  clearKeyId(): void;
+  /**
+   * Clears the StartDateTime provisioning property.
+   */
+
+  clearStartDateTime(): void;
+  /**
+   * Clears the Type provisioning property.
+   */
+
+  clearType(): void;
+  /**
+   * Clears the Usage provisioning property.
+   */
+
+  clearUsage(): void;
+  /**
+   * Gets or sets the CustomKeyIdentifier provisioning property.
+   */
+
+  customKeyIdentifier: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  displayName: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the EndDateTime provisioning property.
+   */
+
+  endDateTime: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Key provisioning property.
+   */
+
+  key: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the KeyId provisioning property.
+   */
+
+  keyId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the CustomKeyIdentifier provisioning property.
+   */
+
+  setCustomKeyIdentifier(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  setDisplayName(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the EndDateTime provisioning property.
+   */
+
+  setEndDateTime(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the Key provisioning property.
+   */
+
+  setKey(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the KeyId provisioning property.
+   */
+
+  setKeyId(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the StartDateTime provisioning property.
+   */
+
+  setStartDateTime(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the Type provisioning property.
+   */
+
+  setType(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the Usage provisioning property.
+   */
+
+  setUsage(value: BicepValueProxy | string): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Gets or sets the StartDateTime provisioning property.
+   */
+
+  startDateTime: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Type provisioning property.
+   */
+
+  type: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Usage provisioning property.
+   */
+
+  usage: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphOAuth2PermissionGrantProxy
+ */
+
+export interface MicrosoftGraphOAuth2PermissionGrantProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the ClientId provisioning property.
+   */
+
+  clearClientId(): void;
+  /**
+   * Clears the ConsentType provisioning property.
+   */
+
+  clearConsentType(): void;
+  /**
+   * Clears the ResourceId provisioning property.
+   */
+
+  clearResourceId(): void;
+  /**
+   * Clears the Scope provisioning property.
+   */
+
+  clearScope(): void;
+  /**
+   * Gets or sets the ClientId provisioning property.
+   */
+
+  clientId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ConsentType provisioning property.
+   */
+
+  consentType: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  resourceId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Scope provisioning property.
+   */
+
+  scope: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ClientId provisioning property.
+   */
+
+  setClientId(value: BicepValueProxy | string): MicrosoftGraphOAuth2PermissionGrantProxy;
+  /**
+   * Gets or sets the ConsentType provisioning property.
+   */
+
+  setConsentType(value: BicepValueProxy | string): MicrosoftGraphOAuth2PermissionGrantProxy;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  setResourceId(value: BicepValueProxy | string): MicrosoftGraphOAuth2PermissionGrantProxy;
+  /**
+   * Gets or sets the Scope provisioning property.
+   */
+
+  setScope(value: BicepValueProxy | string): MicrosoftGraphOAuth2PermissionGrantProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphPermissionScopeProxy
+ */
+
+export interface MicrosoftGraphPermissionScopeProxy {
+  /**
+   * Gets or sets the AdminConsentDescription provisioning property.
+   */
+
+  adminConsentDescription: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the AdminConsentDisplayName provisioning property.
+   */
+
+  adminConsentDisplayName: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Clears the AdminConsentDescription provisioning property.
+   */
+
+  clearAdminConsentDescription(): void;
+  /**
+   * Clears the AdminConsentDisplayName provisioning property.
+   */
+
+  clearAdminConsentDisplayName(): void;
+  /**
+   * Clears the Id provisioning property.
+   */
+
+  clearId(): void;
+  /**
+   * Clears the IsEnabled provisioning property.
+   */
+
+  clearIsEnabled(): void;
+  /**
+   * Clears the Type provisioning property.
+   */
+
+  clearType(): void;
+  /**
+   * Clears the UserConsentDescription provisioning property.
+   */
+
+  clearUserConsentDescription(): void;
+  /**
+   * Clears the UserConsentDisplayName provisioning property.
+   */
+
+  clearUserConsentDisplayName(): void;
+  /**
+   * Clears the Value provisioning property.
+   */
+
+  clearValue(): void;
+  /**
+   * Gets or sets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  isEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the AdminConsentDescription provisioning property.
+   */
+
+  setAdminConsentDescription(value: BicepValueProxy | string): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the AdminConsentDisplayName provisioning property.
+   */
+
+  setAdminConsentDisplayName(value: BicepValueProxy | string): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the Id provisioning property.
+   */
+
+  setId(value: BicepValueProxy | string): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  setIsEnabled(value: BicepValueProxy | boolean): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the Type provisioning property.
+   */
+
+  setType(value: BicepValueProxy | string): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the UserConsentDescription provisioning property.
+   */
+
+  setUserConsentDescription(value: BicepValueProxy | string): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the UserConsentDisplayName provisioning property.
+   */
+
+  setUserConsentDisplayName(value: BicepValueProxy | string): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the Value provisioning property.
+   */
+
+  setValue(value: BicepValueProxy | string): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Gets or sets the Type provisioning property.
+   */
+
+  type: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the UserConsentDescription provisioning property.
+   */
+
+  userConsentDescription: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the UserConsentDisplayName provisioning property.
+   */
+
+  userConsentDisplayName: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Value provisioning property.
+   */
+
+  value: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphPreAuthorizedApplicationProxy
+ */
+
+export interface MicrosoftGraphPreAuthorizedApplicationProxy {
+  /**
+   * Gets or sets the AppId provisioning property.
+   */
+
+  appId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Clears the AppId provisioning property.
+   */
+
+  clearAppId(): void;
+  /**
+   * Gets or sets the DelegatedPermissionIds provisioning property.
+   */
+
+  delegatedPermissionIds: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the AppId provisioning property.
+   */
+
+  setAppId(value: BicepValueProxy | string): MicrosoftGraphPreAuthorizedApplicationProxy;
+  /**
+   * Gets or sets the DelegatedPermissionIds provisioning property.
+   */
+
+  setDelegatedPermissionIds(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphPreAuthorizedApplicationProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphRequiredResourceAccessProxy
+ */
+
+export interface MicrosoftGraphRequiredResourceAccessProxy {
+  /**
+   * Clears the ResourceAppId provisioning property.
+   */
+
+  clearResourceAppId(): void;
+  /**
+   * Gets or sets the ResourceAccess provisioning property.
+   */
+
+  resourceAccess: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphResourceAccessProxy>;
+  /**
+   * Gets or sets the ResourceAppId provisioning property.
+   */
+
+  resourceAppId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ResourceAccess provisioning property.
+   */
+
+  setResourceAccess(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfMicrosoftGraphResourceAccessProxy): MicrosoftGraphRequiredResourceAccessProxy;
+  /**
+   * Gets or sets the ResourceAppId provisioning property.
+   */
+
+  setResourceAppId(value: BicepValueProxy | string): MicrosoftGraphRequiredResourceAccessProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphResourceAccessProxy
+ */
+
+export interface MicrosoftGraphResourceAccessProxy {
+  /**
+   * Clears the Id provisioning property.
+   */
+
+  clearId(): void;
+  /**
+   * Clears the Type provisioning property.
+   */
+
+  clearType(): void;
+  /**
+   * Gets or sets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Id provisioning property.
+   */
+
+  setId(value: BicepValueProxy | string): MicrosoftGraphResourceAccessProxy;
+  /**
+   * Gets or sets the Type provisioning property.
+   */
+
+  setType(value: BicepValueProxy | string): MicrosoftGraphResourceAccessProxy;
+  /**
+   * Gets or sets the Type provisioning property.
+   */
+
+  type: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.EntraId.Generated.MicrosoftGraphServicePrincipalProxy
+ */
+
+export interface MicrosoftGraphServicePrincipalProxy extends ProvisionableResourceProxy {
+  /**
+   * Gets or sets the AccountEnabled provisioning property.
+   */
+
+  accountEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Gets or sets the AppId provisioning property.
+   */
+
+  appId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the AppRoleAssignmentRequired provisioning property.
+   */
+
+  appRoleAssignmentRequired: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Clears the AccountEnabled provisioning property.
+   */
+
+  clearAccountEnabled(): void;
+  /**
+   * Clears the AppId provisioning property.
+   */
+
+  clearAppId(): void;
+  /**
+   * Clears the AppRoleAssignmentRequired provisioning property.
+   */
+
+  clearAppRoleAssignmentRequired(): void;
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Clears the Notes provisioning property.
+   */
+
+  clearNotes(): void;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Notes provisioning property.
+   */
+
+  notes: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the NotificationEmailAddresses provisioning property.
+   */
+
+  notificationEmailAddresses: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the Owners provisioning property.
+   */
+
+  owners: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the AccountEnabled provisioning property.
+   */
+
+  setAccountEnabled(value: BicepValueProxy | boolean): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the AppId provisioning property.
+   */
+
+  setAppId(value: BicepValueProxy | string): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the AppRoleAssignmentRequired provisioning property.
+   */
+
+  setAppRoleAssignmentRequired(value: BicepValueProxy | boolean): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  setDescription(value: BicepValueProxy | string): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the Notes provisioning property.
+   */
+
+  setNotes(value: BicepValueProxy | string): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the NotificationEmailAddresses provisioning property.
+   */
+
+  setNotificationEmailAddresses(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the Owners provisioning property.
+   */
+
+  setOwners(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  setTags(value: Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  tags: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_EntraId_Generated_ListOfStringProxy>;
 }
 
 /**
@@ -102656,6 +106056,11 @@ export interface KustoCosmosDBDataConnectionProxy extends ProvisionableResourceP
 
   clearCosmosDBDatabase(): void;
   /**
+   * Clears the Location provisioning property.
+   */
+
+  clearLocation(): void;
+  /**
    * Clears the ManagedIdentityResourceId provisioning property.
    */
 
@@ -102665,6 +106070,11 @@ export interface KustoCosmosDBDataConnectionProxy extends ProvisionableResourceP
    */
 
   clearMappingRuleName(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
   /**
    * Clears the RetrievalStartOn provisioning property.
    */
@@ -103038,21 +106448,6 @@ export interface KustoDatabaseTableLevelSharingPropertiesProxy {
  */
 
 export interface KustoDataConnectionProxy extends ProvisionableResourceProxy {
-  /**
-   * Adds this provisioning resource to the Azure resource infrastructure.
-   */
-
-  addTo(infrastructure: AzureResourceInfrastructure): void;
-  /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets the Id provisioning property.
    */
@@ -109388,6 +112783,16 @@ export interface ApplicationGatewayWebApplicationFirewallConfigurationProxy {
  */
 
 export interface ApplicationRuleProxy extends FirewallPolicyRuleProxy {
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
   /**
    * Clears the TerminateTLS provisioning property.
    */
@@ -125037,6 +128442,16 @@ export interface FirewallPolicyFilterRuleCollectionInfoProxy extends FirewallPol
 
   clearActionType(): void;
   /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Clears the Priority provisioning property.
+   */
+
+  clearPriority(): void;
+  /**
    * Gets or sets the Rules provisioning property.
    */
 
@@ -125895,16 +129310,6 @@ export interface FirewallPolicyRuleCollectionGroupProxy extends ProvisionableRes
 
 export interface FirewallPolicyRuleCollectionInfoProxy {
   /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the Priority provisioning property.
-   */
-
-  clearPriority(): void;
-  /**
    * Gets or sets the Name provisioning property.
    */
 
@@ -125931,16 +129336,6 @@ export interface FirewallPolicyRuleCollectionInfoProxy {
  */
 
 export interface FirewallPolicyRuleProxy {
-  /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets or sets the Description provisioning property.
    */
@@ -178312,6 +181707,174 @@ export interface AccountImmutabilityPolicyProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.AdvancedPlatformMetricsRuleConfigProxy
+ */
+
+export interface AdvancedPlatformMetricsRuleConfigProxy {
+  /**
+   * Clears the FilterType provisioning property.
+   */
+
+  clearFilterType(): void;
+  /**
+   * Gets or sets the FilterType provisioning property.
+   */
+
+  filterType: PropertyAccessor<BicepValueProxy | AdvancedPlatformMetricsFilterType>;
+  /**
+   * Gets or sets the FilterValues provisioning property.
+   */
+
+  filterValues: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the FilterType provisioning property.
+   */
+
+  setFilterType(value: BicepValueProxy | AdvancedPlatformMetricsFilterType): AdvancedPlatformMetricsRuleConfigProxy;
+  /**
+   * Gets or sets the FilterValues provisioning property.
+   */
+
+  setFilterValues(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStringProxy): AdvancedPlatformMetricsRuleConfigProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.AdvancedPlatformMetricsRulePropertiesProxy
+ */
+
+export interface AdvancedPlatformMetricsRulePropertiesProxy {
+  /**
+   * Clears the IsEnabled provisioning property.
+   */
+
+  clearIsEnabled(): void;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  isEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets the LastModifiedOn provisioning property.
+   */
+
+  lastModifiedOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  /**
+   * Gets the MetricsEmitted provisioning property.
+   */
+
+  metricsEmitted: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfMetricsEmittedProxy>;
+  /**
+   * Gets or sets the RuleConfig provisioning property.
+   */
+
+  ruleConfig: PropertyAccessor<AdvancedPlatformMetricsRuleConfigProxy>;
+  /**
+   * Gets the RuleType provisioning property.
+   */
+
+  ruleType: PropertyAccessor<BicepValueProxy | AdvancedPlatformMetricsRuleType>;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  setIsEnabled(value: BicepValueProxy | boolean): AdvancedPlatformMetricsRulePropertiesProxy;
+  /**
+   * Gets or sets the RuleConfig provisioning property.
+   */
+
+  setRuleConfig(value: AdvancedPlatformMetricsRuleConfigProxy): AdvancedPlatformMetricsRulePropertiesProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.AdvancedPlatformMetricsRuleProxy
+ */
+
+export interface AdvancedPlatformMetricsRuleProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<StorageAccountProxy>;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<AdvancedPlatformMetricsRulePropertiesProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): AdvancedPlatformMetricsRuleProxy;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: StorageAccountProxy): AdvancedPlatformMetricsRuleProxy;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  setProperties(value: AdvancedPlatformMetricsRulePropertiesProxy): AdvancedPlatformMetricsRuleProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.ArmEncryptionProxy
+ */
+
+export interface ArmEncryptionProxy {
+  /**
+   * Clears the InfrastructureEncryption provisioning property.
+   */
+
+  clearInfrastructureEncryption(): void;
+  /**
+   * Gets or sets the CustomerManagedKeyEncryption provisioning property.
+   */
+
+  customerManagedKeyEncryption: PropertyAccessor<CustomerManagedKeyEncryptionProxy>;
+  /**
+   * Gets or sets the InfrastructureEncryption provisioning property.
+   */
+
+  infrastructureEncryption: PropertyAccessor<BicepValueProxy | InfrastructureEncryption>;
+  /**
+   * Gets or sets the CustomerManagedKeyEncryption provisioning property.
+   */
+
+  setCustomerManagedKeyEncryption(value: CustomerManagedKeyEncryptionProxy): ArmEncryptionProxy;
+  /**
+   * Gets or sets the InfrastructureEncryption provisioning property.
+   */
+
+  setInfrastructureEncryption(value: BicepValueProxy | InfrastructureEncryption): ArmEncryptionProxy;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy
  */
 
@@ -178680,6 +182243,174 @@ export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfManag
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfMetricsEmittedProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfMetricsEmittedProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: BicepValueProxy | MetricsEmitted): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): BicepValueProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: BicepValueProxy | MetricsEmitted): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: BicepValueProxy | MetricsEmitted): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNetworkSecurityPerimeterProvisioningIssueProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNetworkSecurityPerimeterProvisioningIssueProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: NetworkSecurityPerimeterProvisioningIssueProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): NetworkSecurityPerimeterProvisioningIssueProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: NetworkSecurityPerimeterProvisioningIssueProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: NetworkSecurityPerimeterProvisioningIssueProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNetworkSecurityPerimeterProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNetworkSecurityPerimeterProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: NetworkSecurityPerimeterProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): NetworkSecurityPerimeterProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: NetworkSecurityPerimeterProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: NetworkSecurityPerimeterProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNspAccessRuleProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNspAccessRuleProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: NspAccessRuleProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): NspAccessRuleProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: NspAccessRuleProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: NspAccessRuleProxy): void;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfObjectReplicationPolicyRuleProxy
  */
 
@@ -178932,6 +182663,90 @@ export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStora
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAccessPolicyProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAccessPolicyProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: StorageDataShareAccessPolicyProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): StorageDataShareAccessPolicyProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: StorageDataShareAccessPolicyProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: StorageDataShareAccessPolicyProxy): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAssetProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAssetProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: StorageDataShareAssetProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): StorageDataShareAssetProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: StorageDataShareAssetProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: StorageDataShareAssetProxy): void;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStoragePermissionScopeProxy
  */
 
@@ -178974,15 +182789,15 @@ export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStora
 }
 
 /**
- * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStoragePrivateEndpointConnectionDataProxy
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStoragePrivateEndpointConnectionProxy
  */
 
-export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStoragePrivateEndpointConnectionDataProxy {
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStoragePrivateEndpointConnectionProxy {
   /**
    * Invokes the Add method
    */
 
-  add(value: StoragePrivateEndpointConnectionDataProxy): void;
+  add(value: StoragePrivateEndpointConnectionProxy): void;
   /**
    * Invokes the Clear method
    */
@@ -178997,12 +182812,12 @@ export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStora
    * Invokes the Get method
    */
 
-  get(index: number): StoragePrivateEndpointConnectionDataProxy;
+  get(index: number): StoragePrivateEndpointConnectionProxy;
   /**
    * Invokes the Insert method
    */
 
-  insert(index: number, value: StoragePrivateEndpointConnectionDataProxy): void;
+  insert(index: number, value: StoragePrivateEndpointConnectionProxy): void;
   /**
    * Invokes the RemoveAt method
    */
@@ -179012,7 +182827,7 @@ export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStora
    * Invokes the Set method
    */
 
-  set(index: number, value: StoragePrivateEndpointConnectionDataProxy): void;
+  set(index: number, value: StoragePrivateEndpointConnectionProxy): void;
 }
 
 /**
@@ -179181,6 +182996,48 @@ export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStrin
    */
 
   set(index: number, value: BicepValueProxy | string): void;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfSubResourceProxy
+ */
+
+export interface Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfSubResourceProxy {
+  /**
+   * Invokes the Add method
+   */
+
+  add(value: StorageSubResourceProxy): void;
+  /**
+   * Invokes the Clear method
+   */
+
+  clear(): void;
+  /**
+   * Gets the Count property
+   */
+
+  count: PropertyAccessor<number>;
+  /**
+   * Invokes the Get method
+   */
+
+  get(index: number): StorageSubResourceProxy;
+  /**
+   * Invokes the Insert method
+   */
+
+  insert(index: number, value: StorageSubResourceProxy): void;
+  /**
+   * Invokes the RemoveAt method
+   */
+
+  removeAt(index: number): void;
+  /**
+   * Invokes the Set method
+   */
+
+  set(index: number, value: StorageSubResourceProxy): void;
 }
 
 /**
@@ -180008,6 +183865,11 @@ export interface BlobServiceProxy extends ProvisionableResourceProxy {
 
   lastAccessTimeTrackingPolicy: PropertyAccessor<LastAccessTimeTrackingPolicyProxy>;
   /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
    * Gets or sets the Parent provisioning property.
    */
 
@@ -180068,15 +183930,458 @@ export interface BlobServiceProxy extends ProvisionableResourceProxy {
 
   setRestorePolicy(value: RestorePolicyProxy): BlobServiceProxy;
   /**
+   * Gets or sets the StaticWebsite provisioning property.
+   */
+
+  setStaticWebsite(value: BlobServiceStaticWebsiteProxy): BlobServiceProxy;
+  /**
    * Gets the Sku provisioning property.
    */
 
   sku: PropertyAccessor<StorageSkuProxy>;
   /**
+   * Gets or sets the StaticWebsite provisioning property.
+   */
+
+  staticWebsite: PropertyAccessor<BlobServiceStaticWebsiteProxy>;
+  /**
    * Gets the SystemData provisioning property.
    */
 
   systemData: PropertyAccessor<StorageSystemDataProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.BlobServiceStaticWebsiteProxy
+ */
+
+export interface BlobServiceStaticWebsiteProxy {
+  /**
+   * Clears the DefaultIndexDocumentPath provisioning property.
+   */
+
+  clearDefaultIndexDocumentPath(): void;
+  /**
+   * Clears the ErrorDocument404Path provisioning property.
+   */
+
+  clearErrorDocument404Path(): void;
+  /**
+   * Clears the IndexDocument provisioning property.
+   */
+
+  clearIndexDocument(): void;
+  /**
+   * Clears the IsEnabled provisioning property.
+   */
+
+  clearIsEnabled(): void;
+  /**
+   * Gets or sets the DefaultIndexDocumentPath provisioning property.
+   */
+
+  defaultIndexDocumentPath: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ErrorDocument404Path provisioning property.
+   */
+
+  errorDocument404Path: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the IndexDocument provisioning property.
+   */
+
+  indexDocument: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  isEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the DefaultIndexDocumentPath provisioning property.
+   */
+
+  setDefaultIndexDocumentPath(value: BicepValueProxy | string): BlobServiceStaticWebsiteProxy;
+  /**
+   * Gets or sets the ErrorDocument404Path provisioning property.
+   */
+
+  setErrorDocument404Path(value: BicepValueProxy | string): BlobServiceStaticWebsiteProxy;
+  /**
+   * Gets or sets the IndexDocument provisioning property.
+   */
+
+  setIndexDocument(value: BicepValueProxy | string): BlobServiceStaticWebsiteProxy;
+  /**
+   * Gets or sets the IsEnabled provisioning property.
+   */
+
+  setIsEnabled(value: BicepValueProxy | boolean): BlobServiceStaticWebsiteProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.BurstingConstantsProxy
+ */
+
+export interface BurstingConstantsProxy {
+  /**
+   * Gets the BurstFloorIops provisioning property.
+   */
+
+  burstFloorIops: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the BurstIOScalar provisioning property.
+   */
+
+  burstIOScalar: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the BurstTimeframeSeconds provisioning property.
+   */
+
+  burstTimeframeSeconds: PropertyAccessor<BicepValueProxy | number>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.ContextCacheContainerPropertiesProxy
+ */
+
+export interface ContextCacheContainerPropertiesProxy {
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Clears the ModelName provisioning property.
+   */
+
+  clearModelName(): void;
+  /**
+   * Clears the Provider provisioning property.
+   */
+
+  clearProvider(): void;
+  /**
+   * Clears the TimeToLiveInDays provisioning property.
+   */
+
+  clearTimeToLiveInDays(): void;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ModelName provisioning property.
+   */
+
+  modelName: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Provider provisioning property.
+   */
+
+  provider: PropertyAccessor<BicepValueProxy | AIProvider>;
+  /**
+   * Gets the ProvisioningState provisioning property.
+   */
+
+  provisioningState: PropertyAccessor<BicepValueProxy | ContextCacheProvisioningState>;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  setDescription(value: BicepValueProxy | string): ContextCacheContainerPropertiesProxy;
+  /**
+   * Gets or sets the ModelName provisioning property.
+   */
+
+  setModelName(value: BicepValueProxy | string): ContextCacheContainerPropertiesProxy;
+  /**
+   * Gets or sets the Provider provisioning property.
+   */
+
+  setProvider(value: BicepValueProxy | AIProvider): ContextCacheContainerPropertiesProxy;
+  /**
+   * Gets or sets the TimeToLiveInDays provisioning property.
+   */
+
+  setTimeToLiveInDays(value: BicepValueProxy | number): ContextCacheContainerPropertiesProxy;
+  /**
+   * Gets or sets the TimeToLiveInDays provisioning property.
+   */
+
+  timeToLiveInDays: PropertyAccessor<BicepValueProxy | number>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.ContextCacheContainerProxy
+ */
+
+export interface ContextCacheContainerProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<ContextCacheProxy>;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<ContextCacheContainerPropertiesProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): ContextCacheContainerProxy;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: ContextCacheProxy): ContextCacheContainerProxy;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  setProperties(value: ContextCacheContainerPropertiesProxy): ContextCacheContainerProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.ContextCachePropertiesProxy
+ */
+
+export interface ContextCachePropertiesProxy {
+  /**
+   * Gets or sets the AccountKind provisioning property.
+   */
+
+  accountKind: PropertyAccessor<BicepValueProxy | ContextCacheAccountKind>;
+  /**
+   * Clears the AccountKind provisioning property.
+   */
+
+  clearAccountKind(): void;
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Encryption provisioning property.
+   */
+
+  encryption: PropertyAccessor<ArmEncryptionProxy>;
+  /**
+   * Gets the ProvisioningState provisioning property.
+   */
+
+  provisioningState: PropertyAccessor<BicepValueProxy | ContextCacheProvisioningState>;
+  /**
+   * Gets or sets the AccountKind provisioning property.
+   */
+
+  setAccountKind(value: BicepValueProxy | ContextCacheAccountKind): ContextCachePropertiesProxy;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  setDescription(value: BicepValueProxy | string): ContextCachePropertiesProxy;
+  /**
+   * Gets or sets the Encryption provisioning property.
+   */
+
+  setEncryption(value: ArmEncryptionProxy): ContextCachePropertiesProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.ContextCacheProxy
+ */
+
+export interface ContextCacheProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Location provisioning property.
+   */
+
+  clearLocation(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Identity provisioning property.
+   */
+
+  identity: PropertyAccessor<StorageManagedServiceIdentityProxy>;
+  /**
+   * Gets or sets the Location provisioning property.
+   */
+
+  location: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<ContextCachePropertiesProxy>;
+  /**
+   * Gets or sets the Identity provisioning property.
+   */
+
+  setIdentity(value: StorageManagedServiceIdentityProxy): ContextCacheProxy;
+  /**
+   * Gets or sets the Location provisioning property.
+   */
+
+  setLocation(value: BicepValueProxy): ContextCacheProxy;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): ContextCacheProxy;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  setProperties(value: ContextCachePropertiesProxy): ContextCacheProxy;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  setTags(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy): ContextCacheProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  tags: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.CustomerManagedKeyEncryptionProxy
+ */
+
+export interface CustomerManagedKeyEncryptionProxy {
+  /**
+   * Clears the KeyEncryptionKeyUri provisioning property.
+   */
+
+  clearKeyEncryptionKeyUri(): void;
+  /**
+   * Gets or sets the KeyEncryptionKeyIdentity provisioning property.
+   */
+
+  keyEncryptionKeyIdentity: PropertyAccessor<KeyEncryptionKeyIdentityProxy>;
+  /**
+   * Gets or sets the KeyEncryptionKeyUri provisioning property.
+   */
+
+  keyEncryptionKeyUri: PropertyAccessor<BicepValueProxy | uri>;
+  /**
+   * Gets or sets the KeyEncryptionKeyIdentity provisioning property.
+   */
+
+  setKeyEncryptionKeyIdentity(value: KeyEncryptionKeyIdentityProxy): CustomerManagedKeyEncryptionProxy;
+  /**
+   * Gets or sets the KeyEncryptionKeyUri provisioning property.
+   */
+
+  setKeyEncryptionKeyUri(value: BicepValueProxy | uri): CustomerManagedKeyEncryptionProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.DataShareConnectionProxy
+ */
+
+export interface DataShareConnectionProxy extends StorageConnectorConnectionProxy {
+  /**
+   * Clears the DataShareUri provisioning property.
+   */
+
+  clearDataShareUri(): void;
+  /**
+   * Gets or sets the DataShareUri provisioning property.
+   */
+
+  dataShareUri: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the DataShareUri provisioning property.
+   */
+
+  setDataShareUri(value: BicepValueProxy | string): DataShareConnectionProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.DataShareSourceProxy
+ */
+
+export interface DataShareSourceProxy extends StorageConnectorSourceProxy {
+  /**
+   * Gets or sets the AuthProperties provisioning property.
+   */
+
+  authProperties: PropertyAccessor<StorageConnectorAuthPropertiesProxy>;
+  /**
+   * Gets or sets the Connection provisioning property.
+   */
+
+  connection: PropertyAccessor<StorageConnectorConnectionProxy>;
+  /**
+   * Gets or sets the AuthProperties provisioning property.
+   */
+
+  setAuthProperties(value: StorageConnectorAuthPropertiesProxy): DataShareSourceProxy;
+  /**
+   * Gets or sets the Connection provisioning property.
+   */
+
+  setConnection(value: StorageConnectorConnectionProxy): DataShareSourceProxy;
 }
 
 /**
@@ -180181,6 +184486,68 @@ export interface DateAfterModificationProxy {
    */
 
   setDaysAfterModificationGreaterThan(value: BicepValueProxy | number): DateAfterModificationProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.DeletedAccountProxy
+ */
+
+export interface DeletedAccountProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the CreatedOn provisioning property.
+   */
+
+  createdOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  /**
+   * Gets the DeletedOn provisioning property.
+   */
+
+  deletedOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets the Location provisioning property.
+   */
+
+  location: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the RestoreReference provisioning property.
+   */
+
+  restoreReference: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): DeletedAccountProxy;
+  /**
+   * Gets the StorageAccountResourceId provisioning property.
+   */
+
+  storageAccountResourceId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
 }
 
 /**
@@ -180494,10 +184861,10 @@ export interface ExecutionTriggerParametersProxy {
 
 export interface ExecutionTriggerProxy {
   /**
-   * Clears the TriggerType provisioning property.
+   * Clears the TaskExecutionTriggerType provisioning property.
    */
 
-  clearTriggerType(): void;
+  clearTaskExecutionTriggerType(): void;
   /**
    * Gets or sets the Parameters provisioning property.
    */
@@ -180509,15 +184876,118 @@ export interface ExecutionTriggerProxy {
 
   setParameters(value: ExecutionTriggerParametersProxy): ExecutionTriggerProxy;
   /**
-   * Gets or sets the TriggerType provisioning property.
+   * Gets or sets the TaskExecutionTriggerType provisioning property.
    */
 
-  setTriggerType(value: BicepValueProxy | ExecutionTriggerType): ExecutionTriggerProxy;
+  setTaskExecutionTriggerType(value: BicepValueProxy | TaskExecutionTriggerType): ExecutionTriggerProxy;
   /**
-   * Gets or sets the TriggerType provisioning property.
+   * Gets or sets the TaskExecutionTriggerType provisioning property.
    */
 
-  triggerType: PropertyAccessor<BicepValueProxy | ExecutionTriggerType>;
+  taskExecutionTriggerType: PropertyAccessor<BicepValueProxy | TaskExecutionTriggerType>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileServiceAccountLimitsProxy
+ */
+
+export interface FileServiceAccountLimitsProxy {
+  /**
+   * Gets the MaxFileShares provisioning property.
+   */
+
+  maxFileShares: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MaxProvisionedBandwidthMiBPerSec provisioning property.
+   */
+
+  maxProvisionedBandwidthMiBPerSec: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MaxProvisionedIops provisioning property.
+   */
+
+  maxProvisionedIops: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MaxProvisionedStorageGiB provisioning property.
+   */
+
+  maxProvisionedStorageGiB: PropertyAccessor<BicepValueProxy | number>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileServiceAccountUsageElementsProxy
+ */
+
+export interface FileServiceAccountUsageElementsProxy {
+  /**
+   * Gets the FileShareCount provisioning property.
+   */
+
+  fileShareCount: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the ProvisionedBandwidthMiBPerSec provisioning property.
+   */
+
+  provisionedBandwidthMiBPerSec: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the ProvisionedIops provisioning property.
+   */
+
+  provisionedIops: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the ProvisionedStorageGiB provisioning property.
+   */
+
+  provisionedStorageGiB: PropertyAccessor<BicepValueProxy | number>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileServiceAccountUsageProxy
+ */
+
+export interface FileServiceAccountUsageProxy {
+  /**
+   * Gets the LiveShares provisioning property.
+   */
+
+  liveShares: PropertyAccessor<FileServiceAccountUsageElementsProxy>;
+  /**
+   * Gets the SoftDeletedShares provisioning property.
+   */
+
+  softDeletedShares: PropertyAccessor<FileServiceAccountUsageElementsProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileServiceProtocolSettingsProxy
+ */
+
+export interface FileServiceProtocolSettingsProxy {
+  /**
+   * Clears the NfsEncryptionInTransitIsRequired provisioning property.
+   */
+
+  clearNfsEncryptionInTransitIsRequired(): void;
+  /**
+   * Gets or sets the NfsEncryptionInTransitIsRequired provisioning property.
+   */
+
+  nfsEncryptionInTransitIsRequired: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the NfsEncryptionInTransitIsRequired provisioning property.
+   */
+
+  setNfsEncryptionInTransitIsRequired(value: BicepValueProxy | boolean): FileServiceProtocolSettingsProxy;
+  /**
+   * Gets or sets the SmbSetting provisioning property.
+   */
+
+  setSmbSetting(value: SmbSettingProxy): FileServiceProtocolSettingsProxy;
+  /**
+   * Gets or sets the SmbSetting provisioning property.
+   */
+
+  smbSetting: PropertyAccessor<SmbSettingProxy>;
 }
 
 /**
@@ -180541,10 +185011,20 @@ export interface FileServiceProxy extends ProvisionableResourceProxy {
 
   id: PropertyAccessor<BicepValueProxy>;
   /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
    * Gets or sets the Parent provisioning property.
    */
 
   parent: PropertyAccessor<StorageAccountProxy>;
+  /**
+   * Gets or sets the ProtocolSettings provisioning property.
+   */
+
+  protocolSettings: PropertyAccessor<FileServiceProtocolSettingsProxy>;
   /**
    * Gets or sets the ProtocolSmbSetting provisioning property.
    */
@@ -180560,6 +185040,11 @@ export interface FileServiceProxy extends ProvisionableResourceProxy {
    */
 
   setParent(value: StorageAccountProxy): FileServiceProxy;
+  /**
+   * Gets or sets the ProtocolSettings provisioning property.
+   */
+
+  setProtocolSettings(value: FileServiceProtocolSettingsProxy): FileServiceProxy;
   /**
    * Gets or sets the ProtocolSmbSetting provisioning property.
    */
@@ -180585,6 +185070,127 @@ export interface FileServiceProxy extends ProvisionableResourceProxy {
    */
 
   systemData: PropertyAccessor<StorageSystemDataProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileServiceUsagePropertiesProxy
+ */
+
+export interface FileServiceUsagePropertiesProxy {
+  /**
+   * Gets the BurstingConstants provisioning property.
+   */
+
+  burstingConstants: PropertyAccessor<BurstingConstantsProxy>;
+  /**
+   * Gets the FileShareLimits provisioning property.
+   */
+
+  fileShareLimits: PropertyAccessor<FileShareLimitsProxy>;
+  /**
+   * Gets the FileShareRecommendations provisioning property.
+   */
+
+  fileShareRecommendations: PropertyAccessor<FileShareRecommendationsProxy>;
+  /**
+   * Gets the StorageAccountLimits provisioning property.
+   */
+
+  storageAccountLimits: PropertyAccessor<FileServiceAccountLimitsProxy>;
+  /**
+   * Gets the StorageAccountUsage provisioning property.
+   */
+
+  storageAccountUsage: PropertyAccessor<FileServiceAccountUsageProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileServiceUsageProxy
+ */
+
+export interface FileServiceUsageProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<FileServiceProxy>;
+  /**
+   * Gets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<FileServiceUsagePropertiesProxy>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: FileServiceProxy): FileServiceUsageProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileShareLimitsProxy
+ */
+
+export interface FileShareLimitsProxy {
+  /**
+   * Gets the GuardrailBandwidthScalar provisioning property.
+   */
+
+  guardrailBandwidthScalar: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the GuardrailIOScalar provisioning property.
+   */
+
+  guardrailIOScalar: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MaxProvisionedBandwidthMiBPerSec provisioning property.
+   */
+
+  maxProvisionedBandwidthMiBPerSec: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MaxProvisionedIops provisioning property.
+   */
+
+  maxProvisionedIops: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MaxProvisionedStorageGiB provisioning property.
+   */
+
+  maxProvisionedStorageGiB: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MinProvisionedBandwidthMiBPerSec provisioning property.
+   */
+
+  minProvisionedBandwidthMiBPerSec: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MinProvisionedIops provisioning property.
+   */
+
+  minProvisionedIops: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the MinProvisionedStorageGiB provisioning property.
+   */
+
+  minProvisionedStorageGiB: PropertyAccessor<BicepValueProxy | number>;
 }
 
 /**
@@ -180650,10 +185256,10 @@ export interface FileShareProxy extends ProvisionableResourceProxy {
 
   accessTier: PropertyAccessor<BicepValueProxy | FileShareAccessTier>;
   /**
-   * Gets the AccessTierChangeOn provisioning property.
+   * Gets the AccessTierChangedOn provisioning property.
    */
 
-  accessTierChangeOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  accessTierChangedOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
   /**
    * Gets the AccessTierStatus provisioning property.
    */
@@ -180897,6 +185503,33 @@ export interface FileShareProxy extends ProvisionableResourceProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FileShareRecommendationsProxy
+ */
+
+export interface FileShareRecommendationsProxy {
+  /**
+   * Gets the BandwidthScalar provisioning property.
+   */
+
+  bandwidthScalar: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the BaseBandwidthMiBPerSec provisioning property.
+   */
+
+  baseBandwidthMiBPerSec: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the BaseIops provisioning property.
+   */
+
+  baseIops: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the IoScalar provisioning property.
+   */
+
+  ioScalar: PropertyAccessor<BicepValueProxy | number>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.FilesIdentityBasedAuthenticationProxy
  */
 
@@ -180917,6 +185550,11 @@ export interface FilesIdentityBasedAuthenticationProxy {
 
   clearDirectoryServiceOptions(): void;
   /**
+   * Clears the IsSmbOAuthEnabled provisioning property.
+   */
+
+  clearIsSmbOAuthEnabled(): void;
+  /**
    * Gets or sets the DefaultSharePermission provisioning property.
    */
 
@@ -180926,6 +185564,11 @@ export interface FilesIdentityBasedAuthenticationProxy {
    */
 
   directoryServiceOptions: PropertyAccessor<BicepValueProxy | DirectoryServiceOption>;
+  /**
+   * Gets or sets the IsSmbOAuthEnabled provisioning property.
+   */
+
+  isSmbOAuthEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the ActiveDirectoryProperties provisioning property.
    */
@@ -180941,6 +185584,11 @@ export interface FilesIdentityBasedAuthenticationProxy {
    */
 
   setDirectoryServiceOptions(value: BicepValueProxy | DirectoryServiceOption): FilesIdentityBasedAuthenticationProxy;
+  /**
+   * Gets or sets the IsSmbOAuthEnabled provisioning property.
+   */
+
+  setIsSmbOAuthEnabled(value: BicepValueProxy | boolean): FilesIdentityBasedAuthenticationProxy;
 }
 
 /**
@@ -181134,6 +185782,73 @@ export interface ImmutableStorageWithVersioningProxy {
    */
 
   timeStamp: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.KeyEncryptionKeyIdentityProxy
+ */
+
+export interface KeyEncryptionKeyIdentityProxy {
+  /**
+   * Clears the DelegatedIdentityClientId provisioning property.
+   */
+
+  clearDelegatedIdentityClientId(): void;
+  /**
+   * Clears the FederatedClientId provisioning property.
+   */
+
+  clearFederatedClientId(): void;
+  /**
+   * Clears the IdentityType provisioning property.
+   */
+
+  clearIdentityType(): void;
+  /**
+   * Clears the UserAssignedIdentityResourceId provisioning property.
+   */
+
+  clearUserAssignedIdentityResourceId(): void;
+  /**
+   * Gets or sets the DelegatedIdentityClientId provisioning property.
+   */
+
+  delegatedIdentityClientId: PropertyAccessor<BicepValueProxy | guid>;
+  /**
+   * Gets or sets the FederatedClientId provisioning property.
+   */
+
+  federatedClientId: PropertyAccessor<BicepValueProxy | guid>;
+  /**
+   * Gets or sets the IdentityType provisioning property.
+   */
+
+  identityType: PropertyAccessor<BicepValueProxy | KeyEncryptionKeyIdentityType>;
+  /**
+   * Gets or sets the DelegatedIdentityClientId provisioning property.
+   */
+
+  setDelegatedIdentityClientId(value: BicepValueProxy | guid): KeyEncryptionKeyIdentityProxy;
+  /**
+   * Gets or sets the FederatedClientId provisioning property.
+   */
+
+  setFederatedClientId(value: BicepValueProxy | guid): KeyEncryptionKeyIdentityProxy;
+  /**
+   * Gets or sets the IdentityType provisioning property.
+   */
+
+  setIdentityType(value: BicepValueProxy | KeyEncryptionKeyIdentityType): KeyEncryptionKeyIdentityProxy;
+  /**
+   * Gets or sets the UserAssignedIdentityResourceId provisioning property.
+   */
+
+  setUserAssignedIdentityResourceId(value: BicepValueProxy): KeyEncryptionKeyIdentityProxy;
+  /**
+   * Gets or sets the UserAssignedIdentityResourceId provisioning property.
+   */
+
+  userAssignedIdentityResourceId: PropertyAccessor<BicepValueProxy>;
 }
 
 /**
@@ -181671,6 +186386,215 @@ export interface ManagementPolicyVersionProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.NetworkSecurityPerimeterConfigurationPropertiesProfileProxy
+ */
+
+export interface NetworkSecurityPerimeterConfigurationPropertiesProfileProxy {
+  /**
+   * Gets the AccessRules provisioning property.
+   */
+
+  accessRules: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNspAccessRuleProxy>;
+  /**
+   * Gets the AccessRulesVersion provisioning property.
+   */
+
+  accessRulesVersion: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the DiagnosticSettingsVersion provisioning property.
+   */
+
+  diagnosticSettingsVersion: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the EnabledLogCategories provisioning property.
+   */
+
+  enabledLogCategories: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStringProxy>;
+  /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.NetworkSecurityPerimeterConfigurationPropertiesResourceAssociationProxy
+ */
+
+export interface NetworkSecurityPerimeterConfigurationPropertiesResourceAssociationProxy {
+  /**
+   * Gets the AccessMode provisioning property.
+   */
+
+  accessMode: PropertyAccessor<BicepValueProxy | ResourceAssociationAccessMode>;
+  /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.NetworkSecurityPerimeterConfigurationProxy
+ */
+
+export interface NetworkSecurityPerimeterConfigurationProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the NetworkSecurityPerimeter provisioning property.
+   */
+
+  networkSecurityPerimeter: PropertyAccessor<NetworkSecurityPerimeterProxy>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<StorageAccountProxy>;
+  /**
+   * Gets the Profile provisioning property.
+   */
+
+  profile: PropertyAccessor<NetworkSecurityPerimeterConfigurationPropertiesProfileProxy>;
+  /**
+   * Gets the ProvisioningIssues provisioning property.
+   */
+
+  provisioningIssues: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNetworkSecurityPerimeterProvisioningIssueProxy>;
+  /**
+   * Gets the ProvisioningState provisioning property.
+   */
+
+  provisioningState: PropertyAccessor<BicepValueProxy | NetworkSecurityPerimeterConfigurationProvisioningState>;
+  /**
+   * Gets the ResourceAssociation provisioning property.
+   */
+
+  resourceAssociation: PropertyAccessor<NetworkSecurityPerimeterConfigurationPropertiesResourceAssociationProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): NetworkSecurityPerimeterConfigurationProxy;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: StorageAccountProxy): NetworkSecurityPerimeterConfigurationProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.NetworkSecurityPerimeterProvisioningIssuePropertiesProxy
+ */
+
+export interface NetworkSecurityPerimeterProvisioningIssuePropertiesProxy {
+  /**
+   * Gets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the IssueType provisioning property.
+   */
+
+  issueType: PropertyAccessor<BicepValueProxy | NetworkSecurityPerimeterProvisioningIssueType>;
+  /**
+   * Gets the Severity provisioning property.
+   */
+
+  severity: PropertyAccessor<BicepValueProxy | NetworkSecurityPerimeterProvisioningIssueSeverity>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.NetworkSecurityPerimeterProvisioningIssueProxy
+ */
+
+export interface NetworkSecurityPerimeterProvisioningIssueProxy {
+  /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<NetworkSecurityPerimeterProvisioningIssuePropertiesProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.NspAccessRulePropertiesProxy
+ */
+
+export interface NspAccessRulePropertiesProxy {
+  /**
+   * Gets the AddressPrefixes provisioning property.
+   */
+
+  addressPrefixes: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStringProxy>;
+  /**
+   * Gets the Direction provisioning property.
+   */
+
+  direction: PropertyAccessor<BicepValueProxy | NspAccessRuleDirection>;
+  /**
+   * Gets the FullyQualifiedDomainNames provisioning property.
+   */
+
+  fullyQualifiedDomainNames: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStringProxy>;
+  /**
+   * Gets the NetworkSecurityPerimeters provisioning property.
+   */
+
+  networkSecurityPerimeters: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfNetworkSecurityPerimeterProxy>;
+  /**
+   * Gets the Subscriptions provisioning property.
+   */
+
+  subscriptions: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfSubResourceProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.NspAccessRuleProxy
+ */
+
+export interface NspAccessRuleProxy {
+  /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<NspAccessRulePropertiesProxy>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.ObjectReplicationPolicyFilterProxy
  */
 
@@ -181723,6 +186647,21 @@ export interface ObjectReplicationPolicyProxy extends ProvisionableResourceProxy
 
   clearIsMetricsEnabled(): void;
   /**
+   * Clears the IsPriorityReplicationEnabled provisioning property.
+   */
+
+  clearIsPriorityReplicationEnabled(): void;
+  /**
+   * Clears the IsTagsReplicationEnabled provisioning property.
+   */
+
+  clearIsTagsReplicationEnabled(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
    * Clears the SourceAccount provisioning property.
    */
 
@@ -181748,7 +186687,17 @@ export interface ObjectReplicationPolicyProxy extends ProvisionableResourceProxy
 
   isMetricsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
-   * Gets the Name provisioning property.
+   * Gets or sets the IsPriorityReplicationEnabled provisioning property.
+   */
+
+  isPriorityReplicationEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsTagsReplicationEnabled provisioning property.
+   */
+
+  isTagsReplicationEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the Name provisioning property.
    */
 
   name: PropertyAccessor<BicepValueProxy | string>;
@@ -181777,6 +186726,21 @@ export interface ObjectReplicationPolicyProxy extends ProvisionableResourceProxy
    */
 
   setIsMetricsEnabled(value: BicepValueProxy | boolean): ObjectReplicationPolicyProxy;
+  /**
+   * Gets or sets the IsPriorityReplicationEnabled provisioning property.
+   */
+
+  setIsPriorityReplicationEnabled(value: BicepValueProxy | boolean): ObjectReplicationPolicyProxy;
+  /**
+   * Gets or sets the IsTagsReplicationEnabled provisioning property.
+   */
+
+  setIsTagsReplicationEnabled(value: BicepValueProxy | boolean): ObjectReplicationPolicyProxy;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): ObjectReplicationPolicyProxy;
   /**
    * Gets or sets the Parent provisioning property.
    */
@@ -182003,6 +186967,11 @@ export interface SmbSettingProxy {
 
   clearChannelEncryption(): void;
   /**
+   * Clears the EncryptionInTransitIsRequired provisioning property.
+   */
+
+  clearEncryptionInTransitIsRequired(): void;
+  /**
    * Clears the IsMultiChannelEnabled provisioning property.
    */
 
@@ -182017,6 +186986,11 @@ export interface SmbSettingProxy {
    */
 
   clearVersions(): void;
+  /**
+   * Gets or sets the EncryptionInTransitIsRequired provisioning property.
+   */
+
+  encryptionInTransitIsRequired: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the IsMultiChannelEnabled provisioning property.
    */
@@ -182037,6 +187011,11 @@ export interface SmbSettingProxy {
    */
 
   setChannelEncryption(value: BicepValueProxy | string): SmbSettingProxy;
+  /**
+   * Gets or sets the EncryptionInTransitIsRequired provisioning property.
+   */
+
+  setEncryptionInTransitIsRequired(value: BicepValueProxy | boolean): SmbSettingProxy;
   /**
    * Gets or sets the IsMultiChannelEnabled provisioning property.
    */
@@ -182236,6 +187215,11 @@ export interface StorageAccountEndpointsProxy {
 
   internetEndpoints: PropertyAccessor<StorageAccountInternetEndpointsProxy>;
   /**
+   * Gets the IPv6Endpoints provisioning property.
+   */
+
+  iPv6Endpoints: PropertyAccessor<StorageAccountIPv6EndpointsProxy>;
+  /**
    * Gets the MicrosoftEndpoints provisioning property.
    */
 
@@ -182319,6 +187303,53 @@ export interface StorageAccountIPRuleProxy {
    */
 
   setIPAddressOrRange(value: BicepValueProxy | string): StorageAccountIPRuleProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageAccountIPv6EndpointsProxy
+ */
+
+export interface StorageAccountIPv6EndpointsProxy {
+  /**
+   * Gets the Blob provisioning property.
+   */
+
+  blob: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Dfs provisioning property.
+   */
+
+  dfs: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the File provisioning property.
+   */
+
+  file: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the InternetEndpoints provisioning property.
+   */
+
+  internetEndpoints: PropertyAccessor<StorageAccountInternetEndpointsProxy>;
+  /**
+   * Gets the MicrosoftEndpoints provisioning property.
+   */
+
+  microsoftEndpoints: PropertyAccessor<StorageAccountMicrosoftEndpointsProxy>;
+  /**
+   * Gets the Queue provisioning property.
+   */
+
+  queue: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Table provisioning property.
+   */
+
+  table: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Web provisioning property.
+   */
+
+  web: PropertyAccessor<BicepValueProxy | string>;
 }
 
 /**
@@ -182650,6 +187681,11 @@ export interface StorageAccountManagementPolicyProxy extends ProvisionableResour
 
   lastModifiedOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
   /**
+   * Gets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
    * Gets or sets the Parent provisioning property.
    */
 
@@ -182714,6 +187750,73 @@ export interface StorageAccountMicrosoftEndpointsProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageAccountMigrationProxy
+ */
+
+export interface StorageAccountMigrationProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets the MigrationFailedDetailedReason provisioning property.
+   */
+
+  migrationFailedDetailedReason: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the MigrationFailedReason provisioning property.
+   */
+
+  migrationFailedReason: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the MigrationStatus provisioning property.
+   */
+
+  migrationStatus: PropertyAccessor<BicepValueProxy | StorageAccountMigrationStatus>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<StorageAccountProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): StorageAccountMigrationProxy;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: StorageAccountProxy): StorageAccountMigrationProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+  /**
+   * Gets the TargetSkuName provisioning property.
+   */
+
+  targetSkuName: PropertyAccessor<BicepValueProxy | StorageSkuName>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageAccountNetworkRuleSetProxy
  */
 
@@ -182743,6 +187846,11 @@ export interface StorageAccountNetworkRuleSetProxy {
    */
 
   iPRules: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageAccountIPRuleProxy>;
+  /**
+   * Gets the IPv6Rules provisioning property.
+   */
+
+  iPv6Rules: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageAccountIPRuleProxy>;
   /**
    * Gets or sets the ResourceAccessRules provisioning property.
    */
@@ -182801,6 +187909,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   allowBlobPublicAccess: PropertyAccessor<BicepValueProxy | boolean>;
   /**
+   * Gets or sets the AllowCrossTenantDelegationSas provisioning property.
+   */
+
+  allowCrossTenantDelegationSas: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
    * Gets or sets the AllowCrossTenantReplication provisioning property.
    */
 
@@ -182815,6 +187928,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   allowSharedKeyAccess: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the AllowSharedKeyAccessForServices provisioning property.
+   */
+
+  allowSharedKeyAccessForServices: PropertyAccessor<StorageAccountSharedKeyAccessPropertiesProxy>;
   /**
    * Gets or sets the AzureFilesIdentityBasedAuthentication provisioning property.
    */
@@ -182835,6 +187953,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   clearAllowBlobPublicAccess(): void;
+  /**
+   * Clears the AllowCrossTenantDelegationSas provisioning property.
+   */
+
+  clearAllowCrossTenantDelegationSas(): void;
   /**
    * Clears the AllowCrossTenantReplication provisioning property.
    */
@@ -182861,6 +187984,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   clearEnableHttpsTrafficOnly(): void;
   /**
+   * Clears the GeoPriorityReplicationStatusIsBlobEnabled provisioning property.
+   */
+
+  clearGeoPriorityReplicationStatusIsBlobEnabled(): void;
+  /**
    * Clears the IsDefaultToOAuthAuthentication provisioning property.
    */
 
@@ -182875,6 +188003,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   clearIsHnsEnabled(): void;
+  /**
+   * Clears the IsIPv6EndpointToBePublished provisioning property.
+   */
+
+  clearIsIPv6EndpointToBePublished(): void;
   /**
    * Clears the IsLocalUserEnabled provisioning property.
    */
@@ -182926,6 +188059,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   clearPublicNetworkAccess(): void;
   /**
+   * Clears the ZonePlacementPolicy provisioning property.
+   */
+
+  clearZonePlacementPolicy(): void;
+  /**
    * Gets the CreatedOn provisioning property.
    */
 
@@ -182940,6 +188078,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   customDomain: PropertyAccessor<StorageCustomDomainProxy>;
+  /**
+   * Gets or sets the DataCollaborationPolicyProperties provisioning property.
+   */
+
+  dataCollaborationPolicyProperties: PropertyAccessor<StorageDataCollaborationPolicyPropertiesProxy>;
   /**
    * Gets or sets the DnsEndpointType provisioning property.
    */
@@ -182960,6 +188103,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   extendedLocation: PropertyAccessor<StorageExtendedAzureLocationProxy>;
+  /**
+   * Gets or sets the GeoPriorityReplicationStatusIsBlobEnabled provisioning property.
+   */
+
+  geoPriorityReplicationStatusIsBlobEnabled: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets the GeoReplicationStats provisioning property.
    */
@@ -183010,6 +188158,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   isHnsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsIPv6EndpointToBePublished provisioning property.
+   */
+
+  isIPv6EndpointToBePublished: PropertyAccessor<BicepValueProxy | boolean>;
   /**
    * Gets or sets the IsLocalUserEnabled provisioning property.
    */
@@ -183086,15 +188239,10 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   primaryLocation: PropertyAccessor<BicepValueProxy>;
   /**
-   * Gets the PrivateEndpointConnections provisioning property.
+   * Gets the PrivateEndpointConnectionResources provisioning property.
    */
 
-  privateEndpointConnections: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStoragePrivateEndpointConnectionDataProxy>;
-  /**
-   * Gets the ProvisioningState provisioning property.
-   */
-
-  provisioningState: PropertyAccessor<BicepValueProxy | StorageProvisioningState>;
+  privateEndpointConnectionResources: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStoragePrivateEndpointConnectionProxy>;
   /**
    * Gets or sets the PublicNetworkAccess provisioning property.
    */
@@ -183131,6 +188279,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   setAllowBlobPublicAccess(value: BicepValueProxy | boolean): StorageAccountProxy;
   /**
+   * Gets or sets the AllowCrossTenantDelegationSas provisioning property.
+   */
+
+  setAllowCrossTenantDelegationSas(value: BicepValueProxy | boolean): StorageAccountProxy;
+  /**
    * Gets or sets the AllowCrossTenantReplication provisioning property.
    */
 
@@ -183146,6 +188299,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   setAllowSharedKeyAccess(value: BicepValueProxy | boolean): StorageAccountProxy;
   /**
+   * Gets or sets the AllowSharedKeyAccessForServices provisioning property.
+   */
+
+  setAllowSharedKeyAccessForServices(value: StorageAccountSharedKeyAccessPropertiesProxy): StorageAccountProxy;
+  /**
    * Gets or sets the AzureFilesIdentityBasedAuthentication provisioning property.
    */
 
@@ -183155,6 +188313,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   setCustomDomain(value: StorageCustomDomainProxy): StorageAccountProxy;
+  /**
+   * Gets or sets the DataCollaborationPolicyProperties provisioning property.
+   */
+
+  setDataCollaborationPolicyProperties(value: StorageDataCollaborationPolicyPropertiesProxy): StorageAccountProxy;
   /**
    * Gets or sets the DnsEndpointType provisioning property.
    */
@@ -183175,6 +188338,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   setExtendedLocation(value: StorageExtendedAzureLocationProxy): StorageAccountProxy;
+  /**
+   * Gets or sets the GeoPriorityReplicationStatusIsBlobEnabled provisioning property.
+   */
+
+  setGeoPriorityReplicationStatusIsBlobEnabled(value: BicepValueProxy | boolean): StorageAccountProxy;
   /**
    * Gets or sets the Identity provisioning property.
    */
@@ -183200,6 +188368,11 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   setIsHnsEnabled(value: BicepValueProxy | boolean): StorageAccountProxy;
+  /**
+   * Gets or sets the IsIPv6EndpointToBePublished provisioning property.
+   */
+
+  setIsIPv6EndpointToBePublished(value: BicepValueProxy | boolean): StorageAccountProxy;
   /**
    * Gets or sets the IsLocalUserEnabled provisioning property.
    */
@@ -183271,10 +188444,25 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   setSku(value: StorageSkuProxy): StorageAccountProxy;
   /**
+   * Gets or sets the StorageAccountSkuConversionStatus provisioning property.
+   */
+
+  setStorageAccountSkuConversionStatus(value: StorageAccountSkuConversionStatusProxy): StorageAccountProxy;
+  /**
    * Gets or sets the Tags provisioning property.
    */
 
   setTags(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy): StorageAccountProxy;
+  /**
+   * Gets or sets the ZonePlacementPolicy provisioning property.
+   */
+
+  setZonePlacementPolicy(value: BicepValueProxy | StorageAccountZonePlacementPolicy): StorageAccountProxy;
+  /**
+   * Gets or sets the Zones provisioning property.
+   */
+
+  setZones(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStringProxy): StorageAccountProxy;
   /**
    * Gets or sets the Sku provisioning property.
    */
@@ -183296,7 +188484,7 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
 
   storageAccountProvisioningState: PropertyAccessor<BicepValueProxy | StorageAccountProvisioningState>;
   /**
-   * Gets the StorageAccountSkuConversionStatus provisioning property.
+   * Gets or sets the StorageAccountSkuConversionStatus provisioning property.
    */
 
   storageAccountSkuConversionStatus: PropertyAccessor<StorageAccountSkuConversionStatusProxy>;
@@ -183310,6 +188498,16 @@ export interface StorageAccountProxy extends ProvisionableResourceProxy {
    */
 
   tags: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy>;
+  /**
+   * Gets or sets the ZonePlacementPolicy provisioning property.
+   */
+
+  zonePlacementPolicy: PropertyAccessor<BicepValueProxy | StorageAccountZonePlacementPolicy>;
+  /**
+   * Gets or sets the Zones provisioning property.
+   */
+
+  zones: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStringProxy>;
 }
 
 /**
@@ -183370,6 +188568,16 @@ export interface StorageAccountSasPolicyProxy {
 
   expirationAction: PropertyAccessor<BicepValueProxy | ExpirationAction>;
   /**
+   * Gets the IsUserBoundUserDelegationSasRequired provisioning property.
+   */
+
+  isUserBoundUserDelegationSasRequired: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets the RequireUserBoundUserDelegationSasAction provisioning property.
+   */
+
+  requireUserBoundUserDelegationSasAction: PropertyAccessor<BicepValueProxy | PolicyViolationAction>;
+  /**
    * Gets or sets the SasExpirationPeriod provisioning property.
    */
 
@@ -183384,6 +188592,73 @@ export interface StorageAccountSasPolicyProxy {
    */
 
   setSasExpirationPeriod(value: BicepValueProxy | string): StorageAccountSasPolicyProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageAccountSharedKeyAccessPropertiesProxy
+ */
+
+export interface StorageAccountSharedKeyAccessPropertiesProxy {
+  /**
+   * Gets or sets the BlobEnabled provisioning property.
+   */
+
+  blobEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Clears the BlobEnabled provisioning property.
+   */
+
+  clearBlobEnabled(): void;
+  /**
+   * Clears the FileEnabled provisioning property.
+   */
+
+  clearFileEnabled(): void;
+  /**
+   * Clears the QueueEnabled provisioning property.
+   */
+
+  clearQueueEnabled(): void;
+  /**
+   * Clears the TableEnabled provisioning property.
+   */
+
+  clearTableEnabled(): void;
+  /**
+   * Gets or sets the FileEnabled provisioning property.
+   */
+
+  fileEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the QueueEnabled provisioning property.
+   */
+
+  queueEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the BlobEnabled provisioning property.
+   */
+
+  setBlobEnabled(value: BicepValueProxy | boolean): StorageAccountSharedKeyAccessPropertiesProxy;
+  /**
+   * Gets or sets the FileEnabled provisioning property.
+   */
+
+  setFileEnabled(value: BicepValueProxy | boolean): StorageAccountSharedKeyAccessPropertiesProxy;
+  /**
+   * Gets or sets the QueueEnabled provisioning property.
+   */
+
+  setQueueEnabled(value: BicepValueProxy | boolean): StorageAccountSharedKeyAccessPropertiesProxy;
+  /**
+   * Gets or sets the TableEnabled provisioning property.
+   */
+
+  setTableEnabled(value: BicepValueProxy | boolean): StorageAccountSharedKeyAccessPropertiesProxy;
+  /**
+   * Gets or sets the TableEnabled provisioning property.
+   */
+
+  tableEnabled: PropertyAccessor<BicepValueProxy | boolean>;
 }
 
 /**
@@ -183486,6 +188761,11 @@ export interface StorageActiveDirectoryPropertiesProxy {
 
   accountType: PropertyAccessor<BicepValueProxy | ActiveDirectoryAccountType>;
   /**
+   * Gets or sets the ActiveDirectoryDomainGuid provisioning property.
+   */
+
+  activeDirectoryDomainGuid: PropertyAccessor<BicepValueProxy | guid>;
+  /**
    * Gets or sets the AzureStorageSid provisioning property.
    */
 
@@ -183495,6 +188775,11 @@ export interface StorageActiveDirectoryPropertiesProxy {
    */
 
   clearAccountType(): void;
+  /**
+   * Clears the ActiveDirectoryDomainGuid provisioning property.
+   */
+
+  clearActiveDirectoryDomainGuid(): void;
   /**
    * Clears the AzureStorageSid provisioning property.
    */
@@ -183566,6 +188851,11 @@ export interface StorageActiveDirectoryPropertiesProxy {
 
   setAccountType(value: BicepValueProxy | ActiveDirectoryAccountType): StorageActiveDirectoryPropertiesProxy;
   /**
+   * Gets or sets the ActiveDirectoryDomainGuid provisioning property.
+   */
+
+  setActiveDirectoryDomainGuid(value: BicepValueProxy | guid): StorageActiveDirectoryPropertiesProxy;
+  /**
    * Gets or sets the AzureStorageSid provisioning property.
    */
 
@@ -183624,6 +188914,223 @@ export interface StorageAzureLocationProxy {
  */
 
 export interface StorageBuiltInRoleProxy {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageConnectorAuthPropertiesProxy
+ */
+
+export interface StorageConnectorAuthPropertiesProxy {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageConnectorConnectionProxy
+ */
+
+export interface StorageConnectorConnectionProxy {
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageConnectorManagedIdentityAuthProxy
+ */
+
+export interface StorageConnectorManagedIdentityAuthProxy extends StorageConnectorAuthPropertiesProxy {
+  /**
+   * Clears the IdentityResourceId provisioning property.
+   */
+
+  clearIdentityResourceId(): void;
+  /**
+   * Gets or sets the IdentityResourceId provisioning property.
+   */
+
+  identityResourceId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the IdentityResourceId provisioning property.
+   */
+
+  setIdentityResourceId(value: BicepValueProxy | string): StorageConnectorManagedIdentityAuthProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageConnectorPropertiesProxy
+ */
+
+export interface StorageConnectorPropertiesProxy {
+  /**
+   * Clears the DataSourceType provisioning property.
+   */
+
+  clearDataSourceType(): void;
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Clears the ShouldTestConnection provisioning property.
+   */
+
+  clearShouldTestConnection(): void;
+  /**
+   * Clears the State provisioning property.
+   */
+
+  clearState(): void;
+  /**
+   * Gets the CreationTime provisioning property.
+   */
+
+  creationTime: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the DataSourceType provisioning property.
+   */
+
+  dataSourceType: PropertyAccessor<BicepValueProxy | StorageConnectorDataSourceType>;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the ProvisioningState provisioning property.
+   */
+
+  provisioningState: PropertyAccessor<BicepValueProxy | NativeDataSharingProvisioningState>;
+  /**
+   * Gets or sets the DataSourceType provisioning property.
+   */
+
+  setDataSourceType(value: BicepValueProxy | StorageConnectorDataSourceType): StorageConnectorPropertiesProxy;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  setDescription(value: BicepValueProxy | string): StorageConnectorPropertiesProxy;
+  /**
+   * Gets or sets the ShouldTestConnection provisioning property.
+   */
+
+  setShouldTestConnection(value: BicepValueProxy | boolean): StorageConnectorPropertiesProxy;
+  /**
+   * Gets or sets the Source provisioning property.
+   */
+
+  setSource(value: StorageConnectorSourceProxy): StorageConnectorPropertiesProxy;
+  /**
+   * Gets or sets the State provisioning property.
+   */
+
+  setState(value: BicepValueProxy | StorageConnectorState): StorageConnectorPropertiesProxy;
+  /**
+   * Gets or sets the ShouldTestConnection provisioning property.
+   */
+
+  shouldTestConnection: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the Source provisioning property.
+   */
+
+  source: PropertyAccessor<StorageConnectorSourceProxy>;
+  /**
+   * Gets or sets the State provisioning property.
+   */
+
+  state: PropertyAccessor<BicepValueProxy | StorageConnectorState>;
+  /**
+   * Gets the UniqueId provisioning property.
+   */
+
+  uniqueId: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageConnectorProxy
+ */
+
+export interface StorageConnectorProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Location provisioning property.
+   */
+
+  clearLocation(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Location provisioning property.
+   */
+
+  location: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<StorageAccountProxy>;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<StorageConnectorPropertiesProxy>;
+  /**
+   * Gets or sets the Location provisioning property.
+   */
+
+  setLocation(value: BicepValueProxy): StorageConnectorProxy;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): StorageConnectorProxy;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: StorageAccountProxy): StorageConnectorProxy;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  setProperties(value: StorageConnectorPropertiesProxy): StorageConnectorProxy;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  setTags(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy): StorageConnectorProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  tags: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageConnectorSourceProxy
+ */
+
+export interface StorageConnectorSourceProxy {
 }
 
 /**
@@ -183723,6 +189230,286 @@ export interface StorageCustomDomainProxy {
    */
 
   setName(value: BicepValueProxy | string): StorageCustomDomainProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageDataCollaborationPolicyPropertiesProxy
+ */
+
+export interface StorageDataCollaborationPolicyPropertiesProxy {
+  /**
+   * Gets or sets the AllowCrossTenantDataSharing provisioning property.
+   */
+
+  allowCrossTenantDataSharing: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the AllowStorageConnectors provisioning property.
+   */
+
+  allowStorageConnectors: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the AllowStorageDataShares provisioning property.
+   */
+
+  allowStorageDataShares: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Clears the AllowCrossTenantDataSharing provisioning property.
+   */
+
+  clearAllowCrossTenantDataSharing(): void;
+  /**
+   * Clears the AllowStorageConnectors provisioning property.
+   */
+
+  clearAllowStorageConnectors(): void;
+  /**
+   * Clears the AllowStorageDataShares provisioning property.
+   */
+
+  clearAllowStorageDataShares(): void;
+  /**
+   * Gets or sets the AllowCrossTenantDataSharing provisioning property.
+   */
+
+  setAllowCrossTenantDataSharing(value: BicepValueProxy | boolean): StorageDataCollaborationPolicyPropertiesProxy;
+  /**
+   * Gets or sets the AllowStorageConnectors provisioning property.
+   */
+
+  setAllowStorageConnectors(value: BicepValueProxy | boolean): StorageDataCollaborationPolicyPropertiesProxy;
+  /**
+   * Gets or sets the AllowStorageDataShares provisioning property.
+   */
+
+  setAllowStorageDataShares(value: BicepValueProxy | boolean): StorageDataCollaborationPolicyPropertiesProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageDataShareAccessPolicyProxy
+ */
+
+export interface StorageDataShareAccessPolicyProxy {
+  /**
+   * Clears the Permission provisioning property.
+   */
+
+  clearPermission(): void;
+  /**
+   * Clears the PrincipalId provisioning property.
+   */
+
+  clearPrincipalId(): void;
+  /**
+   * Clears the TenantId provisioning property.
+   */
+
+  clearTenantId(): void;
+  /**
+   * Gets or sets the Permission provisioning property.
+   */
+
+  permission: PropertyAccessor<BicepValueProxy | StorageDataShareAccessPolicyPermission>;
+  /**
+   * Gets or sets the PrincipalId provisioning property.
+   */
+
+  principalId: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Permission provisioning property.
+   */
+
+  setPermission(value: BicepValueProxy | StorageDataShareAccessPolicyPermission): StorageDataShareAccessPolicyProxy;
+  /**
+   * Gets or sets the PrincipalId provisioning property.
+   */
+
+  setPrincipalId(value: BicepValueProxy | string): StorageDataShareAccessPolicyProxy;
+  /**
+   * Gets or sets the TenantId provisioning property.
+   */
+
+  setTenantId(value: BicepValueProxy | string): StorageDataShareAccessPolicyProxy;
+  /**
+   * Gets or sets the TenantId provisioning property.
+   */
+
+  tenantId: PropertyAccessor<BicepValueProxy | string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageDataShareAssetProxy
+ */
+
+export interface StorageDataShareAssetProxy {
+  /**
+   * Gets or sets the AssetPath provisioning property.
+   */
+
+  assetPath: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Clears the AssetPath provisioning property.
+   */
+
+  clearAssetPath(): void;
+  /**
+   * Clears the DisplayName provisioning property.
+   */
+
+  clearDisplayName(): void;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  displayName: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the AssetPath provisioning property.
+   */
+
+  setAssetPath(value: BicepValueProxy | string): StorageDataShareAssetProxy;
+  /**
+   * Gets or sets the DisplayName provisioning property.
+   */
+
+  setDisplayName(value: BicepValueProxy | string): StorageDataShareAssetProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageDataSharePropertiesProxy
+ */
+
+export interface StorageDataSharePropertiesProxy {
+  /**
+   * Gets or sets the AccessPolicies provisioning property.
+   */
+
+  accessPolicies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAccessPolicyProxy>;
+  /**
+   * Gets or sets the Assets provisioning property.
+   */
+
+  assets: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAssetProxy>;
+  /**
+   * Clears the Description provisioning property.
+   */
+
+  clearDescription(): void;
+  /**
+   * Gets the DataShareIdentifier provisioning property.
+   */
+
+  dataShareIdentifier: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the DataShareUri provisioning property.
+   */
+
+  dataShareUri: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  description: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the ProvisioningState provisioning property.
+   */
+
+  provisioningState: PropertyAccessor<BicepValueProxy | NativeDataSharingProvisioningState>;
+  /**
+   * Gets or sets the AccessPolicies provisioning property.
+   */
+
+  setAccessPolicies(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAccessPolicyProxy): StorageDataSharePropertiesProxy;
+  /**
+   * Gets or sets the Assets provisioning property.
+   */
+
+  setAssets(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_ListOfStorageDataShareAssetProxy): StorageDataSharePropertiesProxy;
+  /**
+   * Gets or sets the Description provisioning property.
+   */
+
+  setDescription(value: BicepValueProxy | string): StorageDataSharePropertiesProxy;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageDataShareProxy
+ */
+
+export interface StorageDataShareProxy extends ProvisionableResourceProxy {
+  /**
+   * Adds this provisioning resource to the Azure resource infrastructure.
+   */
+
+  addTo(infrastructure: AzureResourceInfrastructure): void;
+  /**
+   * Clears the Location provisioning property.
+   */
+
+  clearLocation(): void;
+  /**
+   * Clears the Name provisioning property.
+   */
+
+  clearName(): void;
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Location provisioning property.
+   */
+
+  location: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  name: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  parent: PropertyAccessor<StorageAccountProxy>;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  properties: PropertyAccessor<StorageDataSharePropertiesProxy>;
+  /**
+   * Gets or sets the Location provisioning property.
+   */
+
+  setLocation(value: BicepValueProxy): StorageDataShareProxy;
+  /**
+   * Gets or sets the Name provisioning property.
+   */
+
+  setName(value: BicepValueProxy | string): StorageDataShareProxy;
+  /**
+   * Gets or sets the Parent provisioning property.
+   */
+
+  setParent(value: StorageAccountProxy): StorageDataShareProxy;
+  /**
+   * Gets or sets the Properties provisioning property.
+   */
+
+  setProperties(value: StorageDataSharePropertiesProxy): StorageDataShareProxy;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  setTags(value: Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy): StorageDataShareProxy;
+  /**
+   * Gets the SystemData provisioning property.
+   */
+
+  systemData: PropertyAccessor<StorageSystemDataProxy>;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  tags: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_Storage_Generated_DictionaryOfStringProxy>;
 }
 
 /**
@@ -184450,10 +190237,10 @@ export interface StorageServiceAccessPolicyProxy {
 
   clearPermission(): void;
   /**
-   * Clears the StartOn provisioning property.
+   * Clears the StartsOn provisioning property.
    */
 
-  clearStartOn(): void;
+  clearStartsOn(): void;
   /**
    * Gets or sets the ExpireOn provisioning property.
    */
@@ -184475,15 +190262,15 @@ export interface StorageServiceAccessPolicyProxy {
 
   setPermission(value: BicepValueProxy | string): StorageServiceAccessPolicyProxy;
   /**
-   * Gets or sets the StartOn provisioning property.
+   * Gets or sets the StartsOn provisioning property.
    */
 
-  setStartOn(value: BicepValueProxy | datetimeoffset): StorageServiceAccessPolicyProxy;
+  setStartsOn(value: BicepValueProxy | datetimeoffset): StorageServiceAccessPolicyProxy;
   /**
-   * Gets or sets the StartOn provisioning property.
+   * Gets or sets the StartsOn provisioning property.
    */
 
-  startOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  startsOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
 }
 
 /**
@@ -184583,6 +190370,18 @@ export interface StorageSshPublicKeyProxy {
 }
 
 /**
+ * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageSubResourceProxy
+ */
+
+export interface StorageSubResourceProxy {
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy>;
+}
+
+/**
  * Handle Aspire.Hosting.Azure.Provisioning.Storage.Generated.StorageSystemDataProxy
  */
 
@@ -184635,10 +190434,10 @@ export interface StorageTableAccessPolicyProxy {
 
   clearPermission(): void;
   /**
-   * Clears the StartOn provisioning property.
+   * Clears the StartsOn provisioning property.
    */
 
-  clearStartOn(): void;
+  clearStartsOn(): void;
   /**
    * Gets or sets the ExpireOn provisioning property.
    */
@@ -184660,15 +190459,15 @@ export interface StorageTableAccessPolicyProxy {
 
   setPermission(value: BicepValueProxy | string): StorageTableAccessPolicyProxy;
   /**
-   * Gets or sets the StartOn provisioning property.
+   * Gets or sets the StartsOn provisioning property.
    */
 
-  setStartOn(value: BicepValueProxy | datetimeoffset): StorageTableAccessPolicyProxy;
+  setStartsOn(value: BicepValueProxy | datetimeoffset): StorageTableAccessPolicyProxy;
   /**
-   * Gets or sets the StartOn provisioning property.
+   * Gets or sets the StartsOn provisioning property.
    */
 
-  startOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
+  startsOn: PropertyAccessor<BicepValueProxy | datetimeoffset>;
 }
 
 /**
@@ -184832,11 +190631,6 @@ export interface StorageTaskAssignmentPropertiesProxy {
    */
 
   isEnabled: PropertyAccessor<BicepValueProxy | boolean>;
-  /**
-   * Gets the ProvisioningState provisioning property.
-   */
-
-  provisioningState: PropertyAccessor<BicepValueProxy | StorageProvisioningState>;
   /**
    * Gets or sets the ReportPrefix provisioning property.
    */
@@ -187211,6 +193005,11 @@ export interface AzureManagedRedisResource extends AzureBicepResource, AzureProv
 
   port: PropertyAccessor<ReferenceExpression>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the Redis server.
    */
 
@@ -187286,6 +193085,11 @@ export interface AzureServiceBusEmulatorResource extends ContainerResource, ICom
    */
 
   withHostPort(port: number | null): this;
+  /**
+   * Configures the Azure Service Bus emulator to use an existing SQL Server resource instead of creating one for it.
+   */
+
+  withSqlServer(sqlServer: SqlServerServerResource): this;
 }
 
 /**
@@ -187353,6 +193157,11 @@ export interface AzureServiceBusQueueResource extends IExpressionValue, IManifes
    */
 
   requiresSession: PropertyAccessor<boolean>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * A value that indicates whether this queue has dead letter support when a message expires.
    */
@@ -187493,6 +193302,11 @@ export interface AzureServiceBusSubscriptionResource extends IExpressionValue, I
 
   requiresSession: PropertyAccessor<boolean>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * The rules for this subscription.
    */
 
@@ -187590,6 +193404,11 @@ export interface AzureServiceBusTopicResource extends IExpressionValue, IManifes
 
   requiresDuplicateDetection: PropertyAccessor<boolean>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * ISO 8601 default message timespan to live value. This is the duration after which the message expires, starting from when the message is sent to Service Bus. This is the default value used when TimeToLive is not set on a message itself.
    */
 
@@ -187671,6 +193490,11 @@ export interface AzureSqlDatabaseResource extends IExpressionValue, IManifestExp
 
   parent: PropertyAccessor<AzureSqlServerResource>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the Azure SQL database.
    */
 
@@ -187747,6 +193571,11 @@ export interface AzureSqlServerResource extends AzureBicepResource, AzureProvisi
    */
 
   port: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the connection URI expression for the SQL Server.
    */
@@ -187953,7 +193782,7 @@ export interface AzureWebPubSubHubResource extends IExpressionValue, IManifestEx
  * Handle Aspire.Hosting.ApplicationModel.AzureWebPubSubResource
  */
 
-export interface AzureWebPubSubResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParameters, IValueProvider, IValueWithReferences, IAzurePrivateEndpointTarget {
+export interface AzureWebPubSubResource extends AzureBicepResource, AzureProvisioningResource, IAzureResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithParameters, IValueProvider, IValueWithReferences, IAzurePrivateEndpointTarget {
   /**
    * Adds an Azure Web Pub Sub hub resource to the application model.
    */
@@ -187964,6 +193793,18 @@ export interface AzureWebPubSubResource extends AzureBicepResource, AzureProvisi
    */
 
   addHub(name: string, hubName?: string): AzureWebPubSubHubResource;
+  /**
+   * Configures Azure Web PubSub to run locally using the emulator container.
+   */
+
+  runAsEmulator(configureContainer?: (obj: AzureWebPubSubEmulatorResource) => Promise<void>): AzureWebPubSubResource;
+}
+
+/**
+ * Handle Aspire.Hosting.Azure.AzureWebPubSubEmulatorResource
+ */
+
+export interface AzureWebPubSubEmulatorResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport {
 }
 
 /**
@@ -188172,6 +194013,11 @@ export interface DockerComposeAspireDashboardResource extends ContainerResource,
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Configures whether forwarded headers processing is enabled for the Aspire dashboard container.
    */
 
@@ -188229,6 +194075,11 @@ export interface DockerComposeEnvironmentResource extends IComputeEnvironmentRes
 
   getHostAddressExpression(endpointReference: EndpointReference): ReferenceExpression;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Determines whether to include an Aspire dashboard for telemetry visualization in this environment.
    */
 
@@ -188265,6 +194116,11 @@ export interface DockerComposeServiceResource extends IResource, IResourceWithPa
    */
 
   parent: PropertyAccessor<DockerComposeEnvironmentResource>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
 }
 
 /**
@@ -189333,7 +195189,7 @@ export interface Volume {
 
 export interface DotnetProjectResource extends ExecutableResource, IComputeResource, IContainerFilesDestinationResource, IDotnetProgramResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
-   * Disables forwarded headers for a .NET project in polyglot AppHosts.
+   * Disables automatic forwarded-header configuration when publishing the .NET project.
    */
 
   disableForwardedHeaders(): DotnetProjectResource;
@@ -189348,7 +195204,7 @@ export interface DotnetProjectResource extends ExecutableResource, IComputeResou
 
   withEndpointsInEnvironment(endpointNames: string[]): this;
   /**
-   * Configures the number of .NET project replicas for polyglot AppHosts.
+   * Configures the number of replicas of the .NET project.
    */
 
   withReplicas(replicas: number): this;
@@ -189404,6 +195260,11 @@ export interface EFMigrationResource extends ContainerResource, IComputeResource
    */
 
   publishBundleContainer: PropertyAccessor<boolean>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets or sets whether the migration script should be idempotent (include IF NOT EXISTS checks).
    */
@@ -189839,6 +195700,11 @@ export interface FoundryDeploymentResource extends IExpressionValue, IManifestEx
 
   parent: PropertyAccessor<FoundryResource>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets or sets the name of the deployment.
    */
 
@@ -190087,6 +195953,11 @@ export interface GarnetResource extends ContainerResource, IComputeResource, IEx
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the Garnet server.
    */
 
@@ -190128,6 +195999,11 @@ export interface GarnetResource extends ContainerResource, IComputeResource, IEx
  */
 
 export interface GoAppResource extends ExecutableResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Passes extra arguments to the Go program at runtime. In normal run mode they appear after `go run .`; in Delve mode after the `--` separator.
    */
@@ -190175,6 +196051,11 @@ export interface GoAppResource extends ExecutableResource, IComputeResource, ICo
  */
 
 export interface JavaAppResource extends ExecutableResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IJavaAppResource {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Runs a Gradle build before the Java application starts.
    */
@@ -190227,6 +196108,11 @@ export interface JavaAppResource extends ExecutableResource, IComputeResource, I
  */
 
 export interface JavaContainerResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery, IJavaAppResource {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
 }
 
 /**
@@ -190234,6 +196120,11 @@ export interface JavaContainerResource extends ContainerResource, IComputeResour
  */
 
 export interface BunAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
 }
 
 /**
@@ -190241,6 +196132,11 @@ export interface BunAppResource extends ExecutableResource, JavaScriptAppResourc
  */
 
 export interface DenoAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Grants a Deno permission, optionally scoped to the supplied values.
    */
@@ -190348,6 +196244,11 @@ export interface DenoAppResource extends ExecutableResource, JavaScriptAppResour
  */
 
 export interface JavaScriptAppResource extends ExecutableResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.
    */
@@ -190470,6 +196371,11 @@ export interface NextJsAppResource extends ExecutableResource, JavaScriptAppReso
    */
 
   disableBuildValidation(): NextJsAppResource;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
 }
 
 /**
@@ -190477,6 +196383,11 @@ export interface NextJsAppResource extends ExecutableResource, JavaScriptAppReso
  */
 
 export interface NodeAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
 }
 
 /**
@@ -190484,6 +196395,11 @@ export interface NodeAppResource extends ExecutableResource, JavaScriptAppResour
  */
 
 export interface ViteAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Configures the Vite app to use the specified Vite configuration file instead of the default resolution behavior.
    */
@@ -190521,6 +196437,11 @@ export interface KafkaServerResource extends ContainerResource, IComputeResource
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Adds a bind mount for the data folder to a Kafka container resource.
    */
@@ -190581,6 +196502,11 @@ export interface KeycloakResource extends ContainerResource, IComputeResource, I
 
   adminUserNameParameter: PropertyAccessor<ParameterResource>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Adds a bind mount for the data folder to a Keycloak container resource.
    */
 
@@ -190628,40 +196554,20 @@ export interface KeycloakResource extends ContainerResource, IComputeResource, I
 
 export interface CertManagerIssuerResource extends IResource, IResourceWithParent {
   /**
-   * Configures the issuer to use a custom ACME directory endpoint (e.g., a private ACME server such as ZeroSSL or step-ca).
+   * Configures the ACME directory URL and contact email using either two strings or two parameters.
    */
 
-  withAcmeServer(serverUrl: string, email: string): this;
+  withAcmeServer(serverUrl: string | ParameterResource, email: string | ParameterResource): this;
   /**
-   * Configures the issuer to use a custom ACME directory endpoint with a parameterized email.
+   * Configures External Account Binding (EAB) with a key identifier and secret HMAC key resolved at deploy time.
    */
 
-  withAcmeServerParam(serverUrl: string, email: string | ParameterResource): this;
+  withExternalAccountBinding(keyId: string | ParameterResource, hmacKey: string | ParameterResource): this;
   /**
    * Adds an HTTP-01 ACME challenge solver to the issuer. cert-manager will satisfy the challenge by provisioning a temporary HTTP route at `/.well-known/acme-challenge/{token}` on the same hostname being validated. This requires the hostname to be publicly reachable on port 80.
    */
 
   withHttp01Solver(): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt production ACME endpoint.
-   */
-
-  withLetsEncryptProduction(email: string): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt production ACME endpoint, with the contact email supplied via a parameter resolved at deploy time.
-   */
-
-  withLetsEncryptProductionParam(email: string | ParameterResource): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt staging ACME endpoint. Certificates issued from staging are not trusted by browsers, but the endpoint has much higher rate limits, making it the right choice for development and CI workflows.
-   */
-
-  withLetsEncryptStaging(email: string): this;
-  /**
-   * Configures the issuer to use the Let's Encrypt staging ACME endpoint, with the contact email supplied via a parameter resolved at deploy time.
-   */
-
-  withLetsEncryptStagingParam(email: string | ParameterResource): this;
 }
 
 /**
@@ -190840,6 +196746,11 @@ export interface KubernetesEnvironmentResource extends IComputeEnvironmentResour
    */
 
   kubeConfigPath: PropertyAccessor<string>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Determines whether to include an Aspire dashboard for telemetry visualization in this environment.
    */
@@ -191099,6 +197010,16 @@ export interface KubernetesIngressResource extends IResource, IResourceWithParen
 
 export interface KubernetesManifestResource {
   /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  metadata: PropertyAccessor<ObjectMetaV1>;
+  /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  setMetadata(value: ObjectMetaV1): KubernetesManifestResource;
+  /**
    * Adds or updates a Kubernetes annotation on this manifest.
    */
 
@@ -191107,7 +197028,7 @@ export interface KubernetesManifestResource {
    * Adds or updates a manifest field using a dot-separated path.
    */
 
-  withField(path: string, value: string | number | boolean): KubernetesManifestResource;
+  withField(path: string, value: any): KubernetesManifestResource;
   /**
    * Adds or updates a Kubernetes label on this manifest.
    */
@@ -191148,7 +197069,22 @@ export interface KubernetesPersistentVolumeResource extends IResource, IResource
 
   withCapacityParam(capacity: string | ParameterResource): this;
   /**
-   * Sets the storage class for a persistent volume
+   * Configures the generated persistent volume claim
+   */
+
+  withConfiguration(configure: (obj: PersistentVolumeClaim) => Promise<void>): this;
+  /**
+   * Omits `spec.storageClassName` from the generated PVC so Kubernetes can assign the cluster's default StorageClass. To request a classless volume, call `WithStorageClass` with an empty string.
+   */
+
+  withoutStorageClass(): KubernetesPersistentVolumeResource;
+  /**
+   * Sets the name of the existing PersistentVolume to bind to in the generated PVC's `spec.volumeName`.
+   */
+
+  withPersistentVolumeName(persistentVolumeName: string): this;
+  /**
+   * Sets the Kubernetes storage class name on the PVC's `spec.storageClassName`. When unset, the cluster's default storage class is used. An empty string explicitly disables storage class assignment.
    */
 
   withStorageClass(storageClassName: string): this;
@@ -191184,6 +197120,119 @@ export interface KubernetesResource extends IResource, IResourceWithParent {
    */
 
   parent: PropertyAccessor<KubernetesEnvironmentResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.ObjectMetaV1
+ */
+
+export interface ObjectMetaV1 {
+  /**
+   * Represents a collection of annotations associated with a Kubernetes object metadata.
+   */
+
+  annotations: PropertyAccessor<Dict<string,string>>;
+  /**
+   * A collection of key-value pairs used to organize and categorize Kubernetes resources.
+   */
+
+  labels: PropertyAccessor<Dict<string,string>>;
+  /**
+   * A collection of key-value pairs used to organize and categorize Kubernetes resources.
+   */
+
+  setLabels(value: Dict<string,string>): ObjectMetaV1;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.PersistentVolumeClaim
+ */
+
+export interface PersistentVolumeClaim {
+  /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  metadata: PropertyAccessor<ObjectMetaV1>;
+  /**
+   * Gets or sets the metadata for the Kubernetes resource.
+   */
+
+  setMetadata(value: ObjectMetaV1): PersistentVolumeClaim;
+  /**
+   * Gets or sets the specification of the PersistentVolumeClaim (PVC) resource.
+   */
+
+  setSpec(value: PersistentVolumeClaimSpecV1): PersistentVolumeClaim;
+  /**
+   * Gets or sets the specification of the PersistentVolumeClaim (PVC) resource.
+   */
+
+  spec: PropertyAccessor<PersistentVolumeClaimSpecV1>;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.PersistentVolumeClaimSpecV1
+ */
+
+export interface PersistentVolumeClaimSpecV1 {
+  /**
+   * Defines the access modes for a Persistent Volume Claim.
+   */
+
+  accessModes: PropertyAccessor<List<string>>;
+  /**
+   * Gets or sets the resource requirements for the volume. Defines the requested and limit capacities for the volume resources, including storage and other related attributes.
+   */
+
+  resources: PropertyAccessor<VolumeResourceRequirementsV1>;
+  /**
+   * Gets or sets the resource requirements for the volume. Defines the requested and limit capacities for the volume resources, including storage and other related attributes.
+   */
+
+  setResources(value: VolumeResourceRequirementsV1): PersistentVolumeClaimSpecV1;
+  /**
+   * Gets or sets the name of the storage class required by the PersistentVolumeClaim.
+   */
+
+  setStorageClassName(value: string): PersistentVolumeClaimSpecV1;
+  /**
+   * Specifies the volume mode for a PersistentVolumeClaim. This determines how data in the volume is accessed by pods using the claim.
+   */
+
+  setVolumeMode(value: string): PersistentVolumeClaimSpecV1;
+  /**
+   * Gets or sets the name of the specific volume to be bound to the PersistentVolumeClaim.
+   */
+
+  setVolumeName(value: string): PersistentVolumeClaimSpecV1;
+  /**
+   * Gets or sets the name of the storage class required by the PersistentVolumeClaim.
+   */
+
+  storageClassName: PropertyAccessor<string>;
+  /**
+   * Specifies the volume mode for a PersistentVolumeClaim. This determines how data in the volume is accessed by pods using the claim.
+   */
+
+  volumeMode: PropertyAccessor<string>;
+  /**
+   * Gets or sets the name of the specific volume to be bound to the PersistentVolumeClaim.
+   */
+
+  volumeName: PropertyAccessor<string>;
+}
+
+/**
+ * Handle Aspire.Hosting.Kubernetes.Resources.VolumeResourceRequirementsV1
+ */
+
+export interface VolumeResourceRequirementsV1 {
+  /**
+   * Represents the minimum amount of compute resources required for a volume in a Kubernetes environment. Specifies the resource requests for the volume, such as storage capacity or other resource types. Used to define guaranteed resource allocation for the volume.
+   */
+
+  requests: PropertyAccessor<Dict<string,string>>;
 }
 
 /**
@@ -191295,6 +197344,11 @@ export interface MilvusDatabaseResource extends IExpressionValue, IManifestExpre
    */
 
   parent: PropertyAccessor<MilvusServerResource>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
 }
 
 /**
@@ -191349,6 +197403,11 @@ export interface MilvusServerResource extends ContainerResource, IComputeResourc
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets a valid access token to access the Milvus instance.
    */
@@ -191417,6 +197476,11 @@ export interface MongoDBDatabaseResource extends IExpressionValue, IManifestExpr
 
   parent: PropertyAccessor<MongoDBServerResource>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the MongoDB database.
    */
 
@@ -191438,6 +197502,11 @@ export interface MongoDBReplicaSetResource extends IExpressionValue, IManifestEx
    */
 
   members: PropertyAccessor<MongoDBServerResource[]>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the parameter that contains the content of the key file used for internal authentication between members of the MongoDB replica set.
    */
@@ -191515,6 +197584,11 @@ export interface MongoDBServerResource extends ContainerResource, IComputeResour
    */
 
   replicaSetName: PropertyAccessor<string>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the parameter that contains the MongoDb server password.
    */
@@ -191670,6 +197744,11 @@ export interface MySqlDatabaseResource extends IExpressionValue, IManifestExpres
 
   parent: PropertyAccessor<MySqlServerResource>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the MySQL database.
    */
 
@@ -191731,6 +197810,11 @@ export interface MySqlServerResource extends ContainerResource, IComputeResource
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets or sets the parameter that contains the MySQL server password.
    */
@@ -191830,6 +197914,11 @@ export interface NatsServerResource extends ContainerResource, IComputeResource,
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets or sets the password for the NATS server.
    */
@@ -191942,6 +198031,11 @@ export interface OracleDatabaseResource extends IExpressionValue, IManifestExpre
 
   parent: PropertyAccessor<OracleDatabaseServerResource>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the Oracle database.
    */
 
@@ -191998,6 +198092,11 @@ export interface OracleDatabaseServerResource extends ContainerResource, IComput
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the connection URI expression for the Oracle server.
    */
@@ -192140,6 +198239,11 @@ export interface PostgresDatabaseResource extends IExpressionValue, IManifestExp
 
   parent: PropertyAccessor<PostgresServerResource>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the PostgreSQL database.
    */
 
@@ -192211,6 +198315,11 @@ export interface PostgresServerResource extends ContainerResource, IComputeResou
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets or sets the parameter that contains the PostgreSQL server password.
    */
@@ -192444,6 +198553,11 @@ export interface QdrantServerResource extends ContainerResource, IComputeResourc
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the Qdrant gRPC endpoint.
    */
 
@@ -192505,6 +198619,11 @@ export interface RabbitMQServerResource extends ContainerResource, IComputeResou
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the connection URI expression for the RabbitMQ server.
    */
@@ -192604,6 +198723,11 @@ export interface RedisResource extends ContainerResource, IComputeResource, IExp
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the parameter that contains the Redis server password.
    */
@@ -192736,6 +198860,11 @@ export interface RedisInsightResource extends ContainerResource, IComputeResourc
 
 export interface RustAppResource extends ExecutableResource, IComputeResource, IContainerFilesDestinationResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Adds command-line arguments to the cargo command used by a Rust application.
    */
 
@@ -192823,6 +198952,11 @@ export interface SeqResource extends ContainerResource, IComputeResource, IExpre
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the connection URI expression for the Seq server.
    */
 
@@ -192874,6 +199008,11 @@ export interface SqlServerDatabaseResource extends IExpressionValue, IManifestEx
    */
 
   parent: PropertyAccessor<SqlServerServerResource>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the connection URI expression for the SQL Server database.
    */
@@ -192937,6 +199076,11 @@ export interface SqlServerServerResource extends ContainerResource, IComputeReso
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
   /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
+  /**
    * Gets the parameter that contains the SQL Server password.
    */
 
@@ -192982,10 +199126,32 @@ export interface SqlServerServerResource extends ContainerResource, IComputeReso
 
   withPassword(password: string | ParameterResource): this;
   /**
-   * Adds a REPL command that opens an authenticated SQL Server shell in the dashboard terminal dock.
+   * Adds a REPL command that opens an authenticated SQL Server shell with the configured client tools.
    */
 
-  withRepl(): this;
+  withRepl(options?: { configure?: (obj: SqlServerReplOptions) => Promise<void> }): this;
+  /**
+   * Adds a REPL command that opens an authenticated SQL Server shell with the configured client tools.
+   */
+
+  withRepl(configure?: (obj: SqlServerReplOptions) => Promise<void>): this;
+}
+
+/**
+ * Handle Aspire.Hosting.SqlServerReplOptions
+ */
+
+export interface SqlServerReplOptions {
+  /**
+   * Gets or sets the sqlcmd executable path inside the SQL Server container. Defaults to `Version18`, matching the integration's default SQL Server image.
+   */
+
+  command: PropertyAccessor<string>;
+  /**
+   * Gets or sets the sqlcmd executable path inside the SQL Server container. Defaults to `Version18`, matching the integration's default SQL Server image.
+   */
+
+  setCommand(value: string): SqlServerReplOptions;
 }
 
 /**
@@ -193018,6 +199184,11 @@ export interface ValkeyResource extends ContainerResource, IComputeResource, IEx
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the ResourceTypeDisplayName property
+   */
+
+  resourceTypeDisplayName: PropertyAccessor<string>;
   /**
    * Gets the connection URI expression for the Valkey server.
    */
@@ -193917,6 +200088,16 @@ export interface FlociAzureContainerResource extends ContainerResource, ICompute
 
   scheme: PropertyAccessor<EndpointReferenceExpression>;
   /**
+   * Adds a Cosmos DB child resource to the Floci Azure emulator
+   */
+
+  withCosmos(options?: { name?: string; accountName?: string }): this;
+  /**
+   * Adds a Cosmos DB child resource to the Floci Azure emulator
+   */
+
+  withCosmos(name?: string, accountName?: string): this;
+  /**
    * Configures a bind mount for persistent Floci Azure state.
    */
 
@@ -193956,6 +200137,107 @@ export interface FlociAzureContainerResource extends ContainerResource, ICompute
    */
 
   withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Adds a Service Bus child resource to the Floci Azure emulator
+   */
+
+  withServiceBus(options?: { name?: string; amqpPort?: number; amqpTlsPort?: number }): this;
+  /**
+   * Adds a Service Bus child resource to the Floci Azure emulator
+   */
+
+  withServiceBus(name?: string, amqpPort?: number, amqpTlsPort?: number): this;
+  /**
+   * Adds a Storage child resource to the Floci Azure emulator
+   */
+
+  withStorage(options?: { name?: string }): this;
+  /**
+   * Adds a Storage child resource to the Floci Azure emulator
+   */
+
+  withStorage(name?: string): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociAzureCosmosResource
+ */
+
+export interface FlociAzureCosmosResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the Cosmos DB account endpoint.
+   */
+
+  accountEndpoint: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the Cosmos DB account name.
+   */
+
+  accountName: PropertyAccessor<string>;
+  /**
+   * Gets the Cosmos DB connection string expression.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parent Floci Azure emulator resource.
+   */
+
+  parent: PropertyAccessor<FlociAzureContainerResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociAzureServiceBusResource
+ */
+
+export interface FlociAzureServiceBusResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the Service Bus plain AMQP endpoint.
+   */
+
+  amqpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the Service Bus AMQPS/TLS endpoint.
+   */
+
+  amqpTlsEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the Service Bus connection string expression. `UseDevelopmentEmulator=true` makes the Azure SDKs use plain AMQP (no TLS), matching the official Service Bus emulator's connection-string shape.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parent Floci Azure emulator resource.
+   */
+
+  parent: PropertyAccessor<FlociAzureContainerResource>;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlociAzureStorageResource
+ */
+
+export interface FlociAzureStorageResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithParent, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the storage account name.
+   */
+
+  accountName: PropertyAccessor<string>;
+  /**
+   * Gets the storage connection string expression, carrying the `BlobEndpoint`, `QueueEndpoint` and `TableEndpoint` entries so every Azure Storage SDK client resolves to the emulator.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the parent Floci Azure emulator resource.
+   */
+
+  parent: PropertyAccessor<FlociAzureContainerResource>;
+  /**
+   * Gets the service endpoint shared by the Blob, Queue and Table APIs.
+   */
+
+  serviceEndpoint: PropertyAccessor<ReferenceExpression>;
 }
 
 /**
@@ -196477,12 +202759,12 @@ export interface K6Resource extends ContainerResource, IComputeResource, IResour
    * Runs a k6 JS script when starting the Grafana k6 container resource.
    */
 
-  withScript(scriptPath: string, options?: { virtualUsers?: number; duration?: string }): this;
+  withScript(scriptPath: string, options?: { virtualUsers?: number; duration?: string; summaryMode?: K6SummaryMode }): this;
   /**
    * Runs a k6 JS script when starting the Grafana k6 container resource.
    */
 
-  withScript(scriptPath: string, virtualUsers?: number, duration?: string): this;
+  withScript(scriptPath: string, virtualUsers?: number, duration?: string, summaryMode?: K6SummaryMode): this;
 }
 
 // ---- target-type interfaces (resource/builder APIs) ----
@@ -196529,6 +202811,11 @@ export interface IDistributedApplicationBuilder {
 
   addBicepTemplateString(name: string, bicepContent: string): AzureBicepResource;
   /**
+   * Adds an Azure API Management service.
+   */
+
+  addAzureApiManagement(name: string, options: AzureApiManagementOptions): AzureApiManagementResource;
+  /**
    * Adds an Azure App Configuration resource to the application model.
    */
 
@@ -196569,6 +202856,16 @@ export interface IDistributedApplicationBuilder {
 
   addAzureCosmosDB(name: string): AzureCosmosDBResource;
   /**
+   * Adds a Microsoft Entra ID application registration resource to the application model.
+   */
+
+  addEntraIdApplication(name: string): EntraIdApplicationResource;
+  /**
+   * References an existing registration without enabling Azure provisioning or querying Microsoft Graph.
+   */
+
+  addExistingEntraIdApplication(name: string, tenantId: string | ParameterResource, clientId: string | ParameterResource): EntraIdApplicationResource;
+  /**
    * Adds an Azure Event Hubs Namespace resource to the application model. This resource can be used to create Event Hub resources.
    */
 
@@ -196578,6 +202875,11 @@ export interface IDistributedApplicationBuilder {
    */
 
   addAzureFrontDoor(name: string): AzureFrontDoorResource;
+  /**
+   * Adds an Azure Functions app from a source directory to the distributed application.
+   */
+
+  addAzureFunctionsApp(name: string, appDirectory: string, language: AzureFunctionsLanguage): AzureFunctionsAppResource;
   /**
    * Adds an Azure Functions project to the distributed application.
    */
@@ -196684,7 +202986,7 @@ export interface IDistributedApplicationBuilder {
 
   addAzureWebPubSub(name: string): AzureWebPubSubResource;
   /**
-   * Registers the built-in Blazor Gateway as a file-based C# app. The gateway is shipped as Gateway.cs alongside this library and launched via `AddCSharpApp`. No separate project is needed.
+   * Registers the built-in Blazor Gateway. During development the gateway runs from the official .NET tool. Publishing continues to use the file-based app shipped with this package.
    */
 
   addBlazorGateway(name: string): ProjectResource;
@@ -196724,7 +203026,7 @@ export interface IDistributedApplicationBuilder {
 
   addDockerComposeEnvironment(name: string): DockerComposeEnvironmentResource;
   /**
-   * Adds a C# application resource.
+   * Adds a .NET application resource.
    */
 
   addDotnetProject(name: string, path: string, options?: DotnetProjectOptions): DotnetProjectResource;
@@ -197514,46 +203816,6 @@ export interface AadAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -197668,46 +203930,6 @@ export interface AccessKeyAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -197821,46 +204043,6 @@ export interface AccountKeyAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -198142,46 +204324,6 @@ export interface ApiKeyAuthConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -198290,16 +204432,6 @@ export interface ApiKeyAuthConnectionPropertiesProxy {
 
 // augments handle type ApplicationRuleProxy with extension methods
 export interface ApplicationRuleProxy {
-  /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets or sets the Description provisioning property.
    */
@@ -203053,6 +209185,11 @@ export interface AzureResourceInfrastructure {
 
   createCdnWritableSubResource(): CdnWritableSubResourceProxy;
   /**
+   * Creates a CertificateSourceProperties provisioning model.
+   */
+
+  createCertificateSourceProperties(): CertificateSourcePropertiesProxy;
+  /**
    * Creates a ClientPortMatchCondition provisioning model.
    */
 
@@ -203108,6 +209245,11 @@ export interface AzureResourceInfrastructure {
 
   createDeliveryRuleAction(): DeliveryRuleActionProxy;
   /**
+   * Creates a DeliveryRuleActionProperties provisioning model.
+   */
+
+  createDeliveryRuleActionProperties(): DeliveryRuleActionPropertiesProxy;
+  /**
    * Creates a DeliveryRuleCacheExpirationAction provisioning model.
    */
 
@@ -203127,6 +209269,11 @@ export interface AzureResourceInfrastructure {
    */
 
   createDeliveryRuleCondition(): DeliveryRuleConditionProxy;
+  /**
+   * Creates a DeliveryRuleConditionProperties provisioning model.
+   */
+
+  createDeliveryRuleConditionProperties(): DeliveryRuleConditionPropertiesProxy;
   /**
    * Creates a DeliveryRuleCookiesCondition provisioning model.
    */
@@ -203352,11 +209499,6 @@ export interface AzureResourceInfrastructure {
    */
 
   createOriginGroupOverrideActionProperties(): OriginGroupOverrideActionPropertiesProxy;
-  /**
-   * Creates a PolicySettingsDefaultCustomBlockResponseStatusCode provisioning model.
-   */
-
-  createPolicySettingsDefaultCustomBlockResponseStatusCode(): PolicySettingsDefaultCustomBlockResponseStatusCodeProxy;
   /**
    * Creates a PostArgsMatchCondition provisioning model.
    */
@@ -205088,16 +211230,6 @@ export interface AzureResourceInfrastructure {
 
   addAgentPoolSnapshot(bicepIdentifier: string, resourceVersion?: string): AgentPoolSnapshotProxy;
   /**
-   * Adds a AgentPoolUpgradeProfile provisioning model.
-   */
-
-  addAgentPoolUpgradeProfile(bicepIdentifier: string, options?: { resourceVersion?: string }): AgentPoolUpgradeProfileProxy;
-  /**
-   * Adds a AgentPoolUpgradeProfile provisioning model.
-   */
-
-  addAgentPoolUpgradeProfile(bicepIdentifier: string, resourceVersion?: string): AgentPoolUpgradeProfileProxy;
-  /**
    * Adds a ContainerServiceAgentPool provisioning model.
    */
 
@@ -205107,16 +211239,6 @@ export interface AzureResourceInfrastructure {
    */
 
   addContainerServiceAgentPool(bicepIdentifier: string, resourceVersion?: string): ContainerServiceAgentPoolProxy;
-  /**
-   * Adds a ContainerServiceMachine provisioning model.
-   */
-
-  addContainerServiceMachine(bicepIdentifier: string, options?: { resourceVersion?: string }): ContainerServiceMachineProxy;
-  /**
-   * Adds a ContainerServiceMachine provisioning model.
-   */
-
-  addContainerServiceMachine(bicepIdentifier: string, resourceVersion?: string): ContainerServiceMachineProxy;
   /**
    * Adds a ContainerServiceMaintenanceConfiguration provisioning model.
    */
@@ -205178,6 +211300,16 @@ export interface AzureResourceInfrastructure {
 
   addContainerServiceUserAssignedIdentity_2(bicepIdentifier: string, resourceVersion?: string): ContainerServiceUserAssignedIdentity_2Proxy;
   /**
+   * Adds a ManagedClusterIdentityBinding provisioning model.
+   */
+
+  addManagedClusterIdentityBinding(bicepIdentifier: string, options?: { resourceVersion?: string }): ManagedClusterIdentityBindingProxy;
+  /**
+   * Adds a ManagedClusterIdentityBinding provisioning model.
+   */
+
+  addManagedClusterIdentityBinding(bicepIdentifier: string, resourceVersion?: string): ManagedClusterIdentityBindingProxy;
+  /**
    * Adds a ManagedClusterNamespace provisioning model.
    */
 
@@ -205188,35 +211320,10 @@ export interface AzureResourceInfrastructure {
 
   addManagedClusterNamespace(bicepIdentifier: string, resourceVersion?: string): ManagedClusterNamespaceProxy;
   /**
-   * Adds a ManagedClusterUpgradeProfile provisioning model.
+   * Creates a AgentPoolAutoScaleProfile provisioning model.
    */
 
-  addManagedClusterUpgradeProfile(bicepIdentifier: string, options?: { resourceVersion?: string }): ManagedClusterUpgradeProfileProxy;
-  /**
-   * Adds a ManagedClusterUpgradeProfile provisioning model.
-   */
-
-  addManagedClusterUpgradeProfile(bicepIdentifier: string, resourceVersion?: string): ManagedClusterUpgradeProfileProxy;
-  /**
-   * Adds a MeshRevisionProfile provisioning model.
-   */
-
-  addMeshRevisionProfile(bicepIdentifier: string, options?: { resourceVersion?: string }): MeshRevisionProfileProxy;
-  /**
-   * Adds a MeshRevisionProfile provisioning model.
-   */
-
-  addMeshRevisionProfile(bicepIdentifier: string, resourceVersion?: string): MeshRevisionProfileProxy;
-  /**
-   * Adds a MeshUpgradeProfile provisioning model.
-   */
-
-  addMeshUpgradeProfile(bicepIdentifier: string, options?: { resourceVersion?: string }): MeshUpgradeProfileProxy;
-  /**
-   * Adds a MeshUpgradeProfile provisioning model.
-   */
-
-  addMeshUpgradeProfile(bicepIdentifier: string, resourceVersion?: string): MeshUpgradeProfileProxy;
+  createAgentPoolAutoScaleProfile(): AgentPoolAutoScaleProfileProxy;
   /**
    * Creates a AgentPoolNetworkPortRange provisioning model.
    */
@@ -205227,6 +211334,16 @@ export interface AzureResourceInfrastructure {
    */
 
   createAgentPoolNetworkProfile(): AgentPoolNetworkProfileProxy;
+  /**
+   * Creates a AgentPoolRecentlyUsedVersion provisioning model.
+   */
+
+  createAgentPoolRecentlyUsedVersion(): AgentPoolRecentlyUsedVersionProxy;
+  /**
+   * Creates a AgentPoolScaleProfile provisioning model.
+   */
+
+  createAgentPoolScaleProfile(): AgentPoolScaleProfileProxy;
   /**
    * Creates a AgentPoolSecurityProfile provisioning model.
    */
@@ -205373,6 +211490,11 @@ export interface AzureResourceInfrastructure {
 
   createContainerServiceWritableSubResource(): ContainerServiceWritableSubResourceProxy;
   /**
+   * Creates a IdentityBindingManagedIdentityProfile provisioning model.
+   */
+
+  createIdentityBindingManagedIdentityProfile(): IdentityBindingManagedIdentityProfileProxy;
+  /**
    * Creates a IstioComponents provisioning model.
    */
 
@@ -205448,6 +211570,11 @@ export interface AzureResourceInfrastructure {
 
   createManagedClusterAgentPoolProfile(): ManagedClusterAgentPoolProfileProxy;
   /**
+   * Creates a ManagedClusterAgentPoolProfileProperties provisioning model.
+   */
+
+  createManagedClusterAgentPoolProfileProperties(): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
    * Creates a ManagedClusterApiServerAccessProfile provisioning model.
    */
 
@@ -205463,6 +211590,31 @@ export interface AzureResourceInfrastructure {
 
   createManagedClusterAutoUpgradeProfile(): ManagedClusterAutoUpgradeProfileProxy;
   /**
+   * Creates a ManagedClusterAzureMonitorProfile provisioning model.
+   */
+
+  createManagedClusterAzureMonitorProfile(): ManagedClusterAzureMonitorProfileProxy;
+  /**
+   * Creates a ManagedClusterAzureMonitorProfileAppMonitoring provisioning model.
+   */
+
+  createManagedClusterAzureMonitorProfileAppMonitoring(): ManagedClusterAzureMonitorProfileAppMonitoringProxy;
+  /**
+   * Creates a ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTraces provisioning model.
+   */
+
+  createManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTraces(): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryLogsAndTracesProxy;
+  /**
+   * Creates a ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetrics provisioning model.
+   */
+
+  createManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetrics(): ManagedClusterAzureMonitorProfileAppMonitoringOpenTelemetryMetricsProxy;
+  /**
+   * Creates a ManagedClusterAzureMonitorProfileContainerInsights provisioning model.
+   */
+
+  createManagedClusterAzureMonitorProfileContainerInsights(): ManagedClusterAzureMonitorProfileContainerInsightsProxy;
+  /**
    * Creates a ManagedClusterBootstrapProfile provisioning model.
    */
 
@@ -205473,6 +211625,11 @@ export interface AzureResourceInfrastructure {
 
   createManagedClusterDelegatedIdentity(): ManagedClusterDelegatedIdentityProxy;
   /**
+   * Creates a ManagedClusterHostedSystemProfile provisioning model.
+   */
+
+  createManagedClusterHostedSystemProfile(): ManagedClusterHostedSystemProfileProxy;
+  /**
    * Creates a ManagedClusterHttpProxyConfig provisioning model.
    */
 
@@ -205482,6 +211639,16 @@ export interface AzureResourceInfrastructure {
    */
 
   createManagedClusterIdentity(): ManagedClusterIdentityProxy;
+  /**
+   * Creates a ManagedClusterIdentityBindingProperties provisioning model.
+   */
+
+  createManagedClusterIdentityBindingProperties(): ManagedClusterIdentityBindingPropertiesProxy;
+  /**
+   * Creates a ManagedClusterIngressProfile provisioning model.
+   */
+
+  createManagedClusterIngressProfile(): ManagedClusterIngressProfileProxy;
   /**
    * Creates a ManagedClusterIngressProfileWebAppRouting provisioning model.
    */
@@ -205497,6 +211664,11 @@ export interface AzureResourceInfrastructure {
    */
 
   createManagedClusterLoadBalancerProfileManagedOutboundIPs(): ManagedClusterLoadBalancerProfileManagedOutboundIPsProxy;
+  /**
+   * Creates a ManagedClusterManagedOutboundIPProfile provisioning model.
+   */
+
+  createManagedClusterManagedOutboundIPProfile(): ManagedClusterManagedOutboundIPProfileProxy;
   /**
    * Creates a ManagedClusterMonitorProfileKubeStateMetrics provisioning model.
    */
@@ -205567,6 +211739,16 @@ export interface AzureResourceInfrastructure {
    */
 
   createManagedClusterSecurityProfileDefender(): ManagedClusterSecurityProfileDefenderProxy;
+  /**
+   * Creates a ManagedClusterSecurityProfileDefenderSecurityGating provisioning model.
+   */
+
+  createManagedClusterSecurityProfileDefenderSecurityGating(): ManagedClusterSecurityProfileDefenderSecurityGatingProxy;
+  /**
+   * Creates a ManagedClusterSecurityProfileDefenderSecurityGatingIdentity provisioning model.
+   */
+
+  createManagedClusterSecurityProfileDefenderSecurityGatingIdentity(): ManagedClusterSecurityProfileDefenderSecurityGatingIdentityProxy;
   /**
    * Creates a ManagedClusterSecurityProfileImageCleaner provisioning model.
    */
@@ -205797,6 +211979,16 @@ export interface AzureResourceInfrastructure {
    */
 
   getContainerServiceUserAssignedIdentity_2s(): ContainerServiceUserAssignedIdentity_2Proxy[];
+  /**
+   * Gets a ManagedClusterIdentityBinding provisioning resource by its Bicep identifier.
+   */
+
+  getManagedClusterIdentityBindingByIdentifier(bicepIdentifier: string): ManagedClusterIdentityBindingProxy;
+  /**
+   * Gets all ManagedClusterIdentityBinding provisioning resources.
+   */
+
+  getManagedClusterIdentityBindings(): ManagedClusterIdentityBindingProxy[];
   /**
    * Gets a ManagedClusterNamespace provisioning resource by its Bicep identifier.
    */
@@ -207297,6 +213489,126 @@ export interface AzureResourceInfrastructure {
    */
 
   getMongoDBUserDefinitions(): MongoDBUserDefinitionProxy[];
+  /**
+   * Adds a MicrosoftGraphApplication provisioning model.
+   */
+
+  addMicrosoftGraphApplication(bicepIdentifier: string): MicrosoftGraphApplicationProxy;
+  /**
+   * Adds a MicrosoftGraphAppRoleAssignedTo provisioning model.
+   */
+
+  addMicrosoftGraphAppRoleAssignedTo(bicepIdentifier: string): MicrosoftGraphAppRoleAssignedToProxy;
+  /**
+   * Adds a MicrosoftGraphExistingServicePrincipal provisioning model.
+   */
+
+  addMicrosoftGraphExistingServicePrincipal(bicepIdentifier: string): MicrosoftGraphExistingServicePrincipalProxy;
+  /**
+   * Adds a MicrosoftGraphFederatedIdentityCredential provisioning model.
+   */
+
+  addMicrosoftGraphFederatedIdentityCredential(bicepIdentifier: string): MicrosoftGraphFederatedIdentityCredentialProxy;
+  /**
+   * Adds a MicrosoftGraphOAuth2PermissionGrant provisioning model.
+   */
+
+  addMicrosoftGraphOAuth2PermissionGrant(bicepIdentifier: string): MicrosoftGraphOAuth2PermissionGrantProxy;
+  /**
+   * Adds a MicrosoftGraphServicePrincipal provisioning model.
+   */
+
+  addMicrosoftGraphServicePrincipal(bicepIdentifier: string): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Creates a MicrosoftGraphAppRole provisioning model.
+   */
+
+  createMicrosoftGraphAppRole(): MicrosoftGraphAppRoleProxy;
+  /**
+   * Creates a MicrosoftGraphKeyCredential provisioning model.
+   */
+
+  createMicrosoftGraphKeyCredential(): MicrosoftGraphKeyCredentialProxy;
+  /**
+   * Creates a MicrosoftGraphPermissionScope provisioning model.
+   */
+
+  createMicrosoftGraphPermissionScope(): MicrosoftGraphPermissionScopeProxy;
+  /**
+   * Creates a MicrosoftGraphPreAuthorizedApplication provisioning model.
+   */
+
+  createMicrosoftGraphPreAuthorizedApplication(): MicrosoftGraphPreAuthorizedApplicationProxy;
+  /**
+   * Creates a MicrosoftGraphRequiredResourceAccess provisioning model.
+   */
+
+  createMicrosoftGraphRequiredResourceAccess(): MicrosoftGraphRequiredResourceAccessProxy;
+  /**
+   * Creates a MicrosoftGraphResourceAccess provisioning model.
+   */
+
+  createMicrosoftGraphResourceAccess(): MicrosoftGraphResourceAccessProxy;
+  /**
+   * Gets a MicrosoftGraphApplication provisioning resource by its Bicep identifier.
+   */
+
+  getMicrosoftGraphApplicationByIdentifier(bicepIdentifier: string): MicrosoftGraphApplicationProxy;
+  /**
+   * Gets all MicrosoftGraphApplication provisioning resources.
+   */
+
+  getMicrosoftGraphApplications(): MicrosoftGraphApplicationProxy[];
+  /**
+   * Gets a MicrosoftGraphAppRoleAssignedTo provisioning resource by its Bicep identifier.
+   */
+
+  getMicrosoftGraphAppRoleAssignedToByIdentifier(bicepIdentifier: string): MicrosoftGraphAppRoleAssignedToProxy;
+  /**
+   * Gets all MicrosoftGraphAppRoleAssignedTo provisioning resources.
+   */
+
+  getMicrosoftGraphAppRoleAssignedTos(): MicrosoftGraphAppRoleAssignedToProxy[];
+  /**
+   * Gets a MicrosoftGraphExistingServicePrincipal provisioning resource by its Bicep identifier.
+   */
+
+  getMicrosoftGraphExistingServicePrincipalByIdentifier(bicepIdentifier: string): MicrosoftGraphExistingServicePrincipalProxy;
+  /**
+   * Gets all MicrosoftGraphExistingServicePrincipal provisioning resources.
+   */
+
+  getMicrosoftGraphExistingServicePrincipals(): MicrosoftGraphExistingServicePrincipalProxy[];
+  /**
+   * Gets a MicrosoftGraphFederatedIdentityCredential provisioning resource by its Bicep identifier.
+   */
+
+  getMicrosoftGraphFederatedIdentityCredentialByIdentifier(bicepIdentifier: string): MicrosoftGraphFederatedIdentityCredentialProxy;
+  /**
+   * Gets all MicrosoftGraphFederatedIdentityCredential provisioning resources.
+   */
+
+  getMicrosoftGraphFederatedIdentityCredentials(): MicrosoftGraphFederatedIdentityCredentialProxy[];
+  /**
+   * Gets a MicrosoftGraphOAuth2PermissionGrant provisioning resource by its Bicep identifier.
+   */
+
+  getMicrosoftGraphOAuth2PermissionGrantByIdentifier(bicepIdentifier: string): MicrosoftGraphOAuth2PermissionGrantProxy;
+  /**
+   * Gets all MicrosoftGraphOAuth2PermissionGrant provisioning resources.
+   */
+
+  getMicrosoftGraphOAuth2PermissionGrants(): MicrosoftGraphOAuth2PermissionGrantProxy[];
+  /**
+   * Gets a MicrosoftGraphServicePrincipal provisioning resource by its Bicep identifier.
+   */
+
+  getMicrosoftGraphServicePrincipalByIdentifier(bicepIdentifier: string): MicrosoftGraphServicePrincipalProxy;
+  /**
+   * Gets all MicrosoftGraphServicePrincipal provisioning resources.
+   */
+
+  getMicrosoftGraphServicePrincipals(): MicrosoftGraphServicePrincipalProxy[];
   /**
    * Adds a EventHub provisioning model.
    */
@@ -216703,6 +223015,16 @@ export interface AzureResourceInfrastructure {
 
   getWorkloadGroups(): WorkloadGroupProxy[];
   /**
+   * Adds a AdvancedPlatformMetricsRule provisioning model.
+   */
+
+  addAdvancedPlatformMetricsRule(bicepIdentifier: string, options?: { resourceVersion?: string }): AdvancedPlatformMetricsRuleProxy;
+  /**
+   * Adds a AdvancedPlatformMetricsRule provisioning model.
+   */
+
+  addAdvancedPlatformMetricsRule(bicepIdentifier: string, resourceVersion?: string): AdvancedPlatformMetricsRuleProxy;
+  /**
    * Adds a BlobContainer provisioning model.
    */
 
@@ -216732,6 +223054,26 @@ export interface AzureResourceInfrastructure {
    */
 
   addBlobService(bicepIdentifier: string, resourceVersion?: string): BlobServiceProxy;
+  /**
+   * Adds a ContextCache provisioning model.
+   */
+
+  addContextCache(bicepIdentifier: string, options?: { resourceVersion?: string }): ContextCacheProxy;
+  /**
+   * Adds a ContextCache provisioning model.
+   */
+
+  addContextCache(bicepIdentifier: string, resourceVersion?: string): ContextCacheProxy;
+  /**
+   * Adds a ContextCacheContainer provisioning model.
+   */
+
+  addContextCacheContainer(bicepIdentifier: string, options?: { resourceVersion?: string }): ContextCacheContainerProxy;
+  /**
+   * Adds a ContextCacheContainer provisioning model.
+   */
+
+  addContextCacheContainer(bicepIdentifier: string, resourceVersion?: string): ContextCacheContainerProxy;
   /**
    * Adds a EncryptionScope provisioning model.
    */
@@ -216823,6 +223165,26 @@ export interface AzureResourceInfrastructure {
 
   addStorageAccountManagementPolicy(bicepIdentifier: string, resourceVersion?: string): StorageAccountManagementPolicyProxy;
   /**
+   * Adds a StorageConnector provisioning model.
+   */
+
+  addStorageConnector(bicepIdentifier: string, options?: { resourceVersion?: string }): StorageConnectorProxy;
+  /**
+   * Adds a StorageConnector provisioning model.
+   */
+
+  addStorageConnector(bicepIdentifier: string, resourceVersion?: string): StorageConnectorProxy;
+  /**
+   * Adds a StorageDataShare provisioning model.
+   */
+
+  addStorageDataShare(bicepIdentifier: string, options?: { resourceVersion?: string }): StorageDataShareProxy;
+  /**
+   * Adds a StorageDataShare provisioning model.
+   */
+
+  addStorageDataShare(bicepIdentifier: string, resourceVersion?: string): StorageDataShareProxy;
+  /**
    * Adds a StoragePrivateEndpointConnection provisioning model.
    */
 
@@ -216898,6 +223260,21 @@ export interface AzureResourceInfrastructure {
 
   createAccountImmutabilityPolicy(): AccountImmutabilityPolicyProxy;
   /**
+   * Creates a AdvancedPlatformMetricsRuleConfig provisioning model.
+   */
+
+  createAdvancedPlatformMetricsRuleConfig(): AdvancedPlatformMetricsRuleConfigProxy;
+  /**
+   * Creates a AdvancedPlatformMetricsRuleProperties provisioning model.
+   */
+
+  createAdvancedPlatformMetricsRuleProperties(): AdvancedPlatformMetricsRulePropertiesProxy;
+  /**
+   * Creates a ArmEncryption provisioning model.
+   */
+
+  createArmEncryption(): ArmEncryptionProxy;
+  /**
    * Creates a BlobContainerImmutabilityPolicy provisioning model.
    */
 
@@ -216943,6 +223320,41 @@ export interface AzureResourceInfrastructure {
 
   createBlobServiceChangeFeed(): BlobServiceChangeFeedProxy;
   /**
+   * Creates a BlobServiceStaticWebsite provisioning model.
+   */
+
+  createBlobServiceStaticWebsite(): BlobServiceStaticWebsiteProxy;
+  /**
+   * Creates a BurstingConstants provisioning model.
+   */
+
+  createBurstingConstants(): BurstingConstantsProxy;
+  /**
+   * Creates a ContextCacheContainerProperties provisioning model.
+   */
+
+  createContextCacheContainerProperties(): ContextCacheContainerPropertiesProxy;
+  /**
+   * Creates a ContextCacheProperties provisioning model.
+   */
+
+  createContextCacheProperties(): ContextCachePropertiesProxy;
+  /**
+   * Creates a CustomerManagedKeyEncryption provisioning model.
+   */
+
+  createCustomerManagedKeyEncryption(): CustomerManagedKeyEncryptionProxy;
+  /**
+   * Creates a DataShareConnection provisioning model.
+   */
+
+  createDataShareConnection(): DataShareConnectionProxy;
+  /**
+   * Creates a DataShareSource provisioning model.
+   */
+
+  createDataShareSource(): DataShareSourceProxy;
+  /**
    * Creates a DateAfterCreation provisioning model.
    */
 
@@ -216978,10 +223390,45 @@ export interface AzureResourceInfrastructure {
 
   createExecutionTriggerParameters(): ExecutionTriggerParametersProxy;
   /**
+   * Creates a FileServiceAccountLimits provisioning model.
+   */
+
+  createFileServiceAccountLimits(): FileServiceAccountLimitsProxy;
+  /**
+   * Creates a FileServiceAccountUsage provisioning model.
+   */
+
+  createFileServiceAccountUsage(): FileServiceAccountUsageProxy;
+  /**
+   * Creates a FileServiceAccountUsageElements provisioning model.
+   */
+
+  createFileServiceAccountUsageElements(): FileServiceAccountUsageElementsProxy;
+  /**
+   * Creates a FileServiceProtocolSettings provisioning model.
+   */
+
+  createFileServiceProtocolSettings(): FileServiceProtocolSettingsProxy;
+  /**
+   * Creates a FileServiceUsageProperties provisioning model.
+   */
+
+  createFileServiceUsageProperties(): FileServiceUsagePropertiesProxy;
+  /**
+   * Creates a FileShareLimits provisioning model.
+   */
+
+  createFileShareLimits(): FileShareLimitsProxy;
+  /**
    * Creates a FileSharePropertiesFileSharePaidBursting provisioning model.
    */
 
   createFileSharePropertiesFileSharePaidBursting(): FileSharePropertiesFileSharePaidBurstingProxy;
+  /**
+   * Creates a FileShareRecommendations provisioning model.
+   */
+
+  createFileShareRecommendations(): FileShareRecommendationsProxy;
   /**
    * Creates a FilesIdentityBasedAuthentication provisioning model.
    */
@@ -217002,6 +223449,11 @@ export interface AzureResourceInfrastructure {
    */
 
   createImmutableStorageWithVersioning(): ImmutableStorageWithVersioningProxy;
+  /**
+   * Creates a KeyEncryptionKeyIdentity provisioning model.
+   */
+
+  createKeyEncryptionKeyIdentity(): KeyEncryptionKeyIdentityProxy;
   /**
    * Creates a LastAccessTimeTrackingPolicy provisioning model.
    */
@@ -217063,6 +223515,41 @@ export interface AzureResourceInfrastructure {
 
   createManagementPolicyVersion(): ManagementPolicyVersionProxy;
   /**
+   * Creates a NetworkSecurityPerimeter provisioning model.
+   */
+
+  createNetworkSecurityPerimeter(): NetworkSecurityPerimeterProxy;
+  /**
+   * Creates a NetworkSecurityPerimeterConfigurationPropertiesProfile provisioning model.
+   */
+
+  createNetworkSecurityPerimeterConfigurationPropertiesProfile(): NetworkSecurityPerimeterConfigurationPropertiesProfileProxy;
+  /**
+   * Creates a NetworkSecurityPerimeterConfigurationPropertiesResourceAssociation provisioning model.
+   */
+
+  createNetworkSecurityPerimeterConfigurationPropertiesResourceAssociation(): NetworkSecurityPerimeterConfigurationPropertiesResourceAssociationProxy;
+  /**
+   * Creates a NetworkSecurityPerimeterProvisioningIssue provisioning model.
+   */
+
+  createNetworkSecurityPerimeterProvisioningIssue(): NetworkSecurityPerimeterProvisioningIssueProxy;
+  /**
+   * Creates a NetworkSecurityPerimeterProvisioningIssueProperties provisioning model.
+   */
+
+  createNetworkSecurityPerimeterProvisioningIssueProperties(): NetworkSecurityPerimeterProvisioningIssuePropertiesProxy;
+  /**
+   * Creates a NspAccessRule provisioning model.
+   */
+
+  createNspAccessRule(): NspAccessRuleProxy;
+  /**
+   * Creates a NspAccessRuleProperties provisioning model.
+   */
+
+  createNspAccessRuleProperties(): NspAccessRulePropertiesProxy;
+  /**
    * Creates a ObjectReplicationPolicyFilter provisioning model.
    */
 
@@ -217118,6 +223605,11 @@ export interface AzureResourceInfrastructure {
 
   createStorageAccountIPRule(): StorageAccountIPRuleProxy;
   /**
+   * Creates a StorageAccountIPv6Endpoints provisioning model.
+   */
+
+  createStorageAccountIPv6Endpoints(): StorageAccountIPv6EndpointsProxy;
+  /**
    * Creates a StorageAccountKey provisioning model.
    */
 
@@ -217153,6 +223645,11 @@ export interface AzureResourceInfrastructure {
 
   createStorageAccountSasPolicy(): StorageAccountSasPolicyProxy;
   /**
+   * Creates a StorageAccountSharedKeyAccessProperties provisioning model.
+   */
+
+  createStorageAccountSharedKeyAccessProperties(): StorageAccountSharedKeyAccessPropertiesProxy;
+  /**
    * Creates a StorageAccountSkuConversionStatus provisioning model.
    */
 
@@ -217178,6 +223675,31 @@ export interface AzureResourceInfrastructure {
 
   createStorageBuiltInRole(value: string): StorageBuiltInRoleProxy;
   /**
+   * Creates a StorageConnectorAuthProperties provisioning model.
+   */
+
+  createStorageConnectorAuthProperties(): StorageConnectorAuthPropertiesProxy;
+  /**
+   * Creates a StorageConnectorConnection provisioning model.
+   */
+
+  createStorageConnectorConnection(): StorageConnectorConnectionProxy;
+  /**
+   * Creates a StorageConnectorManagedIdentityAuth provisioning model.
+   */
+
+  createStorageConnectorManagedIdentityAuth(): StorageConnectorManagedIdentityAuthProxy;
+  /**
+   * Creates a StorageConnectorProperties provisioning model.
+   */
+
+  createStorageConnectorProperties(): StorageConnectorPropertiesProxy;
+  /**
+   * Creates a StorageConnectorSource provisioning model.
+   */
+
+  createStorageConnectorSource(): StorageConnectorSourceProxy;
+  /**
    * Creates a StorageCorsRule provisioning model.
    */
 
@@ -217187,6 +223709,26 @@ export interface AzureResourceInfrastructure {
    */
 
   createStorageCustomDomain(): StorageCustomDomainProxy;
+  /**
+   * Creates a StorageDataCollaborationPolicyProperties provisioning model.
+   */
+
+  createStorageDataCollaborationPolicyProperties(): StorageDataCollaborationPolicyPropertiesProxy;
+  /**
+   * Creates a StorageDataShareAccessPolicy provisioning model.
+   */
+
+  createStorageDataShareAccessPolicy(): StorageDataShareAccessPolicyProxy;
+  /**
+   * Creates a StorageDataShareAsset provisioning model.
+   */
+
+  createStorageDataShareAsset(): StorageDataShareAssetProxy;
+  /**
+   * Creates a StorageDataShareProperties provisioning model.
+   */
+
+  createStorageDataShareProperties(): StorageDataSharePropertiesProxy;
   /**
    * Creates a StorageEncryptionService provisioning model.
    */
@@ -217253,6 +223795,11 @@ export interface AzureResourceInfrastructure {
 
   createStorageSshPublicKey(): StorageSshPublicKeyProxy;
   /**
+   * Creates a SubResource provisioning model.
+   */
+
+  createStorageSubResource(): StorageSubResourceProxy;
+  /**
    * Creates a SystemData provisioning model.
    */
 
@@ -217293,6 +223840,16 @@ export interface AzureResourceInfrastructure {
 
   createUpdateHistoryEntry(): UpdateHistoryEntryProxy;
   /**
+   * Gets a AdvancedPlatformMetricsRule provisioning resource by its Bicep identifier.
+   */
+
+  getAdvancedPlatformMetricsRuleByIdentifier(bicepIdentifier: string): AdvancedPlatformMetricsRuleProxy;
+  /**
+   * Gets all AdvancedPlatformMetricsRule provisioning resources.
+   */
+
+  getAdvancedPlatformMetricsRules(): AdvancedPlatformMetricsRuleProxy[];
+  /**
    * Gets a BlobContainer provisioning resource by its Bicep identifier.
    */
 
@@ -217323,6 +223880,36 @@ export interface AzureResourceInfrastructure {
 
   getBlobServices(): BlobServiceProxy[];
   /**
+   * Gets a ContextCache provisioning resource by its Bicep identifier.
+   */
+
+  getContextCacheByIdentifier(bicepIdentifier: string): ContextCacheProxy;
+  /**
+   * Gets a ContextCacheContainer provisioning resource by its Bicep identifier.
+   */
+
+  getContextCacheContainerByIdentifier(bicepIdentifier: string): ContextCacheContainerProxy;
+  /**
+   * Gets all ContextCacheContainer provisioning resources.
+   */
+
+  getContextCacheContainers(): ContextCacheContainerProxy[];
+  /**
+   * Gets all ContextCache provisioning resources.
+   */
+
+  getContextCaches(): ContextCacheProxy[];
+  /**
+   * Gets a DeletedAccount provisioning resource by its Bicep identifier.
+   */
+
+  getDeletedAccountByIdentifier(bicepIdentifier: string): DeletedAccountProxy;
+  /**
+   * Gets all DeletedAccount provisioning resources.
+   */
+
+  getDeletedAccounts(): DeletedAccountProxy[];
+  /**
    * Gets a EncryptionScope provisioning resource by its Bicep identifier.
    */
 
@@ -217343,6 +223930,16 @@ export interface AzureResourceInfrastructure {
 
   getFileServices(): FileServiceProxy[];
   /**
+   * Gets a FileServiceUsage provisioning resource by its Bicep identifier.
+   */
+
+  getFileServiceUsageByIdentifier(bicepIdentifier: string): FileServiceUsageProxy;
+  /**
+   * Gets all FileServiceUsage provisioning resources.
+   */
+
+  getFileServiceUsages(): FileServiceUsageProxy[];
+  /**
    * Gets a FileShare provisioning resource by its Bicep identifier.
    */
 
@@ -217362,6 +223959,16 @@ export interface AzureResourceInfrastructure {
    */
 
   getImmutabilityPolicyByIdentifier(bicepIdentifier: string): ImmutabilityPolicyProxy;
+  /**
+   * Gets a NetworkSecurityPerimeterConfiguration provisioning resource by its Bicep identifier.
+   */
+
+  getNetworkSecurityPerimeterConfigurationByIdentifier(bicepIdentifier: string): NetworkSecurityPerimeterConfigurationProxy;
+  /**
+   * Gets all NetworkSecurityPerimeterConfiguration provisioning resources.
+   */
+
+  getNetworkSecurityPerimeterConfigurations(): NetworkSecurityPerimeterConfigurationProxy[];
   /**
    * Gets all ObjectReplicationPolicy provisioning resources.
    */
@@ -217412,6 +224019,16 @@ export interface AzureResourceInfrastructure {
    */
 
   getStorageAccountManagementPolicyByIdentifier(bicepIdentifier: string): StorageAccountManagementPolicyProxy;
+  /**
+   * Gets a StorageAccountMigration provisioning resource by its Bicep identifier.
+   */
+
+  getStorageAccountMigrationByIdentifier(bicepIdentifier: string): StorageAccountMigrationProxy;
+  /**
+   * Gets all StorageAccountMigration provisioning resources.
+   */
+
+  getStorageAccountMigrations(): StorageAccountMigrationProxy[];
   /**
    * Gets all StorageAccount provisioning resources.
    */
@@ -217473,6 +224090,11 @@ export interface AzureResourceInfrastructure {
 
   getStorageBuiltInRoleStorageFileDataPrivilegedReader(): StorageBuiltInRoleProxy;
   /**
+   * Gets the StorageFileDataSmbMIAdmin value defined by StorageBuiltInRole.
+   */
+
+  getStorageBuiltInRoleStorageFileDataSmbMIAdmin(): StorageBuiltInRoleProxy;
+  /**
    * Gets the StorageFileDataSmbShareContributor value defined by StorageBuiltInRole.
    */
 
@@ -217517,6 +224139,26 @@ export interface AzureResourceInfrastructure {
    */
 
   getStorageBuiltInRoleStorageTableDataReader(): StorageBuiltInRoleProxy;
+  /**
+   * Gets a StorageConnector provisioning resource by its Bicep identifier.
+   */
+
+  getStorageConnectorByIdentifier(bicepIdentifier: string): StorageConnectorProxy;
+  /**
+   * Gets all StorageConnector provisioning resources.
+   */
+
+  getStorageConnectors(): StorageConnectorProxy[];
+  /**
+   * Gets a StorageDataShare provisioning resource by its Bicep identifier.
+   */
+
+  getStorageDataShareByIdentifier(bicepIdentifier: string): StorageDataShareProxy;
+  /**
+   * Gets all StorageDataShare provisioning resources.
+   */
+
+  getStorageDataShares(): StorageDataShareProxy[];
   /**
    * Gets a StoragePrivateEndpointConnection provisioning resource by its Bicep identifier.
    */
@@ -218210,6 +224852,15 @@ export interface AzureVirtualNetworkResource {
   withNetworkSecurityPerimeter(nsp: AzureNetworkSecurityPerimeterResource, accessMode?: NetworkSecurityPerimeterAssociationAccessMode, associationName?: string): this;
 }
 
+// augments handle type AzureWebPubSubEmulatorResource with extension methods
+export interface AzureWebPubSubEmulatorResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Web PubSub resource. This replaces the default role assignments for the resource.
+   */
+
+  withWebPubSubRoleAssignments(target: AzureWebPubSubResource, roles: AzureWebPubSubRole[]): this;
+}
+
 // augments handle type AzureWebPubSubHubResource with extension methods
 export interface AzureWebPubSubHubResource {
   /**
@@ -218373,16 +225024,6 @@ export interface BunAppResource {
 // augments handle type CassandraViewGetPropertiesResourceProxy with extension methods
 export interface CassandraViewGetPropertiesResourceProxy {
   /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the ViewDefinition provisioning property.
-   */
-
-  clearViewDefinition(): void;
-  /**
    * Gets or sets the Id provisioning property.
    */
 
@@ -218406,16 +225047,6 @@ export interface CassandraViewGetPropertiesResourceProxy {
 
 // augments handle type CdnManagedHttpsContentProxy with extension methods
 export interface CdnManagedHttpsContentProxy {
-  /**
-   * Clears the MinimumTlsVersion provisioning property.
-   */
-
-  clearMinimumTlsVersion(): void;
-  /**
-   * Clears the ProtocolType provisioning property.
-   */
-
-  clearProtocolType(): void;
   /**
    * Gets or sets the MinimumTlsVersion provisioning property.
    */
@@ -218567,11 +225198,6 @@ export interface CognitiveServicesAccountModelProxy {
 // augments handle type CognitiveServicesEncryptionScopePropertiesProxy with extension methods
 export interface CognitiveServicesEncryptionScopePropertiesProxy {
   /**
-   * Clears the KeySource provisioning property.
-   */
-
-  clearKeySource(): void;
-  /**
    * Gets or sets the KeySource provisioning property.
    */
 
@@ -218623,21 +225249,6 @@ export interface ContainerRegistryDockerBuildContentProxy {
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
-  /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
 
@@ -218672,16 +225283,6 @@ export interface ContainerRegistryDockerBuildStepProxy {
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
   /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
-  /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
 
@@ -218710,21 +225311,6 @@ export interface ContainerRegistryEncodedTaskRunContentProxy {
    */
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
   /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
@@ -218760,16 +225346,6 @@ export interface ContainerRegistryEncodedTaskStepProxy {
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
   /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
-  /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
 
@@ -218798,21 +225374,6 @@ export interface ContainerRegistryFileTaskRunContentProxy {
    */
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
-  /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
   /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
@@ -218847,16 +225408,6 @@ export interface ContainerRegistryFileTaskStepProxy {
    */
 
   baseImageDependencies: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerRegistry_Generated_ListOfContainerRegistryBaseImageDependencyProxy>;
-  /**
-   * Clears the ContextAccessToken provisioning property.
-   */
-
-  clearContextAccessToken(): void;
-  /**
-   * Clears the ContextPath provisioning property.
-   */
-
-  clearContextPath(): void;
   /**
    * Gets or sets the ContextAccessToken provisioning property.
    */
@@ -218901,6 +225452,16 @@ export interface ContainerRegistryResource {
    */
 
   getResourceName(): string;
+  /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
   /**
    * Subscribes to the BeforeResourceStarted event.
    */
@@ -218951,6 +225512,11 @@ export interface ContainerRegistryResource {
    */
 
   withContainerRegistry(registry: IResource): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -219067,15 +225633,40 @@ export interface ContainerRegistryResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -219186,21 +225777,6 @@ export interface ContainerRegistryTaskRunContentProxy {
 
   agentPoolName: PropertyAccessor<BicepValueProxy | string>;
   /**
-   * Clears the AgentPoolName provisioning property.
-   */
-
-  clearAgentPoolName(): void;
-  /**
-   * Clears the IsArchiveEnabled provisioning property.
-   */
-
-  clearIsArchiveEnabled(): void;
-  /**
-   * Clears the LogTemplate provisioning property.
-   */
-
-  clearLogTemplate(): void;
-  /**
    * Gets or sets the IsArchiveEnabled provisioning property.
    */
 
@@ -219260,6 +225836,16 @@ export interface ContainerResource {
 
   getResourceName(): string;
   /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
+  /**
    * Subscribes to the BeforeResourceStarted event.
    */
 
@@ -219315,6 +225901,21 @@ export interface ContainerResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
+   * Replaces the arguments to be passed to a resource that supports arguments when it is launched.
+   */
+
+  withArgsReplace(args: string[]): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, options?: { certificateDirectoriesEnvironmentVariable?: string }): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, certificateDirectoriesEnvironmentVariable?: string): this;
+  /**
    * Sets the certificate trust scope
    */
 
@@ -219354,6 +225955,11 @@ export interface ContainerResource {
    */
 
   withDeveloperCertificateTrust(trust: boolean): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -219645,15 +226251,40 @@ export interface ContainerResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -219748,6 +226379,16 @@ export interface ContainerResource {
    */
 
   withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, options?: { connectionName?: string; downstreamApisPrefix?: string }): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, connectionName?: string, downstreamApisPrefix?: string): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
@@ -219909,6 +226550,16 @@ export interface ContainerResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -219981,21 +226632,6 @@ export interface CosmosCassandraDataTransferDataSourceSinkProxy {
 // augments handle type CosmosDBSqlClientEncryptionKeyPropertiesProxy with extension methods
 export interface CosmosDBSqlClientEncryptionKeyPropertiesProxy {
   /**
-   * Clears the EncryptionAlgorithm provisioning property.
-   */
-
-  clearEncryptionAlgorithm(): void;
-  /**
-   * Clears the Id provisioning property.
-   */
-
-  clearId(): void;
-  /**
-   * Clears the WrappedDataEncryptionKey provisioning property.
-   */
-
-  clearWrappedDataEncryptionKey(): void;
-  /**
    * Gets or sets the EncryptionAlgorithm provisioning property.
    */
 
@@ -220039,16 +226675,6 @@ export interface CosmosDBSqlClientEncryptionKeyPropertiesProxy {
 
 // augments handle type CosmosDBTablePropertiesResourceProxy with extension methods
 export interface CosmosDBTablePropertiesResourceProxy {
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the TableName provisioning property.
-   */
-
-  clearTableName(): void;
   /**
    * Gets or sets the CreateMode provisioning property.
    */
@@ -220157,6 +226783,16 @@ export interface CSharpAppResource {
 
   getResourceName(): string;
   /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
+  /**
    * Subscribes to the BeforeResourceStarted event.
    */
 
@@ -220227,6 +226863,21 @@ export interface CSharpAppResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
+   * Replaces the arguments to be passed to a resource that supports arguments when it is launched.
+   */
+
+  withArgsReplace(args: string[]): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, options?: { certificateDirectoriesEnvironmentVariable?: string }): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, certificateDirectoriesEnvironmentVariable?: string): this;
+  /**
    * Sets the certificate trust scope
    */
 
@@ -220266,6 +226917,11 @@ export interface CSharpAppResource {
    */
 
   withDeveloperCertificateTrust(trust: boolean): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -220567,15 +227223,40 @@ export interface CSharpAppResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -220680,6 +227361,16 @@ export interface CSharpAppResource {
    */
 
   withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, options?: { connectionName?: string; downstreamApisPrefix?: string }): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, connectionName?: string, downstreamApisPrefix?: string): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
@@ -220866,6 +227557,16 @@ export interface CSharpAppResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -220899,46 +227600,6 @@ export interface CustomKeysConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -221207,6 +227868,16 @@ export interface DenoAppResource {
    */
 
   withDenoPackageInstallation(): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
 }
 
 // augments handle type DockerComposeAspireDashboardResource with extension methods
@@ -221230,11 +227901,6 @@ export interface DotnetProjectResource {
    */
 
   withBlazorClientApp(wasmApp: BlazorWasmAppResource, apiPrefix?: string, otlpPrefix?: string, proxyTelemetry?: boolean): this;
-  /**
-   * Associates a pre-built container image reference with a .NET program resource.
-   */
-
-  withContainerImage(image: string): this;
 }
 
 // augments handle type DotnetToolResource with extension methods
@@ -221269,6 +227935,16 @@ export interface DotnetToolResource {
    */
 
   getResourceName(): string;
+  /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
   /**
    * Subscribes to the BeforeResourceStarted event.
    */
@@ -221330,6 +228006,21 @@ export interface DotnetToolResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
+   * Replaces the arguments to be passed to a resource that supports arguments when it is launched.
+   */
+
+  withArgsReplace(args: string[]): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, options?: { certificateDirectoriesEnvironmentVariable?: string }): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, certificateDirectoriesEnvironmentVariable?: string): this;
+  /**
    * Sets the certificate trust scope
    */
 
@@ -221369,6 +228060,11 @@ export interface DotnetToolResource {
    */
 
   withDeveloperCertificateTrust(trust: boolean): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -221419,6 +228115,16 @@ export interface DotnetToolResource {
    */
 
   withExecutableCommand(command: string): this;
+  /**
+   * Adds VS Code-compatible debug metadata for an executable resource.
+   */
+
+  withExecutableDebugSupport(launchConfigurationType: string, scriptPath: string, options?: { runtimeExecutable?: string; launchMethod?: string }): this;
+  /**
+   * Adds VS Code-compatible debug metadata for an executable resource.
+   */
+
+  withExecutableDebugSupport(launchConfigurationType: string, scriptPath: string, runtimeExecutable?: string, launchMethod?: string): this;
   /**
    * Prevents resource from starting automatically
    */
@@ -221665,15 +228371,40 @@ export interface DotnetToolResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -221784,6 +228515,16 @@ export interface DotnetToolResource {
 
   withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
   /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, options?: { connectionName?: string; downstreamApisPrefix?: string }): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, connectionName?: string, downstreamApisPrefix?: string): this;
+  /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
 
@@ -221944,6 +228685,16 @@ export interface DotnetToolResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -222043,6 +228794,16 @@ export interface ExecutableResource {
 
   getResourceName(): string;
   /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
+  /**
    * Subscribes to the BeforeResourceStarted event.
    */
 
@@ -222098,6 +228859,21 @@ export interface ExecutableResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
+   * Replaces the arguments to be passed to a resource that supports arguments when it is launched.
+   */
+
+  withArgsReplace(args: string[]): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, options?: { certificateDirectoriesEnvironmentVariable?: string }): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, certificateDirectoriesEnvironmentVariable?: string): this;
+  /**
    * Sets the certificate trust scope
    */
 
@@ -222137,6 +228913,11 @@ export interface ExecutableResource {
    */
 
   withDeveloperCertificateTrust(trust: boolean): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -222428,15 +229209,40 @@ export interface ExecutableResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -222531,6 +229337,16 @@ export interface ExecutableResource {
    */
 
   withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, options?: { connectionName?: string; downstreamApisPrefix?: string }): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, connectionName?: string, downstreamApisPrefix?: string): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
@@ -222691,6 +229507,16 @@ export interface ExecutableResource {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -223100,16 +229926,6 @@ export interface ExtendedCosmosDBSqlUserDefinedFunctionResourceInfoProxy {
 // augments handle type ExtendedGremlinDatabaseResourceInfoProxy with extension methods
 export interface ExtendedGremlinDatabaseResourceInfoProxy {
   /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
-  /**
    * Gets or sets the CreateMode provisioning property.
    */
 
@@ -223148,26 +229964,6 @@ export interface ExtendedGremlinGraphResourceInfoProxy {
    */
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
-  /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DefaultTtl provisioning property.
-   */
-
-  clearDefaultTtl(): void;
-  /**
-   * Clears the GraphName provisioning property.
-   */
-
-  clearGraphName(): void;
   /**
    * Gets or sets the ConflictResolutionPolicy provisioning property.
    */
@@ -223263,21 +230059,6 @@ export interface ExtendedMongoDBCollectionResourceInfoProxy {
 
   analyticalStorageTtl: PropertyAccessor<BicepValueProxy | number>;
   /**
-   * Clears the AnalyticalStorageTtl provisioning property.
-   */
-
-  clearAnalyticalStorageTtl(): void;
-  /**
-   * Clears the CollectionName provisioning property.
-   */
-
-  clearCollectionName(): void;
-  /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
    * Gets or sets the CollectionName provisioning property.
    */
 
@@ -223337,16 +230118,6 @@ export interface ExtendedMongoDBCollectionResourceInfoProxy {
 // augments handle type ExtendedMongoDBDatabaseResourceInfoProxy with extension methods
 export interface ExtendedMongoDBDatabaseResourceInfoProxy {
   /**
-   * Clears the CreateMode provisioning property.
-   */
-
-  clearCreateMode(): void;
-  /**
-   * Clears the DatabaseName provisioning property.
-   */
-
-  clearDatabaseName(): void;
-  /**
    * Gets or sets the CreateMode provisioning property.
    */
 
@@ -223385,11 +230156,6 @@ export interface ExtendedThroughputSettingsResourceInfoProxy {
    */
 
   autoscaleSettings: PropertyAccessor<AutoscaleSettingsResourceInfoProxy>;
-  /**
-   * Clears the Throughput provisioning property.
-   */
-
-  clearThroughput(): void;
   /**
    * Gets the InstantMaximumThroughput provisioning property.
    */
@@ -223450,6 +230216,16 @@ export interface ExternalServiceResource {
 
   getResourceName(): string;
   /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
+  /**
    * Subscribes to the BeforeResourceStarted event.
    */
 
@@ -223499,6 +230275,11 @@ export interface ExternalServiceResource {
    */
 
   withContainerRegistry(registry: IResource): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -223615,15 +230396,40 @@ export interface ExternalServiceResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -223747,16 +230553,6 @@ export interface FileSearchToolResource {
 // augments handle type FirewallPolicyFilterRuleCollectionInfoProxy with extension methods
 export interface FirewallPolicyFilterRuleCollectionInfoProxy {
   /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the Priority provisioning property.
-   */
-
-  clearPriority(): void;
-  /**
    * Gets or sets the Name provisioning property.
    */
 
@@ -223780,16 +230576,6 @@ export interface FirewallPolicyFilterRuleCollectionInfoProxy {
 
 // augments handle type FirewallPolicyNatRuleCollectionInfoProxy with extension methods
 export interface FirewallPolicyNatRuleCollectionInfoProxy {
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
-   * Clears the Priority provisioning property.
-   */
-
-  clearPriority(): void;
   /**
    * Gets or sets the Name provisioning property.
    */
@@ -223825,6 +230611,16 @@ export interface FlociAwsContainerResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -223843,6 +230639,16 @@ export interface FlociAzureContainerResource {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -223863,6 +230669,16 @@ export interface FlociGcpContainerResource {
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
   /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
+  /**
    * Adds a reference to a Floci GCP emulator resource
    */
 
@@ -223881,6 +230697,16 @@ export interface FlociUIContainerResource {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -223987,12 +230813,28 @@ export interface GraphApiComputeServicePropertiesProxy {
   status: PropertyAccessor<BicepValueProxy | CosmosDBServiceStatus>;
 }
 
+export interface IAzureCdnPrivateLinkTarget {
+  /**
+   * Connects an Azure Front Door to a compute environment, such as an Azure Container Apps environment, over Private Link and disables public network access to its apps, so that the apps in the environment are reachable only through the Front Door.
+   */
+
+  withAzureFrontDoorPrivateLink(frontDoor: AzureFrontDoorResource): this;
+}
+
 export interface IAzureDelegatedSubnetResource {
   /**
    * Configures the resource to use the specified subnet with appropriate service delegation.
    */
 
   withDelegatedSubnet(subnet: AzureSubnetResource): this;
+}
+
+export interface IAzureInternalIngressResource {
+  /**
+   * Configures the resource with an internal load balancer and private DNS.
+   */
+
+  withInternalLoadBalancer(virtualNetwork: AzureVirtualNetworkResource): this;
 }
 
 export interface IComputeResource {
@@ -224136,11 +230978,6 @@ export interface IDotnetProgramResource {
    */
 
   addEFMigrations(name: string, dbContextTypeName?: string): EFMigrationResource;
-  /**
-   * Associates a pre-built container image reference with a .NET program resource.
-   */
-
-  withContainerImage(image: string): this;
 }
 
 export interface IHostEnvironment {
@@ -224300,6 +231137,16 @@ export interface IResourceWithEnvironment {
 
   withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
   /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, options?: { connectionName?: string; downstreamApisPrefix?: string }): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, connectionName?: string, downstreamApisPrefix?: string): this;
+  /**
    * Adds an Orleans client to the resource.
    */
 
@@ -224354,6 +231201,16 @@ export interface IResourceWithEnvironment {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -224835,16 +231692,6 @@ export interface KubernetesResource {
 // augments handle type KustoCosmosDBDataConnectionProxy with extension methods
 export interface KustoCosmosDBDataConnectionProxy {
   /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
    * Gets the Id provisioning property.
    */
 
@@ -224888,16 +231735,6 @@ export interface KustoCosmosDBDataConnectionProxy {
 
 // augments handle type KustoEventGridDataConnectionProxy with extension methods
 export interface KustoEventGridDataConnectionProxy {
-  /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets the Id provisioning property.
    */
@@ -224943,16 +231780,6 @@ export interface KustoEventGridDataConnectionProxy {
 // augments handle type KustoEventHubDataConnectionProxy with extension methods
 export interface KustoEventHubDataConnectionProxy {
   /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
    * Gets the Id provisioning property.
    */
 
@@ -224996,16 +231823,6 @@ export interface KustoEventHubDataConnectionProxy {
 
 // augments handle type KustoIotHubDataConnectionProxy with extension methods
 export interface KustoIotHubDataConnectionProxy {
-  /**
-   * Clears the Location provisioning property.
-   */
-
-  clearLocation(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets the Id provisioning property.
    */
@@ -225186,6 +232003,589 @@ export interface ManagedCertificatePropertiesProxy {
   subject: PropertyAccessor<BicepValueProxy | string>;
 }
 
+// augments handle type ManagedClusterAddonProfileIdentityProxy with extension methods
+export interface ManagedClusterAddonProfileIdentityProxy {
+  /**
+   * Clears the ClientId provisioning property.
+   */
+
+  clearClientId(): void;
+  /**
+   * Clears the ObjectId provisioning property.
+   */
+
+  clearObjectId(): void;
+  /**
+   * Clears the ResourceId provisioning property.
+   */
+
+  clearResourceId(): void;
+  /**
+   * Gets or sets the ClientId provisioning property.
+   */
+
+  clientId: PropertyAccessor<BicepValueProxy | guid>;
+  /**
+   * Gets or sets the ObjectId provisioning property.
+   */
+
+  objectId: PropertyAccessor<BicepValueProxy | guid>;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  resourceId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the ClientId provisioning property.
+   */
+
+  setClientId(value: BicepValueProxy | guid): ContainerServiceUserAssignedIdentity_1Proxy;
+  /**
+   * Gets or sets the ObjectId provisioning property.
+   */
+
+  setObjectId(value: BicepValueProxy | guid): ContainerServiceUserAssignedIdentity_1Proxy;
+  /**
+   * Gets or sets the ResourceId provisioning property.
+   */
+
+  setResourceId(value: BicepValueProxy): ContainerServiceUserAssignedIdentity_1Proxy;
+}
+
+// augments handle type ManagedClusterAgentPoolProfileProxy with extension methods
+export interface ManagedClusterAgentPoolProfileProxy {
+  /**
+   * Gets or sets the AgentPoolType provisioning property.
+   */
+
+  agentPoolType: PropertyAccessor<BicepValueProxy | AgentPoolType>;
+  /**
+   * Gets or sets the AvailabilityZones provisioning property.
+   */
+
+  availabilityZones: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the CapacityReservationGroupId provisioning property.
+   */
+
+  capacityReservationGroupId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Count provisioning property.
+   */
+
+  count: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the CreationDataSourceResourceId provisioning property.
+   */
+
+  creationDataSourceResourceId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets the CurrentOrchestratorVersion provisioning property.
+   */
+
+  currentOrchestratorVersion: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the ETag provisioning property.
+   */
+
+  eTag: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the GatewayPublicIPPrefixSize provisioning property.
+   */
+
+  gatewayPublicIPPrefixSize: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the GpuDriver provisioning property.
+   */
+
+  gpuDriver: PropertyAccessor<BicepValueProxy | AgentPoolGpuDriver>;
+  /**
+   * Gets or sets the GpuInstanceProfile provisioning property.
+   */
+
+  gpuInstanceProfile: PropertyAccessor<BicepValueProxy | GpuInstanceProfile>;
+  /**
+   * Gets or sets the HostGroupId provisioning property.
+   */
+
+  hostGroupId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  isArtifactStreamingEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsAutoScalingEnabled provisioning property.
+   */
+
+  isAutoScalingEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsEncryptionAtHostEnabled provisioning property.
+   */
+
+  isEncryptionAtHostEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsFipsEnabled provisioning property.
+   */
+
+  isFipsEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsNodePublicIPEnabled provisioning property.
+   */
+
+  isNodePublicIPEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the IsUltraSsdEnabled provisioning property.
+   */
+
+  isUltraSsdEnabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the KubeletConfig provisioning property.
+   */
+
+  kubeletConfig: PropertyAccessor<KubeletConfigProxy>;
+  /**
+   * Gets or sets the KubeletDiskType provisioning property.
+   */
+
+  kubeletDiskType: PropertyAccessor<BicepValueProxy | KubeletDiskType>;
+  /**
+   * Gets or sets the LinuxOSConfig provisioning property.
+   */
+
+  linuxOSConfig: PropertyAccessor<LinuxOSConfigProxy>;
+  /**
+   * Gets or sets the LocalDnsProfile provisioning property.
+   */
+
+  localDnsProfile: PropertyAccessor<LocalDnsProfileProxy>;
+  /**
+   * Gets or sets the MaxCount provisioning property.
+   */
+
+  maxCount: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the MaxPods provisioning property.
+   */
+
+  maxPods: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the MessageOfTheDay provisioning property.
+   */
+
+  messageOfTheDay: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the MinCount provisioning property.
+   */
+
+  minCount: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the Mode provisioning property.
+   */
+
+  mode: PropertyAccessor<BicepValueProxy | AgentPoolMode>;
+  /**
+   * Gets or sets the NetworkProfile provisioning property.
+   */
+
+  networkProfile: PropertyAccessor<AgentPoolNetworkProfileProxy>;
+  /**
+   * Gets or sets the NodeImageVersion provisioning property.
+   */
+
+  nodeImageVersion: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the NodeLabels provisioning property.
+   */
+
+  nodeLabels: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy>;
+  /**
+   * Gets or sets the NodePublicIPPrefixId provisioning property.
+   */
+
+  nodePublicIPPrefixId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the NodeTaints provisioning property.
+   */
+
+  nodeTaints: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy>;
+  /**
+   * Gets or sets the OrchestratorVersion provisioning property.
+   */
+
+  orchestratorVersion: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the OSDiskSizeInGB provisioning property.
+   */
+
+  oSDiskSizeInGB: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets or sets the OSDiskType provisioning property.
+   */
+
+  oSDiskType: PropertyAccessor<BicepValueProxy | ContainerServiceOSDiskType>;
+  /**
+   * Gets or sets the OSSku provisioning property.
+   */
+
+  oSSku: PropertyAccessor<BicepValueProxy | ContainerServiceOSSku>;
+  /**
+   * Gets or sets the OSType provisioning property.
+   */
+
+  oSType: PropertyAccessor<BicepValueProxy | ContainerServiceOSType>;
+  /**
+   * Gets or sets the PodIPAllocationMode provisioning property.
+   */
+
+  podIPAllocationMode: PropertyAccessor<BicepValueProxy | PodIPAllocationMode>;
+  /**
+   * Gets or sets the PodSubnetId provisioning property.
+   */
+
+  podSubnetId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the PowerStateCode provisioning property.
+   */
+
+  powerStateCode: PropertyAccessor<BicepValueProxy | ContainerServiceStateCode>;
+  /**
+   * Gets the ProvisioningState provisioning property.
+   */
+
+  provisioningState: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the ProximityPlacementGroupId provisioning property.
+   */
+
+  proximityPlacementGroupId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the ScaleDownMode provisioning property.
+   */
+
+  scaleDownMode: PropertyAccessor<BicepValueProxy | ScaleDownMode>;
+  /**
+   * Gets or sets the ScaleSetEvictionPolicy provisioning property.
+   */
+
+  scaleSetEvictionPolicy: PropertyAccessor<BicepValueProxy | ScaleSetEvictionPolicy>;
+  /**
+   * Gets or sets the ScaleSetPriority provisioning property.
+   */
+
+  scaleSetPriority: PropertyAccessor<BicepValueProxy | ScaleSetPriority>;
+  /**
+   * Gets or sets the SecurityProfile provisioning property.
+   */
+
+  securityProfile: PropertyAccessor<AgentPoolSecurityProfileProxy>;
+  /**
+   * Gets or sets the AgentPoolType provisioning property.
+   */
+
+  setAgentPoolType(value: BicepValueProxy | AgentPoolType): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the AvailabilityZones provisioning property.
+   */
+
+  setAvailabilityZones(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the CapacityReservationGroupId provisioning property.
+   */
+
+  setCapacityReservationGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the Count provisioning property.
+   */
+
+  setCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the CreationDataSourceResourceId provisioning property.
+   */
+
+  setCreationDataSourceResourceId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the GatewayPublicIPPrefixSize provisioning property.
+   */
+
+  setGatewayPublicIPPrefixSize(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the GpuDriver provisioning property.
+   */
+
+  setGpuDriver(value: BicepValueProxy | AgentPoolGpuDriver): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the GpuInstanceProfile provisioning property.
+   */
+
+  setGpuInstanceProfile(value: BicepValueProxy | GpuInstanceProfile): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the HostGroupId provisioning property.
+   */
+
+  setHostGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the IsArtifactStreamingEnabled provisioning property.
+   */
+
+  setIsArtifactStreamingEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the IsAutoScalingEnabled provisioning property.
+   */
+
+  setIsAutoScalingEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the IsEncryptionAtHostEnabled provisioning property.
+   */
+
+  setIsEncryptionAtHostEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the IsFipsEnabled provisioning property.
+   */
+
+  setIsFipsEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the IsNodePublicIPEnabled provisioning property.
+   */
+
+  setIsNodePublicIPEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the IsUltraSsdEnabled provisioning property.
+   */
+
+  setIsUltraSsdEnabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the KubeletConfig provisioning property.
+   */
+
+  setKubeletConfig(value: KubeletConfigProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the KubeletDiskType provisioning property.
+   */
+
+  setKubeletDiskType(value: BicepValueProxy | KubeletDiskType): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the LinuxOSConfig provisioning property.
+   */
+
+  setLinuxOSConfig(value: LinuxOSConfigProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the LocalDnsProfile provisioning property.
+   */
+
+  setLocalDnsProfile(value: LocalDnsProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the MaxCount provisioning property.
+   */
+
+  setMaxCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the MaxPods provisioning property.
+   */
+
+  setMaxPods(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the MessageOfTheDay provisioning property.
+   */
+
+  setMessageOfTheDay(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the MinCount provisioning property.
+   */
+
+  setMinCount(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the Mode provisioning property.
+   */
+
+  setMode(value: BicepValueProxy | AgentPoolMode): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the NetworkProfile provisioning property.
+   */
+
+  setNetworkProfile(value: AgentPoolNetworkProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the NodeImageVersion provisioning property.
+   */
+
+  setNodeImageVersion(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the NodeLabels provisioning property.
+   */
+
+  setNodeLabels(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the NodePublicIPPrefixId provisioning property.
+   */
+
+  setNodePublicIPPrefixId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the NodeTaints provisioning property.
+   */
+
+  setNodeTaints(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the OrchestratorVersion provisioning property.
+   */
+
+  setOrchestratorVersion(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the OSDiskSizeInGB provisioning property.
+   */
+
+  setOSDiskSizeInGB(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the OSDiskType provisioning property.
+   */
+
+  setOSDiskType(value: BicepValueProxy | ContainerServiceOSDiskType): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the OSSku provisioning property.
+   */
+
+  setOSSku(value: BicepValueProxy | ContainerServiceOSSku): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the OSType provisioning property.
+   */
+
+  setOSType(value: BicepValueProxy | ContainerServiceOSType): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the PodIPAllocationMode provisioning property.
+   */
+
+  setPodIPAllocationMode(value: BicepValueProxy | PodIPAllocationMode): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the PodSubnetId provisioning property.
+   */
+
+  setPodSubnetId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the PowerStateCode provisioning property.
+   */
+
+  setPowerStateCode(value: BicepValueProxy | ContainerServiceStateCode): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the ProximityPlacementGroupId provisioning property.
+   */
+
+  setProximityPlacementGroupId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the ScaleDownMode provisioning property.
+   */
+
+  setScaleDownMode(value: BicepValueProxy | ScaleDownMode): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the ScaleSetEvictionPolicy provisioning property.
+   */
+
+  setScaleSetEvictionPolicy(value: BicepValueProxy | ScaleSetEvictionPolicy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the ScaleSetPriority provisioning property.
+   */
+
+  setScaleSetPriority(value: BicepValueProxy | ScaleSetPriority): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the SecurityProfile provisioning property.
+   */
+
+  setSecurityProfile(value: AgentPoolSecurityProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the SpotMaxPrice provisioning property.
+   */
+
+  setSpotMaxPrice(value: BicepValueProxy | number): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  setTags(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the UpgradeSettings provisioning property.
+   */
+
+  setUpgradeSettings(value: AgentPoolUpgradeSettingsProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the VirtualMachineNodesStatus provisioning property.
+   */
+
+  setVirtualMachineNodesStatus(value: Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolVirtualMachineNodesProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the VirtualMachinesScale provisioning property.
+   */
+
+  setVirtualMachinesScale(value: AgentPoolScaleProfileProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the VmSize provisioning property.
+   */
+
+  setVmSize(value: BicepValueProxy | string): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the VnetSubnetId provisioning property.
+   */
+
+  setVnetSubnetId(value: BicepValueProxy): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the WindowsIsOutboundNatDisabled provisioning property.
+   */
+
+  setWindowsIsOutboundNatDisabled(value: BicepValueProxy | boolean): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the WorkloadRuntime provisioning property.
+   */
+
+  setWorkloadRuntime(value: BicepValueProxy | WorkloadRuntime): ManagedClusterAgentPoolProfilePropertiesProxy;
+  /**
+   * Gets or sets the SpotMaxPrice provisioning property.
+   */
+
+  spotMaxPrice: PropertyAccessor<BicepValueProxy | number>;
+  /**
+   * Gets the StatusProvisioningError provisioning property.
+   */
+
+  statusProvisioningError: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the Tags provisioning property.
+   */
+
+  tags: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_DictionaryOfStringProxy>;
+  /**
+   * Gets or sets the UpgradeSettings provisioning property.
+   */
+
+  upgradeSettings: PropertyAccessor<AgentPoolUpgradeSettingsProxy>;
+  /**
+   * Gets or sets the VirtualMachineNodesStatus provisioning property.
+   */
+
+  virtualMachineNodesStatus: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfAgentPoolVirtualMachineNodesProxy>;
+  /**
+   * Gets or sets the VirtualMachinesScale provisioning property.
+   */
+
+  virtualMachinesScale: PropertyAccessor<AgentPoolScaleProfileProxy>;
+  /**
+   * Gets or sets the VmSize provisioning property.
+   */
+
+  vmSize: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets or sets the VnetSubnetId provisioning property.
+   */
+
+  vnetSubnetId: PropertyAccessor<BicepValueProxy>;
+  /**
+   * Gets or sets the WindowsIsOutboundNatDisabled provisioning property.
+   */
+
+  windowsIsOutboundNatDisabled: PropertyAccessor<BicepValueProxy | boolean>;
+  /**
+   * Gets or sets the WorkloadRuntime provisioning property.
+   */
+
+  workloadRuntime: PropertyAccessor<BicepValueProxy | WorkloadRuntime>;
+}
+
 // augments handle type ManagedIdentityAuthTypeConnectionPropertiesProxy with extension methods
 export interface ManagedIdentityAuthTypeConnectionPropertiesProxy {
   /**
@@ -225193,46 +232593,6 @@ export interface ManagedIdentityAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -225438,6 +232798,25 @@ export interface MauiWindowsPlatformResource {
   withOtlpDevTunnel(): this;
 }
 
+// augments handle type MeshUpgradeProfilePropertiesProxy with extension methods
+export interface MeshUpgradeProfilePropertiesProxy {
+  /**
+   * Gets the CompatibleWith provisioning property.
+   */
+
+  compatibleWith: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfCompatibleVersionsProxy>;
+  /**
+   * Gets the Revision provisioning property.
+   */
+
+  revision: PropertyAccessor<BicepValueProxy | string>;
+  /**
+   * Gets the Upgrades provisioning property.
+   */
+
+  upgrades: PropertyAccessor<Aspire_Hosting_Azure_Provisioning_ContainerService_Generated_ListOfStringProxy>;
+}
+
 // augments handle type MongoDBServerResource with extension methods
 export interface MongoDBServerResource {
   /**
@@ -225498,16 +232877,6 @@ export interface MySqlServerResource {
 
 // augments handle type NatRuleProxy with extension methods
 export interface NatRuleProxy {
-  /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
   /**
    * Gets or sets the Description provisioning property.
    */
@@ -225621,16 +232990,6 @@ export interface NetworkDefaultAdminRuleProxy {
 // augments handle type NetworkRuleProxy with extension methods
 export interface NetworkRuleProxy {
   /**
-   * Clears the Description provisioning property.
-   */
-
-  clearDescription(): void;
-  /**
-   * Clears the Name provisioning property.
-   */
-
-  clearName(): void;
-  /**
    * Gets or sets the Description provisioning property.
    */
 
@@ -225650,6 +233009,15 @@ export interface NetworkRuleProxy {
    */
 
   setName(value: BicepValueProxy | string): FirewallPolicyRuleProxy;
+}
+
+// augments handle type NetworkSecurityPerimeterProxy with extension methods
+export interface NetworkSecurityPerimeterProxy {
+  /**
+   * Gets the Id provisioning property.
+   */
+
+  id: PropertyAccessor<BicepValueProxy | string>;
 }
 
 // augments handle type NextJsAppResource with extension methods
@@ -225908,46 +233276,6 @@ export interface NoneAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -226075,46 +233403,6 @@ export interface OAuth2AuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -226312,6 +233600,16 @@ export interface ParameterResource {
 
   getResourceName(): string;
   /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
+  /**
    * Subscribes to the BeforeResourceStarted event.
    */
 
@@ -226361,6 +233659,11 @@ export interface ParameterResource {
    */
 
   withContainerRegistry(registry: IResource): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -226477,15 +233780,40 @@ export interface ParameterResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -226600,46 +233928,6 @@ export interface PatAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -227204,6 +234492,16 @@ export interface ProjectResource {
 
   getResourceName(): string;
   /**
+   * Gets a serialized ATS annotation payload from a resource.
+   */
+
+  getSerializedAnnotation(annotationId: string): string;
+  /**
+   * Determines whether a resource has a serialized ATS annotation with the specified ID.
+   */
+
+  hasSerializedAnnotation(annotationId: string): boolean;
+  /**
    * Subscribes to the BeforeResourceStarted event.
    */
 
@@ -227264,6 +234562,21 @@ export interface ProjectResource {
 
   withArgsCallback(callback: (obj: CommandLineArgsCallbackContext) => Promise<void>): this;
   /**
+   * Replaces the arguments to be passed to a resource that supports arguments when it is launched.
+   */
+
+  withArgsReplace(args: string[]): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, options?: { certificateDirectoriesEnvironmentVariable?: string }): this;
+  /**
+   * Configures environment variables that point to Aspire-managed certificate trust paths.
+   */
+
+  withCertificateTrustEnvironment(certificateBundleEnvironmentVariable: string, certificateDirectoriesEnvironmentVariable?: string): this;
+  /**
    * Sets the certificate trust scope
    */
 
@@ -227303,6 +234616,11 @@ export interface ProjectResource {
    */
 
   withDeveloperCertificateTrust(trust: boolean): this;
+  /**
+   * Sets the default display order of the resource in lists of resources, such as the dashboard's. A saved ordering takes precedence. Repeated calls replace the order.
+   */
+
+  withDisplayOrder(order: number): this;
   /**
    * Configures custom base images for generated Dockerfiles.
    */
@@ -227594,15 +234912,40 @@ export interface ProjectResource {
 
   withRequiredCommandValidation(command: string, validationCallback: (arg: RequiredCommandValidationContext) => Promise<RequiredCommandValidationResult>, helpLink?: string): this;
   /**
+   * Overrides the human-readable resource type label.
+   */
+
+  withResourceTypeDisplayName(resourceTypeDisplayName: string): this;
+  /**
+   * Stores a serialized ATS annotation payload on a resource, replacing any existing annotation with the same ID.
+   */
+
+  withSerializedAnnotation(annotationId: string, json: string): IResource;
+  /**
    * Configures a resource to use a session lifetime.
    */
 
   withSessionLifetime(): this;
   /**
-   * Adds an interactive terminal session to a resource using the default terminal options.
+   * Adds AppHost-defined dashboard tags that users cannot remove. Repeated calls add tags.
    */
 
-  withTerminal(): this;
+  withTags(tags: string[]): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(options?: { configure?: (obj: TerminalOptions) => Promise<void> }): this;
+  /**
+   * Adds an interactive terminal session to a resource with an optional callback to configure its initial dimensions.
+   */
+
+  withTerminal(configure?: (obj: TerminalOptions) => Promise<void>): this;
+  /**
+   * Adds immutable, non-sensitive metadata to a resource. Repeated names add multiple values.
+   */
+
+  withTrait(name: string, value: string): this;
   /**
    * Adds or modifies displayed URLs
    */
@@ -227697,6 +235040,16 @@ export interface ProjectResource {
    */
 
   withContainerRegistryRoleAssignments(target: AzureContainerRegistryResource, roles: AzureContainerRegistryRole[]): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, options?: { connectionName?: string; downstreamApisPrefix?: string }): this;
+  /**
+   * Injects Entra ID authentication configuration into a consuming resource and sets the prefix of its DownstreamApis entries.
+   */
+
+  withEntraIdReference(source: EntraIdApplicationResource, connectionName?: string, downstreamApisPrefix?: string): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Event Hubs Namespace resource. This replaces the default role assignments for the resource.
    */
@@ -227882,6 +235235,16 @@ export interface ProjectResource {
    */
 
   withFlociAzureReference(floci: FlociAzureContainerResource): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, options?: { connectionName?: string }): this;
+  /**
+   * Adds a Floci Azure Service Bus reference
+   */
+
+  withFlociAzureServiceBusReference(serviceBus: FlociAzureServiceBusResource, connectionName?: string): this;
   /**
    * Adds a reference to a Floci GCP emulator resource
    */
@@ -228223,46 +235586,6 @@ export interface SASAuthTypeConnectionPropertiesProxy {
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
   /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
-  /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
 
@@ -228376,46 +235699,6 @@ export interface ServicePrincipalAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -228717,8 +236000,22 @@ export interface SqlDedicatedGatewayServicePropertiesProxy {
   status: PropertyAccessor<BicepValueProxy | CosmosDBServiceStatus>;
 }
 
+// augments handle type SqlServerDatabaseResource with extension methods
+export interface SqlServerDatabaseResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
+   */
+
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
+}
+
 // augments handle type SqlServerServerResource with extension methods
 export interface SqlServerServerResource {
+  /**
+   * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Service Bus namespace. This replaces the default role assignments for the resource.
+   */
+
+  withServiceBusRoleAssignments(target: AzureServiceBusResource, roles: AzureServiceBusRole[]): this;
   /**
    * Adds an administration and development platform for SqlServer to the application model using Adminer.
    */
@@ -228782,16 +236079,6 @@ export interface TurborepoAppResource {
 // augments handle type UserManagedHttpsContentProxy with extension methods
 export interface UserManagedHttpsContentProxy {
   /**
-   * Clears the MinimumTlsVersion provisioning property.
-   */
-
-  clearMinimumTlsVersion(): void;
-  /**
-   * Clears the ProtocolType provisioning property.
-   */
-
-  clearProtocolType(): void;
-  /**
    * Gets or sets the MinimumTlsVersion provisioning property.
    */
 
@@ -228820,46 +236107,6 @@ export interface UsernamePasswordAuthTypeConnectionPropertiesProxy {
    */
 
   category: PropertyAccessor<BicepValueProxy | CognitiveServicesConnectionCategory>;
-  /**
-   * Clears the Category provisioning property.
-   */
-
-  clearCategory(): void;
-  /**
-   * Clears the Error provisioning property.
-   */
-
-  clearError(): void;
-  /**
-   * Clears the ExpiryOn provisioning property.
-   */
-
-  clearExpiryOn(): void;
-  /**
-   * Clears the IsSharedToAll provisioning property.
-   */
-
-  clearIsSharedToAll(): void;
-  /**
-   * Clears the PeRequirement provisioning property.
-   */
-
-  clearPeRequirement(): void;
-  /**
-   * Clears the PeStatus provisioning property.
-   */
-
-  clearPeStatus(): void;
-  /**
-   * Clears the Target provisioning property.
-   */
-
-  clearTarget(): void;
-  /**
-   * Clears the UseWorkspaceManagedIdentity provisioning property.
-   */
-
-  clearUseWorkspaceManagedIdentity(): void;
   /**
    * Gets the CreatedByWorkspaceArmId provisioning property.
    */
@@ -229231,6 +236478,22 @@ export interface ParameterResource {
    * Customizes the parameter input shown by the dashboard
    */
   withCustomInput(options: ParameterCustomInputOptions): this;
+  /**
+   * Marks the parameter resource as optional
+   */
+  asOptional(): this;
+  /**
+   * Marks the parameter resource as required
+   */
+  asRequired(): this;
+  /**
+   * Gets the current value for this parameter without waiting for unresolved input
+   */
+  tryGetCurrentValue(): Promise<string | null>;
+  /**
+   * Sets or replaces the value for this parameter
+   */
+  setValueAsync(options?: { value?: string | null }): Promise<void>;
 }
 
 export interface ComposeFile {

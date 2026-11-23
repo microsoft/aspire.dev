@@ -1,6 +1,9 @@
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { normalizeApiReferenceSidebarHref } from './utils/api-reference-routes';
+import { isDefaultLocaleOnlyPath } from './utils/default-locale-only-routes';
 import { getOgMetadata } from './utils/page-metadata';
+import { stripLocaleFromPath } from './utils/locale-routes';
+import { isTranslatedPath } from './utils/translated-routes';
 
 /**
  * Custom route middleware that applies implicit pagination rules:
@@ -24,6 +27,18 @@ export const onRequest = defineRouteMiddleware((context) => {
 
   const { entry, pagination, sidebar } = routeData;
 
+  // --- Locale alternates: drop hreflang on default-locale-only routes ---
+  // Starlight adds an alternate for every configured locale, but custom
+  // StarlightPage routes such as /hub/ and /reference/api/ are never generated
+  // for other locales, so those alternates (e.g. /de/hub/) point at 404s.
+  if (isDefaultLocaleOnlyPath(context.url.pathname)) {
+    removeHreflangAlternates(routeData.head);
+  } else {
+    // Untranslated locale routes aren't built; the host serves the English
+    // page in place, so they aren't distinct alternates.
+    removeUntranslatedHreflangAlternates(routeData.head);
+  }
+
   // --- Step 0: Canonicalize API reference sidebar links ---
   // API reference pages under /reference/api/ are only generated for the default
   // (English) locale because they're produced from package metadata rather than
@@ -34,11 +49,12 @@ export const onRequest = defineRouteMiddleware((context) => {
   canonicalizeApiReferenceLinks(sidebar);
 
   // --- Step 0.5: Optimize Open Graph metadata in the emitted head ---
-  // Starlight populates `head` with `og:title` from `data.title` and
-  // `og:description` from `data.description`. We compose an SEO-optimal
-  // title (via `seoTitle` or the `· Aspire` suffix) and trim the
-  // description to the 200-char Open Graph limit so social previews never
-  // see the raw, sometimes-too-long frontmatter strings.
+  // Starlight populates `head` with `og:title` from `data.title`,
+  // `og:description` from `data.description`, and a hardcoded
+  // `og:type=article`. We compose an SEO-optimal title (via `seoTitle` or the
+  // `· Aspire` suffix), trim the description to the 200-char Open Graph limit
+  // so social previews never see the raw, sometimes-too-long frontmatter
+  // strings, and emit `website` for the home page and splash landing pages.
   optimizeOpenGraphHead(routeData, context.url, context.site);
 
   // --- Step 1: Group boundary rules ---
@@ -104,8 +120,8 @@ interface MetaHeadEntry {
 }
 
 /**
- * Replace the `og:title` / `og:description` meta entries Starlight emits by
- * default with our SEO-optimized values from `getOgMetadata`. The function
+ * Replace the `og:title` / `og:description` / `og:type` meta entries Starlight
+ * emits by default with our SEO-optimized values from `getOgMetadata`. The function
  * mutates `routeData.head` in place so downstream components (the
  * Starlight `<Head>` default and our wrapper) emit a single, consistent set
  * of Open Graph tags.
@@ -125,6 +141,7 @@ function optimizeOpenGraphHead(
 
   upsertMetaEntry(head, 'property', 'og:title', og.ogTitle);
   upsertMetaEntry(head, 'property', 'og:description', og.description);
+  upsertMetaEntry(head, 'property', 'og:type', og.type);
 }
 
 /**
@@ -165,7 +182,8 @@ interface SidebarEntry {
  * Walk the sidebar tree and rewrite any link whose href is a localized API
  * reference path (e.g. `/it/reference/api/csharp/`) to the canonical,
  * locale-stripped path (e.g. `/reference/api/csharp/`). Also restore TypeScript
- * section fragments after Starlight's trailing-slash formatting.
+ * section fragments after Starlight's trailing-slash formatting. Other
+ * default-locale-only routes such as `/hub/glossary/` lose the locale prefix too.
  */
 function canonicalizeApiReferenceLinks(entries: SidebarEntry[]): void {
   for (const entry of entries) {
@@ -173,6 +191,13 @@ function canonicalizeApiReferenceLinks(entries: SidebarEntry[]): void {
 
     if (entry.type === 'link' && typeof entry.href === 'string') {
       entry.href = normalizeApiReferenceSidebarHref(entry.href);
+
+      // Other English-only routes (e.g. /hub/glossary/) get the same treatment:
+      // Starlight's locale prefix (/de/hub/glossary/) would otherwise 404.
+      const unlocalizedHref = stripLocaleFromPath(entry.href);
+      if (unlocalizedHref !== entry.href && isDefaultLocaleOnlyPath(unlocalizedHref)) {
+        entry.href = unlocalizedHref;
+      }
     }
 
     if (entry.entries) {
@@ -220,6 +245,32 @@ function isSplashPage(id: string): boolean {
   // 404 page
   if (/^([a-z]{2}(-[a-z]{2,4})?\/)?404\.mdx?$/i.test(normalized)) return true;
   return false;
+}
+
+function removeHreflangAlternates(head: MetaHeadEntry[]): void {
+  if (!Array.isArray(head)) return;
+  for (let i = head.length - 1; i >= 0; i--) {
+    const { tag, attrs } = head[i];
+    if (tag === 'link' && attrs?.rel === 'alternate' && attrs.hreflang) {
+      head.splice(i, 1);
+    }
+  }
+}
+
+function removeUntranslatedHreflangAlternates(head: MetaHeadEntry[]): void {
+  if (!Array.isArray(head)) return;
+  for (let i = head.length - 1; i >= 0; i--) {
+    const { tag, attrs } = head[i];
+    if (
+      tag === 'link' &&
+      attrs?.rel === 'alternate' &&
+      attrs.hreflang &&
+      typeof attrs.href === 'string' &&
+      !isTranslatedPath(new URL(attrs.href, 'https://aspire.dev').pathname)
+    ) {
+      head.splice(i, 1);
+    }
+  }
 }
 
 /** Check whether a frontmatter prev/next value is an explicit link override. */

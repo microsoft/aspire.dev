@@ -52,11 +52,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080);
 
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithReference(keycloak)
     .WaitFor(keycloak);
 
-var webfrontend = builder.AddProject<Projects.Web>("webfrontend")
+var webfrontend = builder.AddDotnetProject("webfrontend", "../Web/Web.csproj")
     .WithExternalHttpEndpoints()
     .WithReference(keycloak)
     .WithReference(apiService)
@@ -73,11 +73,11 @@ const builder = await createBuilder();
 
 const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
 await apiService.waitFor(keycloak);
 
-const webfrontend = await builder.addProject("webfrontend", "../Web/Web.csproj");
+const webfrontend = await builder.addDotnetProject("webfrontend", "../Web/Web.csproj");
 await webfrontend.withExternalHttpEndpoints();
 await webfrontend.withReference(keycloak);
 await webfrontend.withReference(apiService);
@@ -128,7 +128,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithDataVolume();
 
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithReference(keycloak)
     .WaitFor(keycloak);
 
@@ -144,7 +144,7 @@ const builder = await createBuilder();
 const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDataVolume();
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
 await apiService.waitFor(keycloak);
 
@@ -172,7 +172,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithDataBindMount(@"C:\Keycloak\Data");
 
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithReference(keycloak)
     .WaitFor(keycloak);
 
@@ -188,7 +188,7 @@ const builder = await createBuilder();
 const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDataBindMount("/path/to/keycloak/data");
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
 await apiService.waitFor(keycloak);
 
@@ -217,7 +217,7 @@ var password = builder.AddParameter("password", secret: true);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080, username, password);
 
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithReference(keycloak)
     .WaitFor(keycloak);
 
@@ -239,7 +239,7 @@ const keycloak = await builder.addKeycloak("keycloak", {
   adminPassword: password,
 });
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
 await apiService.waitFor(keycloak);
 
@@ -262,7 +262,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithRealmImport("./Realms");
 
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithReference(keycloak)
     .WaitFor(keycloak);
 
@@ -278,7 +278,7 @@ const builder = await createBuilder();
 const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withRealmImport("./Realms");
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
 await apiService.waitFor(keycloak);
 
@@ -322,7 +322,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithDockerfile("./keycloak");
 
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithReference(keycloak)
     .WaitFor(keycloak);
 
@@ -338,7 +338,7 @@ const builder = await createBuilder();
 const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withDockerfile("./keycloak");
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
 await apiService.waitFor(keycloak);
 
@@ -380,7 +380,7 @@ keycloak/
 
 **Initialization service**: Create a separate initialization service or job
 that uses the [Keycloak Admin REST API](https://www.keycloak.org/docs-api/latest/rest-api/index.html)
-or [Keycloak Admin Client](https://www.nuget.org/packages/Keycloak.AuthServices.Sdk.Admin)
+or [Keycloak Admin Client](https://www.nuget.org/packages/Keycloak.AuthServices.Sdk)
 to create and configure realms, clients, and users when the Keycloak instance
 first starts.
 
@@ -400,7 +400,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithOtlpExporter();
 
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithReference(keycloak)
     .WaitFor(keycloak);
 
@@ -416,7 +416,7 @@ const builder = await createBuilder();
 const keycloak = await builder.addKeycloak("keycloak", { port: 8080 });
 await keycloak.withOtlpExporter();
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addDotnetProject("apiservice", "../ApiService/ApiService.csproj");
 await apiService.withReference(keycloak);
 await apiService.waitFor(keycloak);
 

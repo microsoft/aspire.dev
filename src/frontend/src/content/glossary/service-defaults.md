@@ -16,4 +16,4 @@ The service defaults project is shared source code created by Aspire's .NET temp
 
 Each participating .NET application references that project and calls `AddServiceDefaults` during startup. The template configures OpenTelemetry, health checks, service discovery, and HTTP client resilience. Applications call `MapDefaultEndpoints` separately to map health endpoints; the template limits that mapping to development by default.
 
-Review and customize these defaults for your application and deployment environment. Services in JavaScript, Python, and other runtimes configure equivalent telemetry and health behavior through their own libraries; a TypeScript AppHost does not automatically instrument its workloads.
+Review and customize these defaults for your application and deployment environment. Services in JavaScript, Python, and other runtimes configure equivalent telemetry and health behavior through their own libraries; a TypeScript or Go AppHost does not automatically instrument its workloads.

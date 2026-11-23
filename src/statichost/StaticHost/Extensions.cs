@@ -95,12 +95,12 @@ public static class Extensions
                 options.ConnectionString = TelemetryConstants.AzureMonitorConnectionString;
             });
 
-        // Long-lived SSE requests would otherwise dominate request duration telemetry
+        // Long-lived WebSocket connections would otherwise dominate request duration telemetry
         // (App Insights "Server response time") with connection lifetimes, not latency.
         builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(static options =>
         {
             options.Filter = static context =>
-                !context.Request.Path.StartsWithSegments("/api/live/stream", StringComparison.OrdinalIgnoreCase);
+                !context.Request.Path.StartsWithSegments("/api/live/ws", StringComparison.OrdinalIgnoreCase);
         });
 
         builder.Services.AddOpenTelemetry()

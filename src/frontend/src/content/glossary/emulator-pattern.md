@@ -12,7 +12,7 @@ resources:
 legacyAnchors: [emulator-pattern]
 legacyGroup: common-patterns
 ---
-Some hosting integrations support a local emulator, often running in a container. Azure Storage, for example, can use Azurite through `RunAsEmulator` in C# or `runAsEmulator` in TypeScript.
+Some hosting integrations support a local emulator, often running in a container. Azure Storage, for example, can use Azurite through `RunAsEmulator` in C# or Go, or `runAsEmulator` in TypeScript.
 
 This can reduce the need for live cloud resources during development. Support is integration-specific: not every cloud resource has an emulator, and emulator behavior may differ from the production service.
 

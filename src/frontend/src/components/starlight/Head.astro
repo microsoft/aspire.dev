@@ -6,25 +6,26 @@ import poppinsBold from '@fontsource/poppins/files/poppins-latin-700-normal.woff
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import { ClientRouter } from 'astro:transitions';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
+import LocaleFallback from '../LocaleFallback.astro';
 import SiteTour from '../SiteTour.astro';
 import { getStructuredData } from '@utils/structured-data';
 import { getOgMetadata } from '@utils/page-metadata';
+import { deploymentMetadata } from '@utils/deployment-metadata';
+import appHostPreferencesScriptUrl from '@scripts/apphost-preferences.inline.js?url';
+import wcpConsentScriptUrl from '@scripts/wcp-consent.inline.js?url';
 
 // The Poppins weights that text in the first viewport renders with. The same files back the
 // @font-face rules in site.css, so these resolve to the already-emitted assets.
 const preloadedFonts = [poppinsRegular, poppinsSemiBold, poppinsBold];
 
-const repoUrl = (
-  import.meta.env.PUBLIC_REPO_URL ||
-  import.meta.env.REPO_URL ||
-  'https://github.com/microsoft/aspire.dev'
-).replace(/\/$/, '');
-const commit = import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMIT_ID || '';
+const { commit, repoUrl } = deploymentMetadata;
 
 const route = Astro.locals?.starlightRoute;
 const entryId = route?.entry?.id;
 const path = route?.entry?.filePath;
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+// English pages are also served in place of untranslated locale routes.
+const isDefaultLocalePage = route ? !route.locale : true;
 const structuredData = route ? getStructuredData(route, Astro.url, Astro.site) : undefined;
 const ogMetadata = route ? getOgMetadata(route, Astro.url, Astro.site) : undefined;
 
@@ -61,7 +62,6 @@ function computeSourceUrl() {
 }
 <script>
   import '@scripts/deployment-guard';
-  import '@scripts/mermaid';
 
   document.addEventListener('astro:before-swap', (event) => {
     const theme = document.documentElement.dataset.theme;
@@ -71,14 +71,16 @@ function computeSourceUrl() {
   });
 </script>
 <ClientRouter fallback="swap" />
+{isDefaultLocalePage && <LocaleFallback />}
 
 {
   ogMetadata && (
     <>
       {/*
         Starlight's <DefaultHead> already emits per-page og:title,
-        og:description, og:url, og:type, and og:locale from frontmatter — see
-        node_modules/@astrojs/starlight/components/Head.astro. We only emit the
+        og:description, og:url, og:type, and og:locale from route data (the
+        title, description, and type are optimized by route-data-middleware.ts)
+        — see node_modules/@astrojs/starlight/utils/head.ts. We only emit the
         tags Starlight doesn't already cover: a per-page og:image (rendered by
         the /og/<slug> endpoint), its MIME type/dimensions/alt, and the Twitter
         card equivalents (Twitter scrapers prefer name="twitter:*" over og:*).
@@ -101,135 +103,7 @@ function computeSourceUrl() {
 {structuredData && <script type="application/ld+json" is:inline set:html={structuredData} />}
 
 <!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
-<script is:inline>
-  (function () {
-    var appHostLangLabels = {
-      csharp: 'C#',
-      typescript: 'TypeScript',
-    };
-    var appHostLangStorageKey = 'starlight-synced-tabs__aspire-lang';
-
-    function normalizeAppHostLang(value) {
-      var normalized = (value || '').toLowerCase().replace(/\s+/g, '');
-      if (normalized.indexOf('typescript') !== -1) {
-        return 'typescript';
-      }
-      if (
-        normalized.indexOf('c#') !== -1 ||
-        normalized.indexOf('csharp') !== -1 ||
-        normalized.indexOf('c-sharp') !== -1
-      ) {
-        return 'csharp';
-      }
-      return '';
-    }
-
-    function updateAppHostLangUrl(value) {
-      var normalized = normalizeAppHostLang(value);
-      if (!normalized) return;
-
-      var url = new URL(window.location);
-      url.searchParams.set('aspire-lang', normalized);
-      window.history.replaceState(window.history.state, '', url);
-    }
-
-    function persistAppHostLang(value, root) {
-      var normalized = normalizeAppHostLang(value);
-      if (!normalized) return '';
-
-      (root || document.documentElement).setAttribute('data-apphost-lang', normalized);
-      try {
-        localStorage.setItem('aspire-lang', normalized);
-        localStorage.setItem(appHostLangStorageKey, appHostLangLabels[normalized]);
-      } catch (e) {}
-      return normalized;
-    }
-
-    function syncAppHostLangFromTab(value) {
-      var normalized = persistAppHostLang(value);
-      if (!normalized) return;
-      updateAppHostLangUrl(normalized);
-    }
-
-    function initAppHostLangSync() {
-      if (window.__aspireAppHostLangSyncInitialized) return;
-      window.__aspireAppHostLangSyncInitialized = true;
-
-      document.addEventListener('astro:before-swap', function (event) {
-        restorePreferences(event.newDocument.documentElement, event.to);
-      });
-
-      document.addEventListener('click', function (event) {
-        var target = event.target;
-        if (!(target instanceof Element)) return;
-
-        var tab = target.closest('starlight-tabs[data-sync-key="aspire-lang"] [role="tab"]');
-        if (tab) {
-          var tabValue = normalizeAppHostLang(tab.textContent);
-          if (tabValue) {
-            window.requestAnimationFrame(function () {
-              syncAppHostLangFromTab(tabValue);
-            });
-          }
-        }
-      });
-
-      document.addEventListener('keydown', function (event) {
-        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-        var target = event.target;
-        if (!(target instanceof Element)) return;
-        var starlightTabs = target.closest('starlight-tabs[data-sync-key="aspire-lang"]');
-        if (!starlightTabs) return;
-
-        window.requestAnimationFrame(function () {
-          var selectedTab = starlightTabs.querySelector('[role="tab"][aria-selected="true"]');
-          var selectedValue = normalizeAppHostLang(selectedTab && selectedTab.textContent);
-          if (selectedValue) {
-            syncAppHostLangFromTab(selectedValue);
-          }
-        });
-      });
-    }
-
-    function restorePreferences(root, url) {
-      var qsAppHostLang = persistAppHostLang(url.searchParams.get('aspire-lang'), root);
-      var rawAppHostLang = qsAppHostLang || 'typescript';
-
-      try {
-        rawAppHostLang =
-          qsAppHostLang ||
-          localStorage.getItem('aspire-lang') ||
-          localStorage.getItem('aspire-apphost-lang') ||
-          localStorage.getItem(appHostLangStorageKey) ||
-          localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
-          localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
-          'typescript';
-      } catch (e) {}
-
-      persistAppHostLang(normalizeAppHostLang(rawAppHostLang) || 'typescript', root);
-
-      try {
-        var isApi = url.pathname.indexOf('/reference/api') !== -1;
-        root.toggleAttribute(
-          'data-sidebar-collapsed',
-          isApi && localStorage.getItem('api-sidebar-collapsed') === '1'
-        );
-        root.toggleAttribute(
-          'data-topic-sidebar-collapsed',
-          !isApi && localStorage.getItem('topic-sidebar-collapsed') === '1'
-        );
-      } catch (e) {}
-    }
-
-    restorePreferences(document.documentElement, new URL(window.location.href));
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initAppHostLangSync);
-    } else {
-      initAppHostLangSync();
-    }
-  })();
-</script>
+<script is:inline src={appHostPreferencesScriptUrl}></script>
 
 <!--
   WCP consent runtime. Per Microsoft WCP requirements this MUST be loaded live from
@@ -239,354 +113,22 @@ function computeSourceUrl() {
   CDN from ever blocking page render.
 -->
 <script is:inline async src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
+{
+  /*
+   * Before paint, hide cookie controls only if a previous visit established that consent is not
+   * required here (unknown => visible, so a required region never loses a control). The rest of
+   * the bootstrap is deferred: it only needs the parsed DOM, and keeping it out of the
+   * render-blocking path means first paint waits on a single small cached file.
+   */
+}
 <script is:inline>
-  (function () {
-    if (window.__aspireWcpConsentInitialized) return;
-    window.__aspireWcpConsentInitialized = true;
-
-    // Cookie controls, including the Legal text action, are server-rendered. Once WCP
-    // tells us whether consent is required for this region, reflect it on <html>
-    // so CSS can hide those buttons where there is nothing to manage (e.g. the
-    // US). Persist the answer so a returning visitor doesn't see the button
-    // flash in before WCP loads.
-    function setConsentRequirementState(isRequired) {
-      try {
-        var el = document.documentElement;
-        if (el) {
-          if (isRequired) {
-            el.removeAttribute('data-consent-not-required');
-          } else {
-            el.setAttribute('data-consent-not-required', '');
-          }
-        }
-        window.localStorage.setItem('aspireConsentRequired', isRequired ? 'true' : 'false');
-      } catch (e) {}
+  try {
+    if (localStorage.getItem('aspireConsentRequired') === 'false') {
+      document.documentElement.setAttribute('data-consent-not-required', '');
     }
-
-    // Before WCP loads, hide the buttons only if a previous visit already
-    // established that consent is not required here. Unknown => leave them
-    // visible; defaulting to visible keeps us failsafe (we never hide a control
-    // a required region needs just because WCP was slow or blocked).
-    function primeConsentRequirementState() {
-      try {
-        if (
-          window.localStorage.getItem('aspireConsentRequired') === 'false' &&
-          document.documentElement
-        ) {
-          document.documentElement.setAttribute('data-consent-not-required', '');
-        }
-      } catch (e) {}
-    }
-
-    primeConsentRequirementState();
-
-    // Failsafe: if the CDN script is blocked (ad-blocker, firewall, CSP) or slow to
-    // arrive, poll for a bounded window and then give up so the page never hangs or
-    // spins forever. Consent code must never degrade the rest of the site.
-    var MAX_INIT_ATTEMPTS = 150; // ~15s at 100ms intervals
-    var initAttempts = 0;
-
-    function toCulture(value) {
-      var raw = (value || '').trim().replace('_', '-');
-      if (!raw) return 'en-US';
-      var parts = raw.split('-');
-      var lang = (parts[0] || 'en').toLowerCase();
-      var region = parts[1] ? parts[1].toUpperCase() : '';
-      return region ? lang + '-' + region : lang;
-    }
-
-    function withSiteConsent(callback) {
-      var siteConsent = window.__aspireWcpSiteConsent;
-      if (!siteConsent) return false;
-      try {
-        callback(siteConsent);
-      } catch (e) {}
-      return true;
-    }
-
-    // WCP is a consent-collection API — unlike the previous cookie library it does
-    // NOT manage <script> tags. The analytics scripts ship inert as
-    // `type="text/plain" data-category="analytics"`; we must promote them to
-    // executable ourselves once WCP reports Analytics consent (granted by default
-    // where consent isn't required, e.g. the US). Without this bridge analytics
-    // never loads anywhere.
-    function activateAnalyticsScripts() {
-      if (window.__aspireAnalyticsActivated) return;
-      window.__aspireAnalyticsActivated = true;
-      var pending = document.querySelectorAll(
-        'script[type="text/plain"][data-category="analytics"]'
-      );
-      for (var i = 0; i < pending.length; i++) {
-        var old = pending[i];
-        var next = document.createElement('script');
-        for (var a = 0; a < old.attributes.length; a++) {
-          var attr = old.attributes[a];
-          // Drop the neutralizing `type="text/plain"` so the browser executes it.
-          if (attr.name === 'type') continue;
-          next.setAttribute(attr.name, attr.value);
-        }
-        if (old.textContent) next.textContent = old.textContent;
-        // The analytics scripts are order-dependent: the SDK must run before
-        // 1ds.js (which reads `oneDS`) and track.js (which reads
-        // `window.analytics`). Dynamically-created scripts default to async=true
-        // and the copied `defer` is a no-op for them, so without this the two
-        // tiny same-origin scripts win the race against the ~140 KB SDK and each
-        // bail silently. Forcing async=false runs them in insertion (document)
-        // order. Set after the copy so a stray `async` attribute can't override.
-        next.async = false;
-        if (old.parentNode) old.parentNode.replaceChild(next, old);
-      }
-    }
-
-    function applyConsentToScripts(siteConsent) {
-      try {
-        var consent =
-          typeof siteConsent.getConsent === 'function' ? siteConsent.getConsent() : null;
-        if (consent && consent.Analytics) {
-          activateAnalyticsScripts();
-        }
-      } catch (e) {}
-    }
-
-    function openManageConsent(event) {
-      var target = event.target;
-      if (!(target instanceof Element)) return;
-      if (!target.closest('[data-cookie-manage-consent]')) return;
-      var opened = false;
-      withSiteConsent(function (siteConsent) {
-        if (siteConsent.isConsentRequired) {
-          siteConsent.manageConsent();
-          opened = true;
-        }
-      });
-      // Only suppress the trigger's native action when we actually opened WCP's
-      // dialog. If WCP is blocked/slow (ad-blocker, CSP) or consent isn't required
-      // here, leave the default behavior intact instead of swallowing the click.
-      if (opened) event.preventDefault();
-    }
-
-    function onConsentChanged() {
-      // WCP fires this when the visitor changes their choices. Reload so the new
-      // consent is applied consistently across any consent-gated behavior.
-      window.setTimeout(function () {
-        window.location.reload();
-      }, 0);
-    }
-
-    function ensureBannerPlaceholder() {
-      var id = 'wcp-cookie-banner';
-      var placeholder = document.getElementById(id);
-      if (placeholder) return placeholder;
-      if (!document.body) return null;
-      placeholder = document.createElement('div');
-      placeholder.id = id;
-      placeholder.setAttribute('data-astro-transition-persist', id);
-      // Dedicated placeholder pinned to the top of the viewport. WCP injects its
-      // banner INTO this element in normal flow, so without a top-anchored host the
-      // banner lands wherever the host sits. Using document.body dropped it at the
-      // very bottom of the page (invisible on load) which fails the compliance scan.
-      // A fixed, full-width, top strip guarantees the standard banner is visible on
-      // load regardless of scroll position or the site's own sticky header.
-      placeholder.style.position = 'fixed';
-      placeholder.style.top = '0';
-      placeholder.style.left = '0';
-      placeholder.style.width = '100%';
-      placeholder.style.zIndex = '2147483647';
-      document.body.insertBefore(placeholder, document.body.firstChild);
-      return placeholder;
-    }
-
-    function preserveConsentStyles(nextDocument) {
-      var themeStyle = document.getElementById('ms-consent-banner-theme-styles');
-      if (!themeStyle) return;
-      // WCP's base stylesheet uses generated class names. Its theme stylesheet
-      // targets those same classes, so identify the vendor styles without
-      // hardcoding hashes or retaining unrelated page styles across navigation.
-      var selectors = [];
-      if (themeStyle.sheet) {
-        var rules = themeStyle.sheet.cssRules;
-        for (var i = 0; i < rules.length; i++) {
-          if (rules[i].selectorText) {
-            selectors.push(rules[i].selectorText);
-          }
-        }
-      }
-      document.head.querySelectorAll('style').forEach(function (style) {
-        if (
-          style === themeStyle ||
-          selectors.some(function (selector) {
-            return style.textContent.indexOf(selector) !== -1;
-          })
-        ) {
-          // Astro recognizes equal style content and retains the original node.
-          nextDocument.head.appendChild(style.cloneNode(true));
-        }
-      });
-    }
-
-    function preserveConsentBeforeSwap(event) {
-      var nextDocument = event.newDocument;
-      if (!nextDocument) return;
-      preserveConsentStyles(nextDocument);
-
-      // WCP owns this DOM and retains references/listeners inside it. Supply a
-      // matching destination so ClientRouter moves the actual host, not a clone
-      // of the banner or a newly initialized consent instance.
-      var placeholder = document.getElementById('wcp-cookie-banner');
-      if (placeholder && nextDocument.body) {
-        var nextPlaceholder = nextDocument.getElementById(placeholder.id);
-        if (nextPlaceholder) nextPlaceholder.remove();
-        nextDocument.body.prepend(placeholder.cloneNode(false));
-      }
-
-      // ClientRouter keeps <html> but replaces its attributes. Carry only the
-      // consent-owned state into that swap, leaving the next page's state alone.
-      nextDocument.documentElement.toggleAttribute(
-        'data-consent-not-required',
-        document.documentElement.hasAttribute('data-consent-not-required')
-      );
-      var height = document.documentElement.style.getPropertyValue('--wcp-banner-height');
-      if (height) {
-        nextDocument.documentElement.style.setProperty('--wcp-banner-height', height);
-      }
-    }
-
-    function applyBannerHeight() {
-      var placeholder = document.getElementById('wcp-cookie-banner');
-      if (!placeholder) return;
-      document.documentElement.style.setProperty(
-        '--wcp-banner-height',
-        (placeholder.offsetHeight || 0) + 'px'
-      );
-    }
-
-    // While WCP's banner is visible it sits in a fixed, full-width strip at the top
-    // of the viewport (see ensureBannerPlaceholder). Publish its live height as a
-    // custom property so CSS can push the fixed site header + content down by
-    // exactly that much instead of letting the banner overlay them. Tracks wraps
-    // and viewport resizes; collapses back to 0 when WCP removes the banner.
-    function trackBannerHeight() {
-      try {
-        var placeholder = document.getElementById('wcp-cookie-banner');
-        if (
-          !placeholder ||
-          window.__aspireWcpBannerObserver ||
-          typeof ResizeObserver === 'undefined'
-        ) {
-          return;
-        }
-        var observer = new ResizeObserver(applyBannerHeight);
-        observer.observe(placeholder);
-        window.__aspireWcpBannerObserver = observer;
-        applyBannerHeight();
-      } catch (e) {}
-    }
-
-    // WCP paints the banner AND the preferences dialog from the theme passed at
-    // init time and does not re-read the site theme on its own. WCP exposes no
-    // `theme-changed` event — its only supported runtime re-theme hook is
-    // `siteConsent.applyTheme(name)`, whose argument is the string theme KEY (it
-    // looks the theme up in its internal map by that key). Our CSS overrides
-    // already re-theme the visible surfaces instantly from custom properties;
-    // calling applyTheme keeps WCP's own internal nodes in sync on theme toggles.
-    function resolveWcpTheme(themeName) {
-      // Resolve the site's data-theme to the WCP theme KEY. Both applyTheme and
-      // init expect this string ('dark' | 'light'); passing a wcp.themes[...]
-      // OBJECT instead makes applyTheme do `this.themes[object]` -> undefined ->
-      // "Theme not found error" (silently swallowed), so the re-theme never runs.
-      return (themeName || '').toLowerCase() === 'dark' ? 'dark' : 'light';
-    }
-
-    function applyWcpTheme() {
-      // applyTheme takes the string theme key and throws on an unknown key;
-      // withSiteConsent swallows that so a renamed/absent theme can't break the
-      // observer.
-      withSiteConsent(function (siteConsent) {
-        if (typeof siteConsent.applyTheme === 'function') {
-          siteConsent.applyTheme(
-            resolveWcpTheme(document.documentElement.getAttribute('data-theme'))
-          );
-        }
-      });
-    }
-
-    function watchThemeChanges() {
-      try {
-        if (window.__aspireWcpThemeObserver || !document.documentElement) return;
-        var observer = new MutationObserver(function (mutations) {
-          for (var i = 0; i < mutations.length; i++) {
-            if (mutations[i].attributeName === 'data-theme') {
-              applyWcpTheme();
-              break;
-            }
-          }
-        });
-        observer.observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ['data-theme'],
-        });
-        window.__aspireWcpThemeObserver = observer;
-      } catch (e) {}
-    }
-
-    function initWcpConsent() {
-      var wcp = window.WcpConsent;
-      if (!wcp || typeof wcp.init !== 'function') {
-        if (++initAttempts >= MAX_INIT_ATTEMPTS) return; // give up; page stays fully functional
-        window.setTimeout(initWcpConsent, 100);
-        return;
-      }
-
-      try {
-        var culture = toCulture(document.documentElement.lang || navigator.language || 'en-US');
-        // The string theme key WCP's init expects as its 5th argument. (The
-        // current CDN build ignores this arg; our CSS overrides theme the visible
-        // surfaces regardless, and applyWcpTheme() re-syncs WCP's own nodes on
-        // later theme toggles.)
-        var theme = resolveWcpTheme(document.documentElement.getAttribute('data-theme'));
-        var host = ensureBannerPlaceholder() || document.body;
-        trackBannerHeight();
-
-        wcp.init(
-          culture,
-          host,
-          function (err, siteConsent) {
-            if (err || !siteConsent) return;
-            window.__aspireWcpSiteConsent = siteConsent;
-            setConsentRequirementState(!!siteConsent.isConsentRequired);
-            applyWcpTheme();
-            // Bridge WCP consent to our inert analytics scripts. onConsentChanged
-            // reloads, so a later grant is re-applied by this same path on re-init.
-            applyConsentToScripts(siteConsent);
-          },
-          // Single registration: passing onConsentChanged as init's 4th argument
-          // registers it once. WCP stores consent callbacks in a LIST, so ALSO
-          // calling siteConsent.onConsentChanged(onConsentChanged) would fire it
-          // twice (two reloads per change).
-          onConsentChanged,
-          theme
-        );
-      } catch (e) {
-        // Never let consent initialization break page rendering. Retry within
-        // the bounded window in case WCP delivered a transient or partial payload.
-        if (++initAttempts < MAX_INIT_ATTEMPTS) {
-          window.setTimeout(initWcpConsent, 100);
-        }
-      }
-    }
-
-    document.addEventListener('click', openManageConsent);
-    document.addEventListener('astro:before-swap', preserveConsentBeforeSwap);
-    document.addEventListener('astro:after-swap', applyBannerHeight);
-    watchThemeChanges();
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initWcpConsent, { once: true });
-    } else {
-      initWcpConsent();
-    }
-  })();
+  } catch {}
 </script>
+<script is:inline defer src={wcpConsentScriptUrl}></script>
 
 <!-- WebMCP: register a single `search-aspire-docs` tool for in-page agents. -->
 <script>

@@ -4,15 +4,11 @@ namespace StaticHost.Routing;
 
 internal sealed class CanonicalPathRedirectMiddleware(
     RequestDelegate next,
-    IWebHostEnvironment environment)
+    StaticWebRootIndex index)
 {
-    private readonly CanonicalPathResolver _resolver = new(
-        environment.WebRootPath ??
-        throw new InvalidOperationException("The static web root is not configured."));
-
     public Task InvokeAsync(HttpContext context)
     {
-        if (!_resolver.TryResolve(context.Request.Path, out var canonicalPath))
+        if (!index.Current.Paths.TryResolve(context.Request.Path, out var canonicalPath))
         {
             return next(context);
         }

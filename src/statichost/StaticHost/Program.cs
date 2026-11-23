@@ -11,7 +11,12 @@ if (builder.Configuration.GetConnectionString("secrets") is not null)
     builder.Configuration.AddAzureKeyVaultSecrets("secrets");
 }
 
+// Background workers are non-essential; a failure is logged but must not take the site down.
+builder.Services.Configure<HostOptions>(options =>
+    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
+
 builder.AddLiveStatus();
+builder.Services.AddSiteFiles();
 
 builder.Services.AddHsts(options =>
 {
@@ -41,10 +46,14 @@ app.UseHttpsRedirection();
 // Resolve request casing before any middleware rewrites or matches the static path.
 app.UseCanonicalPathRedirects();
 
+// Untranslated locale routes (e.g. /de/get-started/) aren't built: serve the English
+// page in place. This rewrites Request.Path, so it runs before agent readiness (which
+// maps the path to its .md companion), UseDefaultFiles, and UseRouting.
+app.UseLocaleFallback();
+
 // Agent-readiness middlewares MUST run before UseDefaultFiles + UseRouting:
 //   * UseDefaultFiles rewrites /foo/ -> /foo/index.html, breaking .md-companion mapping.
-//   * MapStaticAssets registers endpoints during UseRouting, so a path rewrite
-//     after UseRouting wouldn't re-trigger endpoint selection.
+//   * A path rewrite after UseRouting wouldn't re-trigger endpoint selection.
 // MarkdownNegotiationMiddleware short-circuits to serve the .md body directly;
 // LinkHeaderMiddleware attaches a Link header on HTML 2xx responses via OnStarting.
 app.UseAgentReadiness();
@@ -92,9 +101,23 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/healthz", () => Results.Ok());
+// The site's files. Requests that matched an endpoint below (health, downloads, live status)
+// pass through to it; a file that does not exist falls through to the 404 page above.
+app.UseSiteFiles();
 
-// Live-status API + SSE + webhooks.
+app.MapGet("/healthz", (HttpContext context) =>
+{
+    // A health probe must always reach the origin, never a cached copy.
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok();
+});
+
+// Live-status API + WebSocket + webhooks. Azure Front Door does not relay Server-Sent
+// Events, but it does relay WebSockets (the route must not enable caching).
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = LiveStatusEndpointRouteBuilderExtensions.WebSocketKeepAliveInterval,
+});
 app.MapLiveStatus();
 
 // OpenAPI + Scalar API reference (with custom Aspire-brand theme) in dev.
@@ -128,7 +151,5 @@ app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry)
 
     return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
-
-app.MapStaticAssets();
 
 await app.RunAsync();

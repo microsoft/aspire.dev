@@ -73,8 +73,8 @@ Aspire represents these relationships through a **heterogeneous Directed Acyclic
 var builder = DistributedApplication.CreateBuilder(args);
 
 var db = builder.AddPostgres("pg");
-var api = builder.AddProject("api").WithReference(db);
-var web = builder.AddNpmApp("web").WithReference(api);
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj").WithReference(db);
+var web = builder.AddJavaScriptApp("web", "../web").WithReference(api);
 
 builder.Build().Run();
 ```
@@ -276,7 +276,7 @@ These properties are dynamically resolved during the application's startup seque
 
 ### `IResourceWithEndpoints`
 
-Resources supporting endpoints should implement `IResourceWithEndpoints`, enabling the use of `GetEndpoint(name)` to retrieve an `EndpointReference`. This is implemented on the built-in `ProjectResource`, `ContainerResource` and `ExecutableResource`. It allows endpoints to be programmatically accessed and passed between resources.
+Resources supporting endpoints should implement `IResourceWithEndpoints`, enabling the use of `GetEndpoint(name)` to retrieve an `EndpointReference`. This is implemented on the built-in `ContainerResource` and `ExecutableResource` types, including `DotnetProjectResource`. It allows endpoints to be programmatically accessed and passed between resources.
 
 ```csharp title="Example — Endpoint Access and Resolution"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -308,7 +308,7 @@ Use the `IsAllocated` property on an `EndpointReference` to check whether an end
 
 ### Accessing Allocated Endpoints Safely
 
-Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `AfterEndpointsAllocatedEvent`, to access endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
+Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `ResourceEndpointsAllocatedEvent`, to access a resource's endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
 
 ```csharp title="Example — Checking Allocation and Using Eventing"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -332,9 +332,9 @@ catch (Exception ex)
     Console.WriteLine($"Error accessing Url: {ex.Message}");
 }
 
-// Subscribe to AfterEndpointsAllocatedEvent for resolved properties
-builder.Eventing.Subscribe<AfterEndpointsAllocatedEvent>(
-    (@event, cancellationToken) =>
+// Subscribe to ResourceEndpointsAllocatedEvent for resolved properties
+redis.OnResourceEndpointsAllocated(
+    (resource, @event, cancellationToken) =>
     {
         Console.WriteLine($"Endpoint allocated: {endpoint.IsAllocated}");
         Console.WriteLine($"Resolved Url: {endpoint.Url}");
@@ -380,7 +380,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint(name: "tcp", targetPort: 6379);
 
-builder.AddProject<Projects.Worker>("worker")
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
        .WithReference(redis.GetEndpoint("tcp"));
 
 builder.Build().Run();
@@ -398,7 +398,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint(name: "tcp", targetPort: 6379);
 
-builder.AddProject<Worker>("worker")
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
        .WithEnvironment("RedisUrl", redis.GetEndpoint("tcp"));
 
 builder.Build().Run();
@@ -423,7 +423,7 @@ In C#, call `endpoint.Property(...)` to get that field. In TypeScript AppHosts, 
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint("tcp", 6379);
 
-builder.AddProject("worker")
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
        .WithEnvironment(ctx =>
        {
            var ep = redis.GetEndpoint("tcp");
@@ -448,7 +448,7 @@ const redisHost = await ep.property(EndpointProperty.Host);
 const redisPort = await ep.property(EndpointProperty.Port);
 
 await builder
-  .addProject('worker', '../Worker/Worker.csproj')
+  .addDotnetProject('worker', '../Worker/Worker.csproj')
   .withEnvironment('REDIS_HOST', redisHost)
   .withEnvironment('REDIS_PORT', redisPort);
 
@@ -600,7 +600,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080);
 var grafana = builder.AddContainer("grafana", "grafana/grafana");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithEnvironment(async ctx =>
     {
         var keyCloakEndpoint = keycloak.GetEndpoint("http");
@@ -636,7 +636,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder.AddKeycloak("keycloak", 8080);
 var grafana = builder.AddContainer("grafana", "grafana/grafana");
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithEnvironment(ctx =>
     {
         var keyCloakEndpoint = keycloak.GetEndpoint("http");

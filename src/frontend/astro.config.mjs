@@ -4,6 +4,9 @@ import { unified } from '@astrojs/markdown-remark';
 import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
 import { locales } from './config/locales.ts';
+import { getTranslatedPaths } from './config/translated-paths.mjs';
+import { localeFallbackDevIntegration } from './config/locale-fallback-dev-integration.mjs';
+import { isExcludedFromLinkValidation } from './config/links-validator-exclude.mjs';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import { aspireProject } from './src/data/aspire-project.ts';
@@ -11,6 +14,7 @@ import { aspireVersionPlaceholdersIntegration } from './config/aspire-version-pl
 import { remarkAspireVersionPlaceholders } from './config/remark-aspire-version-placeholders.mjs';
 import { remarkTypeScriptFirstAppHostTabs } from './config/remark-typescript-first-apphost-tabs.mjs';
 import { remarkMermaid } from './config/remark-mermaid.mjs';
+import { starlightIconSprite } from './config/starlight-icon-sprite.mjs';
 import catppuccin from '@catppuccin/starlight';
 import lunaria from './config/lunaria-starlight.mjs';
 import mdx from '@astrojs/mdx';
@@ -25,6 +29,10 @@ import buildTiming from './config/build-timing.mjs';
 import UnoCSS from 'unocss/astro';
 import Icons from 'starlight-plugin-icons';
 
+// Bun resolves `import.meta.env` to `process.env`, so raw-TS Astro plugins that read
+// Vite's `BASE_URL` (starlight-links-validator) get `undefined`. The site is served from `/`.
+process.env.BASE_URL ??= '/';
+
 const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 const outDir = process.env.ASTRO_OUT_DIR;
@@ -32,8 +40,8 @@ const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
 const siteDescription = aspireProject.description;
 
 // Under `aspire run` the frontend dev server (Vite) and StaticHost are separate
-// origins. The live-status client fetches same-origin `/api/live` and streams
-// `/api/live/stream`, so in dev those must be proxied to StaticHost. The AppHost
+// origins. The live-status client fetches same-origin `/api/live` and opens a
+// WebSocket to `/api/live/ws`, so in dev those must be proxied to StaticHost. The AppHost
 // injects its origin as ASPIRE_STATICHOST_URL; unset in CI/production builds
 // (where StaticHost serves both the site and the API from one origin), so the
 // proxy is simply omitted then.
@@ -52,24 +60,42 @@ const staticHostUrl = process.env.ASPIRE_STATICHOST_URL;
 // different vCPU count.
 const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
+// `experimental.parallelPrerender` renders pages in worker threads. Each worker
+// loads its own copy of the site modules, so the count is capped to keep memory
+// bounded. Override via `ASPIRE_PRERENDER_WORKERS`.
+const prerenderWorkers = Number(process.env.ASPIRE_PRERENDER_WORKERS) || 4;
+
 // https://astro.build/config
 export default defineConfig({
   cacheDir: './node_modules/.astro',
   ...(outDir ? { outDir } : {}),
   vite: {
+    plugins: [starlightIconSprite()],
+    build: {
+      // Astro inlines processed <script>s (and Vite inlines `?url` scripts as data: URLs) when
+      // they're under this limit. Shared scripts are repeated on every one of ~38k pages, so
+      // always emit JavaScript (and the shared icon sprite) as cacheable /_astro/ files; other
+      // assets keep Vite's default.
+      assetsInlineLimit: (filePath) =>
+        /\.[cm]?[jt]s(?:\?|$)|\.sprite\.svg(?:\?|$)/.test(filePath) ? false : undefined,
+    },
     define: {
       // Resolve filesystem-backed redirects before prerender modules are bundled.
       __ASPIRE_REDIRECT_PATHS__: JSON.stringify(Object.keys(redirects)),
+      // Untranslated locale routes aren't built (see the Starlight patch), so
+      // hreflang alternates only list localized routes that really exist.
+      __ASPIRE_TRANSLATED_PATHS__: JSON.stringify(getTranslatedPaths()),
     },
     ...(staticHostUrl
       ? {
           server: {
             proxy: {
-              // Bypass Astro's trailing-slash routing for JSON and SSE.
+              // Bypass Astro's trailing-slash routing for JSON and the WebSocket.
               '^/api/live(?:/.*)?$': {
                 target: staticHostUrl,
                 changeOrigin: true,
                 secure: false,
+                ws: true,
               },
             },
           },
@@ -153,11 +179,7 @@ export default defineConfig({
           starlightLinksValidator({
             errorOnRelativeLinks: false,
             errorOnFallbackPages: false,
-            exclude: [
-              '/i18n/', '/reference/api', '/reference/api/**',
-              // Custom Astro destinations checked by the Dev Hub browser tests.
-              '/hub/', '/hub/glossary/ats/', '/get-started/glossary/#polyglot',
-            ],
+            exclude: ({ link }) => isExcludedFromLinkValidation(link),
           }),
           starlightGitHubAlerts(),
           starlightLlmsTxt({
@@ -236,8 +258,18 @@ export default defineConfig({
     }),
     ...(isBuildTimingEnabled ? [buildTiming()] : []),
     aspireVersionPlaceholdersIntegration(),
+    localeFallbackDevIntegration(),
   ],
   build: {
     concurrency: buildConcurrency,
+    // Every docs page shares the same component stylesheets, so ship them as cached files
+    // instead of re-inlining the same ~13-18 KB of CSS into each of the ~38k pages.
+    inlineStylesheets: 'never',
+  },
+  experimental: {
+    parallelPrerender: { workers: prerenderWorkers },
+    // API reference routes return a `cacheKey`, so unchanged pages are reused from
+    // `node_modules/.astro` when that cache is restored between builds.
+    incrementalBuild: true,
   },
 });

@@ -67,7 +67,7 @@ Route path segments can be lowercase (`pt-br`, `zh-cn`), but sidebar translation
 
 ## Astro and MDX Conventions
 
-When calling `pnpm dev` or `aspire run` to test documentation in the context of CI/CD, or from an LLM, call `astro telemetry disable` to disable telemetry.
+When calling `bun run dev` or `aspire run` to test documentation in the context of CI/CD, or from an LLM, call `astro telemetry disable` to disable telemetry.
 
 ### Frontmatter
 
@@ -410,7 +410,7 @@ Always include a descriptive title:
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api");
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
 
 // After adding all resources, run the app...
 builder.Build().Run();
@@ -423,7 +423,7 @@ import { createBuilder } from "./.aspire/modules/aspire.mjs";
 
 const builder = await createBuilder();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 
 await builder.build().run();
 ```
@@ -455,21 +455,21 @@ For client/library packages:
 <InstallDotNetPackage package="Aspire.StackExchange.Redis" />
 ```
 
-## AppHost Language Parity (TypeScript and C#)
+## AppHost Language Parity (TypeScript, C#, and Go)
 
-Aspire supports both **TypeScript AppHosts** (`apphost.mts`) and **C# AppHosts** (`AppHost.cs`). Documentation must treat both languages as first-class citizens. **Always show both TypeScript and C# code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
+Aspire supports **TypeScript AppHosts** (`apphost.mts`), **C# AppHosts** (`AppHost.cs`), and **Go AppHosts** (`apphost.go`). Documentation must treat all three languages as first-class citizens. **Always show TypeScript, C#, and Go code samples for AppHost code unless the feature is genuinely language-specific or support for a language does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
 
 ### Core Principles
 
-1. **Always show both languages**: Every AppHost-focused example, walkthrough, and AppHost code sample must include both TypeScript and C# variants unless the feature is genuinely language-specific.
-2. **Show implementations, not availability notes**: When a TypeScript AppHost API exists, demonstrate it in a complete TypeScript tab beside the C# example. A note or callout that only names the available TypeScript methods does not satisfy language parity.
-3. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
-4. **Default to TypeScript**: Put the TypeScript tab first so `apphost.mts` is on the left and selected for readers without a saved preference. Keep C# as an equal peer and preserve the reader's explicit language selection.
-5. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
+1. **Always show every language**: Every AppHost-focused example, walkthrough, and AppHost code sample must include TypeScript, C#, and Go variants unless the feature is genuinely language-specific.
+2. **Show implementations, not availability notes**: When a TypeScript or Go AppHost API exists, demonstrate it in a complete tab beside the C# example. A note or callout that only names the available methods does not satisfy language parity.
+3. **Use neutral framing**: Write prose that applies to every language. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
+4. **Default to TypeScript**: Put the TypeScript tab first so `apphost.mts` is on the left and selected for readers without a saved preference. Keep C# and Go as equal peers, in the order TypeScript, C#, Go, and preserve the reader's explicit language selection.
+5. **Verify APIs exist**: Before writing a TypeScript or Go example, confirm the API exists in that language's AppHost SDK (the generated API data under `src/frontend/src/data/ts-modules` and `go-modules`, or a compile check against a real Go AppHost). Do not invent samples — if you are unsure whether an API is available, flag it for review. Go samples must compile: unused variables fail, ports are `*int` (`aspire.IntPtr`), and options are structs such as `&aspire.WithHttpEndpointOptions{...}`.
 
 ### AppHost tabs pattern for AppHost content
 
-Use synced `Tabs` for AppHost-specific content that changes between TypeScript and C#. Each AppHost code snippet should provide its own language tabs, list TypeScript first, and use `syncKey='aspire-lang'` so the user's language choice stays synchronized across snippets on the page.
+Use synced `Tabs` for AppHost-specific content that changes between languages. Each AppHost code snippet should provide its own language tabs, list TypeScript first, and use `syncKey='aspire-lang'` so the user's language choice stays synchronized across snippets on the page.
 
 ````mdx
 import { Tabs, TabItem } from "@astrojs/starlight/components";
@@ -484,7 +484,7 @@ const builder = await createBuilder();
 
 const cache = await builder.addRedis("cache");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 
 await builder.build().run();
@@ -498,17 +498,49 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(cache);
 
 builder.Build().Run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	cache := builder.AddRedis("cache")
+	builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithReference(cache)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 ````
 
-Use the same synced tabs pattern for more than code blocks when needed. Entire paragraphs, lists, asides, or multi-step sections can live inside the `csharp` and `typescript` tab items when the workflows differ.
+Use the same synced tabs pattern for more than code blocks when needed. Entire paragraphs, lists, asides, or multi-step sections can live inside the `csharp`, `typescript`, and `go` tab items when the workflows differ.
 
 Use different `syncKey` values for other concerns such as CLI vs IDE, deployment targets, platform choices, or package managers. For AppHost language tabs, use exactly `syncKey='aspire-lang'`.
 
@@ -516,15 +548,24 @@ If a section heading should appear in the **On this page** table of contents, ke
 
 ### Conventions
 
-| Aspect           | TypeScript                                                                                                          | C#                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| File title       | `title="apphost.mts"`                                                                                                | `title="AppHost.cs"`                            |
-| Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     | Shared `<Tabs syncKey='aspire-lang'>` container |
-| Tab item         | `<TabItem id='typescript' label='TypeScript'>`                                                                      | `<TabItem id='csharp' label='C#'>`              |
-| Builder creation | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` | `DistributedApplication.CreateBuilder(args)`    |
-| Method casing    | camelCase (`addRedis`)                                                                                              | PascalCase (`AddRedis`)                         |
-| Async pattern    | `await` each builder call                                                                                           | Synchronous fluent calls                        |
-| Build & run      | `await builder.build().run()`                                                                                       | `builder.Build().Run()`                         |
+| Aspect           | TypeScript                                                                                                          | C#                                              | Go                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------- |
+| File title       | `title="apphost.mts"`                                                                                                | `title="AppHost.cs"`                            | `title="apphost.go"`                                     |
+| Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     | Shared `<Tabs syncKey='aspire-lang'>` container | Shared `<Tabs syncKey='aspire-lang'>` container          |
+| Tab item         | `<TabItem id='typescript' label='TypeScript'>`                                                                      | `<TabItem id='csharp' label='C#'>`              | `<TabItem id='go' label='Go'>`                           |
+| Builder creation | `import { createBuilder } from './.aspire/modules/aspire.mjs';` then newline for space followed by `await createBuilder();` | `DistributedApplication.CreateBuilder(args)`    | `aspire.CreateBuilder()` (returns `builder, err`)        |
+| Method casing    | camelCase (`addRedis`)                                                                                              | PascalCase (`AddRedis`)                         | PascalCase (`AddRedis`)                                  |
+| Async pattern    | `await` each builder call                                                                                           | Synchronous fluent calls                        | Synchronous fluent calls; errors surface at `Build()`    |
+| Build & run      | `await builder.build().run()`                                                                                       | `builder.Build().Run()`                         | `app, err := builder.Build()` then `app.Run()`           |
+
+### .NET projects in AppHost samples
+
+Add .NET projects with `AddDotnetProject("name", "path")` (`addDotnetProject` in TypeScript and `AddDotnetProject` in Go) from the `Aspire.Hosting.Dotnet` integration. The path can be a `.csproj` file, a directory containing one project, or a file-based `.cs` app.
+
+- Do **not** use the obsolete `AddProject<Projects.X>()`, `AddProject("name", "path")`, `addProject`, `AddCSharpApp`, or `addCSharpApp` APIs in new or updated evergreen docs. They return the legacy `ProjectResource`.
+- Do **not** show `Aspire.AppHost.Sdk` in project files or `#:sdk` in file-based apps. C# AppHosts use `Microsoft.NET.Sdk` with `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet` package references (`#:package` directives in file-based apps).
+- When a page needs to mention the legacy APIs, keep it to a short `:::note[Upgrading to Aspire 17?]` that links to [Migrate to the new DotnetProjectResource](/integrations/dotnet/migrate-dotnet-project-resource/). Don't add history to evergreen pages.
+- Historical what's-new pages and diagnostics about the legacy APIs (such as `ASPIRE012` and `ASPIRECSHARPAPPS001`) are the exceptions.
 
 ### Prose Guidelines
 
@@ -537,9 +578,9 @@ When writing narrative text around AppHost examples:
 
 When a concept differs between languages (e.g., configuration files, async patterns), explain both within the AppHost language tabs or in language-neutral prose above the tabs.
 
-### When TypeScript Is Not Yet Supported
+### When a Language Is Not Yet Supported
 
-If a hosting integration does not yet have TypeScript AppHost support, show only the C# example without language tabs and add a note:
+If a hosting integration does not yet have TypeScript or Go AppHost support, omit that language's tab and add a note naming it (for example, "Go AppHost support for this integration is not yet available."):
 
 ```mdx
 <Aside type="note">
@@ -547,7 +588,7 @@ If a hosting integration does not yet have TypeScript AppHost support, show only
 </Aside>
 ```
 
-Do **not** wrap a single language in a single-language `<Tabs>` component — that creates a misleading UI suggesting another option exists.
+Do **not** wrap a single language in a single-language `<Tabs>` component — that creates a misleading UI suggesting another option exists. Integration cards show the Go link only when the target article has a `<TabItem id="go"`, so do not add that tab unless the sample compiles.
 
 Use this exception at the operation level, not as a shortcut for the whole page. If some APIs are exported to TypeScript and others are not, provide synchronized C# and TypeScript tabs for every supported operation and place the limitation beside only the unsupported operation.
 
@@ -585,11 +626,11 @@ For collapsed sections with children:
 
 After adding or moving integration documentation:
 
-1. Run `pnpm --dir ./src/frontend update:integrations` when the package catalog
+1. Run `bun run --cwd ./src/frontend update:integrations` when the package catalog
    needs to be refreshed from NuGet.
 2. Reconcile the exact package IDs and canonical documentation URLs in
    `src/frontend/src/data/integration-docs.json`.
-3. Run `pnpm --dir ./src/frontend test:unit:structured-data` to verify that the
+3. Run `bun run --cwd ./src/frontend test:unit:structured-data` to verify that the
    mappings are unique and resolve to real pages.
 
 ## Writing Style Guidelines
@@ -707,8 +748,7 @@ the active Aspire release:
 | `%ASPIRE_VERSION%` | Full current stable version, including patch |
 | `%ASPIRE_VERSION_MAJOR_MINOR%` | Current major/minor display or installer version |
 
-Use these placeholders in package references, `Aspire.AppHost.Sdk`
-declarations, file-based app directives, CLI/AppHost output, and generic
+Use these placeholders in package references, file-based app directives, CLI/AppHost output, and generic
 installation examples that should advance with the release branch. This
 applies to localized documentation as well as English documentation.
 

@@ -14,19 +14,18 @@ async function prepareLivePage(page: Page, theme: Theme, live: boolean): Promise
     localStorage.setItem('starlight-theme', selectedTheme);
     localStorage.removeItem('starlight-synced-tabs__stream-source');
 
-    // Keep status fixed at the JSON seed instead of depending on a real SSE
+    // Keep status fixed at the JSON seed instead of depending on a real live
     // service or a stream happening to be live when the audit runs.
-    class MockEventSource {
+    class MockWebSocket {
       onopen: (() => void) | null = null;
       constructor() {
         setTimeout(() => this.onopen?.(), 0);
       }
-      addEventListener(): void {}
       close(): void {}
     }
-    Object.defineProperty(window, 'EventSource', {
+    Object.defineProperty(window, 'WebSocket', {
       configurable: true,
-      value: MockEventSource,
+      value: MockWebSocket,
     });
     Object.defineProperty(window, 'documentPictureInPicture', {
       configurable: true,

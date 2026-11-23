@@ -3,6 +3,7 @@ import DefaultSearch from "@astrojs/starlight/components/Search.astro";
 import { Image } from 'astro:assets';
 import csharpIcon from '@assets/icons/csharp.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
+import goIcon from '@assets/icons/go.svg';
 import '../../styles/search-controls.css';
 
 const routeData = Astro.locals.starlightRoute;
@@ -12,6 +13,7 @@ const hideSearch = isApiRefPage;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const csharpHref = `${base}/reference/api/csharp/`;
 const typescriptHref = `${base}/reference/api/typescript/`;
+const goHref = `${base}/reference/api/go/`;
 ---
 
 { hideSearch ? <></> : <DefaultSearch><slot /></DefaultSearch> }
@@ -39,6 +41,16 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       >
         <Image src={typescriptIcon} alt="" width={50} height={50} />
         <span>TypeScript API Reference</span>
+      </a>
+      <a
+        href={goHref}
+        class="api-search-btn"
+        data-api-search-link
+        data-api-lang="go"
+        data-api-base-href={goHref}
+      >
+        <Image src={goIcon} alt="" width={50} height={50} />
+        <span>Go API Reference</span>
       </a>
     </div>
   </div>
@@ -100,9 +112,13 @@ const typescriptHref = `${base}/reference/api/typescript/`;
     private activeIndex = -1;
     private wired = false;
     private suppressFocusinSync = false;
+    // Only a highlight the user moved (arrow keys, Home/End, Tab, focus)
+    // survives re-renders; otherwise each render re-highlights the first result.
+    private userNavigated = false;
     private readonly keydownHandler: (e: KeyboardEvent) => void;
     private readonly focusinHandler: (e: FocusEvent) => void;
     private readonly dialogStateHandler: () => void;
+    private readonly queryInputHandler: () => void;
     private readonly resultsContainerId = 'aspire-search-results';
     private readonly targetSelector =
       '.pagefind-ui__result-link, .pagefind-ui__button, a[data-api-search-link]';
@@ -111,6 +127,9 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       this.dialog = dialog;
       this.keydownHandler = (e) => this.handleKey(e);
       this.focusinHandler = (e) => this.handleFocusIn(e);
+      this.queryInputHandler = () => {
+        this.userNavigated = false;
+      };
       this.dialogStateHandler = () => {
         this.input?.setAttribute('aria-expanded', this.dialog.open ? 'true' : 'false');
       };
@@ -132,6 +151,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         this.dialog.addEventListener('keydown', this.keydownHandler, true);
         this.dialog.addEventListener('focusin', this.focusinHandler);
         this.dialog.addEventListener('close', this.dialogStateHandler);
+        input.addEventListener('input', this.queryInputHandler);
         this.wired = true;
       }
 
@@ -145,6 +165,11 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         // reference is never broken by an upstream id assignment.
         resultsContainer.id = this.resultsContainerId;
         resultsContainer.setAttribute('role', 'listbox');
+        // Pagefind wraps each option link in list items and paragraphs. Make
+        // those wrappers presentational so the listbox owns its options.
+        resultsContainer
+          .querySelectorAll('li, p')
+          .forEach((el) => el.setAttribute('role', 'none'));
       }
 
       const newTargets = Array.from(
@@ -168,7 +193,9 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       // Capture the previously-active *result link* (not button). Buttons
       // are stable across renders so they don't need preservation, and we
       // don't want to auto-park the highlight on them.
+      const previousActive = this.activeIndex >= 0 ? this.targets[this.activeIndex] : undefined;
       const previousLink =
+        this.userNavigated &&
         this.activeIndex >= 0 &&
         this.targets[this.activeIndex] instanceof HTMLAnchorElement &&
         this.targets[this.activeIndex]?.classList.contains('pagefind-ui__result-link')
@@ -194,6 +221,9 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         }
       }
       this.targets = newTargets;
+      // Re-index the surviving active element so `setActive` clears it rather
+      // than whichever new target now occupies its old index.
+      this.activeIndex = previousActive ? this.targets.indexOf(previousActive) : -1;
 
       if (this.targets.length === 0) {
         this.activeIndex = -1;
@@ -266,6 +296,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       } else {
         this.input?.removeAttribute('aria-activedescendant');
       }
+      if (moveFocus) this.userNavigated = true;
       if (moveFocus && document.activeElement !== el) {
         this.suppressFocusinSync = true;
         el.focus({ preventScroll: true });
@@ -318,7 +349,11 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
       const idx = this.targets.indexOf(target);
-      if (idx >= 0 && idx !== this.activeIndex) {
+      if (idx < 0) return;
+      // Focusing the auto-highlighted result still counts as navigation, so
+      // a later re-render must not move the highlight away from focus.
+      this.userNavigated = true;
+      if (idx !== this.activeIndex) {
         this.setActive(idx, /* moveFocus */ false, /* scroll */ false);
       }
     }
@@ -327,6 +362,7 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       this.dialog.removeEventListener('keydown', this.keydownHandler, true);
       this.dialog.removeEventListener('focusin', this.focusinHandler);
       this.dialog.removeEventListener('close', this.dialogStateHandler);
+      this.input?.removeEventListener('input', this.queryInputHandler);
     }
   }
 
@@ -424,7 +460,9 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       message?.setAttribute('aria-atomic', 'true');
       const clear = dialog.querySelector<HTMLButtonElement>('.pagefind-ui__search-clear');
       const clearLabel = document.querySelector<HTMLTemplateElement>('#api-search-notice-tpl')?.dataset.clearSearch;
-      if (clear && clearLabel && document.documentElement.lang.startsWith('en')) {
+      const root = document.documentElement;
+      // Locale fallback pages keep Pagefind's localized label, as translated pages do.
+      if (clear && clearLabel && root.lang.startsWith('en') && !root.dataset.localeFallback) {
         if (clear.getAttribute('aria-label') !== clearLabel) clear.setAttribute('aria-label', clearLabel);
       }
     };
@@ -647,6 +685,12 @@ const typescriptHref = `${base}/reference/api/typescript/`;
     border-color: var(--sl-color-accent-high);
     background-color: var(--sl-color-accent-low);
     outline: none;
+  }
+
+  /* A filter would make the link the containing block for its stretched
+     ::after hit area, shrinking it on hover and making the cursor flicker. */
+  #starlight__search .pagefind-ui__result-link:hover {
+    filter: none;
   }
 
   /* The Pagefind result link covers its row via `::after`. `scroll-margin`

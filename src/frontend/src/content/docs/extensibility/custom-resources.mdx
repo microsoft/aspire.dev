@@ -250,8 +250,8 @@ Use relationships to organize how resources appear in the dashboard:
 Create custom relationships between resources for visual organization:
 
 ```csharp title="AppHost.cs"
-var api = builder.AddProject<Projects.Api>("api");
-var worker = builder.AddProject<Projects.Worker>("worker")
+var api = builder.AddDotnetProject("api", "../Api/Api.csproj");
+var worker = builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
     .WithRelationship(api.Resource, "publishes-to");
 ```
 
@@ -284,6 +284,26 @@ return builder.AddResource(resource)
 return builder.AddResource(resource)
     .WithIconName("mail", IconVariant.Regular);
 ```
+
+## Custom type display names
+
+The dashboard and the **Type** column of [`aspire describe`](/reference/cli/commands/aspire-describe/) show a friendly label for each resource's type, such as `Redis` or `PostgreSQL Server`, instead of a technical type such as `Container`. To give your resource type a default label, override `ResourceTypeDisplayName`. Resources that don't override it fall back to the technical resource type:
+
+```csharp title="Setting a default type label"
+public sealed class MailDevResource(string name) : ContainerResource(name)
+{
+    public override string ResourceTypeDisplayName => "MailDev";
+}
+```
+
+AppHost authors can override the label for an individual resource with `WithResourceTypeDisplayName`:
+
+```csharp title="C# — AppHost.cs"
+builder.AddDotnetProject("orders", "../Orders/Orders.csproj")
+       .WithResourceTypeDisplayName("Orders API");
+```
+
+The label is presentation metadata only. Resource names, command targeting, service discovery, and the OpenTelemetry `service.name` aren't affected, and the dashboard still shows the technical type in the resource's properties.
 
 ## See also
 

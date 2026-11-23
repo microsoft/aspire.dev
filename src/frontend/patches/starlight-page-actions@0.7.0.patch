@@ -1,5 +1,5 @@
 diff --git a/components/Dropdown.astro b/components/Dropdown.astro
-index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe04644ab5 100644
+index 5a44e3674908f7a311a4934da878d60e82a4402a..af151ca27a7a090ca20c93e7e1bd49dc57c3e9e1 100644
 --- a/components/Dropdown.astro
 +++ b/components/Dropdown.astro
 @@ -19,13 +19,13 @@ const { label, options, id } = Astro.props;
@@ -19,6 +19,15 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
      {
        options.map((option) => {
          const OptionIcon = option.icon;
+@@ -40,7 +40,7 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+               />
+             )}
+             <span>{option.label}</span>
+-            <Icon name="external" size="1rem" class="external-icon" />
++            <i class="external-icon" aria-hidden="true" />
+           </a>
+         );
+       })
 @@ -53,8 +53,8 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
      position: relative;
    }
@@ -44,7 +53,27 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
      display: block;
    }
  
-@@ -159,7 +162,7 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+@@ -154,12 +157,27 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+     transform: scale(1.6);
+   }
+ 
++  /* Masked from shared CSS instead of an inline SVG repeated for every menu item. */
+   .dropdown-item .external-icon {
++    display: block;
++    width: 1rem;
++    height: 1rem;
++    flex: 0 0 1rem;
+     margin-left: auto;
++    background-color: currentColor;
++    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19.33 10.18a1 1 0 0 1-.77 0 1 1 0 0 1-.62-.93l.01-1.83-8.2 8.2a1 1 0 0 1-1.41-1.42l8.2-8.2H14.7a1 1 0 0 1 0-2h4.25a1 1 0 0 1 1 1v4.25a1 1 0 0 1-.62.93Z'/%3E%3Cpath d='M11 4a1 1 0 1 1 0 2H7a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-4a1 1 0 1 1 2 0v4a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h4Z'/%3E%3C/svg%3E") center / contain no-repeat;
++    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19.33 10.18a1 1 0 0 1-.77 0 1 1 0 0 1-.62-.93l.01-1.83-8.2 8.2a1 1 0 0 1-1.41-1.42l8.2-8.2H14.7a1 1 0 0 1 0-2h4.25a1 1 0 0 1 1 1v4.25a1 1 0 0 1-.62.93Z'/%3E%3Cpath d='M11 4a1 1 0 1 1 0 2H7a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-4a1 1 0 1 1 2 0v4a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h4Z'/%3E%3C/svg%3E") center / contain no-repeat;
++  }
++
++  @media (forced-colors: active) {
++    .dropdown-item .external-icon {
++      forced-color-adjust: none;
++      background-color: LinkText;
++    }
    }
  
    @media (min-width: 425px) {
@@ -53,7 +82,7 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
        right: 0;
        left: auto;
        width: 236px;
-@@ -168,34 +171,66 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
+@@ -168,34 +186,66 @@ const dropdownId = id ? `dropdown-${id}` : "dropdown-0";
  </style>
  
  <script>
@@ -75,6 +104,10 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
 -          ?.classList.remove("show")
 -      );
 -      dropdownMenu.classList.toggle("show");
+-    });
+-
+-    document.addEventListener("click", () => {
+-      dropdownMenu?.classList.remove("show");
 +  let listeners: AbortController | undefined;
 +
 +  function initializeDropdowns() {
@@ -130,10 +163,6 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
 +      }, { signal });
      });
  
--    document.addEventListener("click", () => {
--      dropdownMenu?.classList.remove("show");
--    });
--
 -    dropdownMenu?.addEventListener("click", (e) => {
 -      e.stopPropagation();
 -    });
@@ -148,10 +177,53 @@ index 5a44e3674908f7a311a4934da878d60e82a4402a..c8be207ec007f0c7f677d5f4a21632fe
 +  document.addEventListener("astro:before-swap", () => listeners?.abort());
  </script>
 diff --git a/components/PageActions.astro b/components/PageActions.astro
-index c431e5f8076182c5dbca12de6a441dbc30cf9c21..9d3c3f2a04e5a73fbb6127f56602632bd5bd45a3 100644
+index c431e5f8076182c5dbca12de6a441dbc30cf9c21..deb51b1eecc1005933ead49de4a8df5fc2227f91 100644
 --- a/components/PageActions.astro
 +++ b/components/PageActions.astro
-@@ -446,38 +446,48 @@ const shareOptions = [
+@@ -52,7 +52,14 @@ const currentPath = Astro.url.pathname.replace(/\/$/, "");
+ const currentUrl = Astro.url.href;
+ const currentLocale = Astro.currentLocale;
+ const { actions, share } = config;
+-const { title, pageActions } = (Astro.locals as any).starlightRoute.entry.data;
++const { entry, isFallback, locale } = (Astro.locals as any).starlightRoute;
++const { title, pageActions } = entry.data;
++// Untranslated locale pages render the default-locale entry. Its Markdown copy has no
++// locale prefix, so `/de/guide.md` would 404 while `/guide.md` exists.
++const markdownPath =
++  isFallback && locale && currentPath.startsWith(`/${locale}/`)
++    ? currentPath.slice(locale.length + 1)
++    : currentPath;
+ 
+ const userPrompt = getLocaleConfig(config, currentLocale, "prompt");
+ const localeActions = getLocaleConfig(config, currentLocale, "actions");
+@@ -111,7 +118,7 @@ const defaultOptions: Array<OptionsProps & { id: DefaultActionId }> = [
+   },
+   {
+     label: Astro.locals.t("view.markdown"),
+-    href: `${currentPath}.md`,
++    href: `${markdownPath}.md`,
+     id: "markdown",
+     icon: MarkdownIcon,
+   },
+@@ -212,7 +219,7 @@ const shareOptions = [
+   (pageActions || typeof pageActions === "undefined") &&
+   variant === "page-title" ? (
+     <div class="actions-container">
+-      <Button dataPath={currentPath} data-page-action="copy-markdown">
++      <Button dataPath={markdownPath} data-page-action="copy-markdown">
+         <MarkdownIcon
+           class="icon-default copy-markdown-icon"
+           aria-hidden="true"
+@@ -243,7 +250,7 @@ const shareOptions = [
+     <div class="toc-actions">
+       <button
+         class="toc-action"
+-        data-path={currentPath}
++        data-path={markdownPath}
+         data-page-action="copy-markdown"
+       >
+         <MarkdownIcon
+@@ -446,38 +453,48 @@ const shareOptions = [
  </style>
  
  <script>

@@ -124,13 +124,10 @@ const themeLabels = {
 </section>
 
 <script>
-  import { isApiReferencePath, stripApiReferenceLocale } from '@utils/api-reference-routes';
   import { getStoredPreference, setStoredPreference } from '@utils/browser-storage';
+  import { getLanguageSwitchPath, getSelectedLocaleForPath } from '@utils/language-switch';
   import {
-    addLocaleToPath,
-    getLocaleFromPath,
     normalizeLocale,
-    stripLocaleFromPath,
     DEFAULT_LOCALE,
     PREFERRED_LOCALE_STORAGE_KEY,
     appendSearchAndHash,
@@ -170,28 +167,40 @@ const themeLabels = {
         }
       }
 
-      function applyTheme(theme: ThemeOption) {
-        // Use Starlight's theme system
+      function getThemeOrigin(element: Element, event?: MouseEvent) {
+        if (event?.detail) {
+          return { x: event.clientX, y: event.clientY };
+        }
+
+        const bounds = element.getBoundingClientRect();
+        return {
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        };
+      }
+
+      function applyTheme(theme: ThemeOption, origin: { x: number; y: number }) {
+        const transitionApi = (
+          window as Window & {
+            AspireThemeTransition?: {
+              setTheme: (theme: ThemeOption, origin?: { x: number; y: number }) => void;
+            };
+          }
+        ).AspireThemeTransition;
+
+        if (transitionApi) {
+          transitionApi.setTheme(theme, origin);
+          return;
+        }
+
         setStoredPreference('starlight-theme', theme);
-
-        // Apply theme immediately
-        const root = document.documentElement;
-        if (theme === 'auto') {
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          root.dataset.theme = prefersDark ? 'dark' : 'light';
-        } else {
-          root.dataset.theme = theme;
-        }
-
+        document.documentElement.dataset.theme =
+          theme === 'auto'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : theme;
         updateThemeToggle(theme);
-
-        // Sync with Starlight's header theme select if present
-        const headerThemeSelect = document.querySelector<HTMLSelectElement>(
-          'starlight-theme-select select'
-        );
-        if (headerThemeSelect) {
-          headerThemeSelect.value = theme;
-        }
       }
 
       // Get current theme from Starlight's storage
@@ -199,11 +208,11 @@ const themeLabels = {
       updateThemeToggle(isThemeOption(storedTheme) ? storedTheme : 'auto');
 
       for (const button of themeButtons) {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', (event) => {
           const theme = button.dataset.themeOption;
 
           if (isThemeOption(theme)) {
-            applyTheme(theme);
+            applyTheme(theme, getThemeOrigin(button, event));
           }
         });
       }
@@ -229,9 +238,8 @@ const themeLabels = {
                 : (currentIndex + 1) % themeOptions.length;
         const nextTheme = themeOptions[nextIndex];
 
-        applyTheme(nextTheme);
-
         const nextButton = themeButtons.find((button) => button.dataset.themeOption === nextTheme);
+        applyTheme(nextTheme, getThemeOrigin(nextButton ?? themeToggle));
         nextButton?.focus();
       });
     }
@@ -242,10 +250,7 @@ const themeLabels = {
       const storedPreferredLocale = normalizeLocale(
         getStoredPreference(PREFERRED_LOCALE_STORAGE_KEY)
       );
-      const currentLang =
-        getLocaleFromPath(currentPath) ??
-        (isApiReferencePath(currentPath) ? storedPreferredLocale : undefined) ??
-        DEFAULT_LOCALE;
+      const currentLang = getSelectedLocaleForPath(currentPath, storedPreferredLocale);
       languageSelect.value = getLanguageOptionValue(currentLang);
       languageSelect.dispatchEvent(new Event('aspire:custom-select-sync'));
 
@@ -253,17 +258,8 @@ const themeLabels = {
         const target = e.target as HTMLSelectElement;
         const newLang = normalizeLocale(target.value) ?? DEFAULT_LOCALE;
         const currentPath = window.location.pathname;
-        const isApiReference = isApiReferencePath(currentPath);
         setStoredPreference(PREFERRED_LOCALE_STORAGE_KEY, newLang);
-
-        // Remove current language prefix if present
-        const pathWithoutLang =
-          stripApiReferenceLocale(currentPath) ?? stripLocaleFromPath(currentPath);
-
-        // Build new URL
-        const newPath = isApiReference
-          ? pathWithoutLang
-          : addLocaleToPath(pathWithoutLang, newLang);
+        const newPath = getLanguageSwitchPath(currentPath, newLang);
 
         window.location.href = appendSearchAndHash(
           newPath,

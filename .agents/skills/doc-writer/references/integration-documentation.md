@@ -77,6 +77,36 @@ builder.Build().Run();
 ```
 
 </TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	tech := builder.AddTechnology("tech")
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
+```
+
+</TabItem>
 </Tabs>
 
 ### Configuration options
@@ -110,7 +140,7 @@ const builder = await createBuilder();
 
 const tech = await builder.addTechnology("tech");
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
+const api = await builder.addDotnetProject("api", "../Api/Api.csproj");
 await api.withReference(tech);
 
 await builder.build().run();
@@ -124,10 +154,42 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var tech = builder.AddTechnology("tech");
 
-builder.AddProject<Projects.Api>("api")
+builder.AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(tech);
 
 builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='go' label='Go'>
+
+```go title="apphost.go"
+package main
+
+import (
+	"log"
+
+	"apphost/modules/aspire"
+)
+
+func main() {
+	builder, err := aspire.CreateBuilder()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+
+	tech := builder.AddTechnology("tech")
+	builder.AddDotnetProject("api", "../Api/Api.csproj").
+		WithReference(tech)
+
+	app, err := builder.Build()
+	if err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(aspire.FormatError(err))
+	}
+}
 ```
 
 </TabItem>
