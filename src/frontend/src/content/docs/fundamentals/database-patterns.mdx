@@ -574,11 +574,11 @@ VALUES
 ON CONFLICT DO NOTHING;
 ```
 
-When Aspire later creates `catalogdb`, it finds the database and leaves it in place. An initialization script that creates tables can conflict with ORM migrations that create the same tables. Use initialization scripts for databases that your app doesn't manage with migrations.
+If your AppHost also adds `catalogdb` as a database resource, Aspire finds the existing database when it creates its databases and leaves it in place. An initialization script that creates tables can conflict with ORM migrations that create the same tables. Use initialization scripts for databases that your app doesn't manage with migrations.
 
 PostgreSQL runs these scripts only when it initializes an empty data directory. If you [persist the database](#persist-a-database-across-restarts) with a data volume, the scripts don't run again until you remove the volume.
 
-To run a separate seed program, add it to the AppHost as a resource that you start from the dashboard. Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExplicitStart" /> so that the resource doesn't run with the rest of the app. The resource receives the database's connection information from `WithReference`, in the same way as the app.
+To run a separate seed program, add it to the AppHost as a resource that you start from the dashboard. Call <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithExplicitStart" /> so that the resource doesn't run with the rest of the app. The resource receives the database's connection information from its database reference, in the same way as the app.
 
 <Pivot id="efcore">
 
@@ -757,7 +757,7 @@ builder.Services.AddHostedService<Worker>();
 builder.Build().Run();
 ```
 
-The worker applies the migrations inside an execution strategy, so EF Core retries them after a transient connection error. It then stops the app:
+The worker applies the migrations inside an execution strategy, so EF Core retries them after a transient connection error. If the migrations fail, the worker sets a nonzero exit code. It then stops the app:
 
 ```csharp title="MigrationService/Worker.cs"
 using Microsoft.EntityFrameworkCore;
@@ -768,13 +768,25 @@ public class Worker(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var scope = serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<CatalogContext>();
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<CatalogContext>();
 
-        var strategy = context.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(() => context.Database.MigrateAsync(stoppingToken));
-
-        lifetime.StopApplication();
+            var strategy = context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(() => context.Database.MigrateAsync(stoppingToken));
+        }
+        catch
+        {
+            // The host exits with code 0 after a failed background service
+            // unless you set the exit code yourself.
+            Environment.ExitCode = 1;
+            throw;
+        }
+        finally
+        {
+            lifetime.StopApplication();
+        }
     }
 }
 ```
@@ -826,7 +838,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-If the migrations fail, the worker exits with an error and the app doesn't start. For a step-by-step tutorial that builds a migration service, see [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/#create-the-migration-service).
+If the migrations fail, the worker exits with code 1, and the app doesn't start because `WaitForCompletion` requires a successful exit. For a step-by-step tutorial that builds a migration service, see [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/#create-the-migration-service).
 
 </Pivot>
 
@@ -959,7 +971,7 @@ await api.withReference(catalogdb);
 
 // No RunDatabaseUpdateOnStart call, so migrations run only from the dashboard.
 const migrations = await api.addEFMigrations('api-migrations');
-await migrations.withMigrationsProject('../Data/Data.csproj');
+await migrations.withMigrationsProject({ migrationsProject: '../Data/Data.csproj' });
 
 await builder.build().run();
 ```
@@ -1426,13 +1438,26 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-The Docker Compose methods come from the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) package. Call `WithReference` on the migration resource so that the bundle container receives the database connection string, and `WaitFor` so that it starts only after the database is healthy.
+The Docker Compose methods come from the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) package. Call `WithReference` on the migration resource so that the bundle container receives the database connection string, and `WaitFor` so that Docker Compose starts it after the database container. Docker Compose waits for the container to start, not for the database to accept connections.
 
 </Pivot>
 
 <Pivot id="drizzle">
 
 Run `drizzle-kit migrate` as a step in your CI/CD pipeline, or call the `migrate` function when the deployed app starts, as shown in [Apply schema migrations on startup](#apply-schema-migrations-on-startup). To deploy the `api-migrate` resource from that section instead, call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.PublishAsPackageScript" />. The deployment then builds a container image that runs the `db:migrate` script. For other publishing options, see [Deploy JavaScript apps](/deployment/javascript-apps/).
+
+The generated Dockerfile installs packages with `npm ci` and then runs `npm run build`, so the app needs a _package-lock.json_ file and a `build` script. The app in these examples runs its TypeScript source directly with Node.js, so its `build` script only needs to succeed:
+
+```json title="api/package.json"
+{
+  "scripts": {
+    "build": "echo \"No build step\"",
+    "db:migrate": "drizzle-kit migrate"
+  }
+}
+```
+
+If your app's build step uses another script name, select that script when you add the resource. For more information, see [Customize scripts](/integrations/frameworks/javascript/#customize-scripts).
 
 The `api-migrate` container exits after it applies the migrations. Configure each deployment target so that it doesn't restart the container:
 
@@ -1479,13 +1504,11 @@ builder.AddDockerComposeEnvironment("compose");
 var postgres = builder.AddPostgres("postgres");
 var catalogdb = postgres.AddDatabase("catalogdb");
 
-#pragma warning disable ASPIREJAVASCRIPT001
 var migrate = builder.AddJavaScriptApp("api-migrate", "../api", "db:migrate")
     .WithReference(catalogdb)
     .WaitFor(catalogdb)
     .PublishAsPackageScript(scriptName: "db:migrate")
     .PublishAsDockerComposeService((_, service) => service.Restart = "no");
-#pragma warning restore ASPIREJAVASCRIPT001
 
 builder.AddNodeApp("api", "../api", "src/index.ts")
     .WithReference(catalogdb)
@@ -1497,7 +1520,7 @@ builder.Build().Run();
 </TabItem>
 </Tabs>
 
-The Docker Compose methods come from the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) package. The container image includes only production dependencies, so list `drizzle-kit` under `dependencies` in _package.json_, not `devDependencies`. In a C# AppHost, the JavaScript publishing API is experimental and requires suppressing the [`ASPIREJAVASCRIPT001`](/diagnostics/aspirejavascript001/) diagnostic.
+The Docker Compose methods come from the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) package. The `db:migrate` script runs `drizzle-kit` in the container, so list `drizzle-kit` under `dependencies` in _package.json_, not `devDependencies`. A production image doesn't have to include development dependencies.
 
 </Pivot>
 
@@ -1537,7 +1560,7 @@ The `aspire deploy` command runs a pipeline of named steps, such as `provision-a
 
 The following examples deploy to Azure Container Apps, so they need the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) package. Aspire creates or updates each container app or job in a step named `provision-<resource-name>-containerapp`. A manually triggered job doesn't run when it's deployed, so the custom step starts it with the `az containerapp job start` command and polls its status. To find the step names for your deployment target, run `aspire do diagnostics`, which prints the dependency graph of the pipeline.
 
-Aspire creates the Azure deployment steps while it resolves the pipeline, after your AppHost code adds its own steps. If you name an Azure step in the `dependsOn` or `requiredBy` options of a new step, the pipeline fails with an `unknown step` error. Instead, add the step without dependencies, then add the dependencies in a pipeline configuration callback. Aspire runs this callback after all the steps exist. The callback also runs during pipeline passes that don't create the Azure steps, so it adds the dependencies only when it finds them.
+Aspire creates the Azure deployment steps while it resolves the pipeline, after your AppHost code adds its own steps. To depend on an Azure step reliably, add your step without dependencies, then add the dependencies in a pipeline configuration callback. Aspire runs this callback after all the steps exist. The callback also runs during pipeline passes that don't create the Azure steps, so it adds the dependencies only when it finds them.
 
 <Pivot id="efcore">
 
@@ -1655,7 +1678,6 @@ api.AddEFMigrations("api-migrations")
 
 if (builder.ExecutionContext.IsPublishMode)
 {
-#pragma warning disable ASPIREPIPELINES001
     builder.Pipeline.AddStep("run-api-migrations", async context =>
     {
         var config = context.Services.GetRequiredService<IConfiguration>();
@@ -1709,7 +1731,6 @@ if (builder.ExecutionContext.IsPublishMode)
 
         return Task.CompletedTask;
     });
-#pragma warning restore ASPIREPIPELINES001
 }
 
 builder.Build().Run();
@@ -1846,13 +1867,11 @@ var postgres = builder.AddPostgres("postgres");
 var catalogdb = postgres.AddDatabase("catalogdb");
 
 // Deploy the db:migrate script as a manually triggered job.
-#pragma warning disable ASPIREJAVASCRIPT001
 var migrate = builder.AddJavaScriptApp("api-migrate", "../api", "db:migrate")
     .WithReference(catalogdb)
     .WaitFor(catalogdb)
     .PublishAsPackageScript(scriptName: "db:migrate")
     .PublishAsAzureContainerAppJob();
-#pragma warning restore ASPIREJAVASCRIPT001
 
 builder.AddNodeApp("api", "../api", "src/index.ts")
     .WithReference(catalogdb)
@@ -1860,7 +1879,6 @@ builder.AddNodeApp("api", "../api", "src/index.ts")
 
 if (builder.ExecutionContext.IsPublishMode)
 {
-#pragma warning disable ASPIREPIPELINES001
     builder.Pipeline.AddStep("run-api-migrations", async context =>
     {
         var config = context.Services.GetRequiredService<IConfiguration>();
@@ -1914,7 +1932,6 @@ if (builder.ExecutionContext.IsPublishMode)
 
         return Task.CompletedTask;
     });
-#pragma warning restore ASPIREPIPELINES001
 }
 
 builder.Build().Run();
@@ -1943,11 +1960,11 @@ static async Task<string> RunAzAsync(string[] args, CancellationToken cancellati
 </TabItem>
 </Tabs>
 
-The container image includes only production dependencies, so list `drizzle-kit` under `dependencies` in _package.json_, not `devDependencies`. In a C# AppHost, the JavaScript publishing API is experimental and requires suppressing the [`ASPIREJAVASCRIPT001`](/diagnostics/aspirejavascript001/) diagnostic.
+The `db:migrate` script runs `drizzle-kit` in the container, so list `drizzle-kit` under `dependencies` in _package.json_, not `devDependencies`. A production image doesn't have to include development dependencies.
 
 </Pivot>
 
-The custom step reads the resource group from the `Azure__ResourceGroup` environment variable, so set it when you run `aspire deploy`. The Azure CLI must be installed and signed in to the same subscription. On Windows, run `az.cmd` instead of `az`. In a C# AppHost, the pipeline API is experimental and requires suppressing the [`ASPIREPIPELINES001`](/diagnostics/aspirepipelines001/) diagnostic.
+The custom step reads the resource group from the `Azure__ResourceGroup` environment variable, so set it when you run `aspire deploy`. The Azure CLI must be installed and signed in to the same subscription. On Windows, run `az.cmd` instead of `az`.
 
 You can use the same pattern with other deployment targets. Replace the `az` commands with the commands that run a one-off job on your target, such as `docker compose run` or `kubectl wait --for=condition=complete`. Then depend on the steps that your target adds to the pipeline.
 
