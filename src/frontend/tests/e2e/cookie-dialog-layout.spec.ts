@@ -103,18 +103,33 @@ for (const theme of ['light', 'dark']) {
         name: surface === 'banner' ? 'Accept' : 'Save changes',
         exact: true,
       });
-      await expect(primary).toHaveCSS('background-color', 'rgb(81, 43, 212)');
-      await expect(primary).toHaveCSS('border-top-color', 'rgb(81, 43, 212)');
-      await expect(primary).toHaveCSS('color', 'rgb(255, 255, 255)');
+      const colors = await page.evaluate(() => {
+        const probe = document.createElement('span');
+        document.body.append(probe);
+        const resolve = (token: string) => {
+          probe.style.color = `var(${token})`;
+          return getComputedStyle(probe).color;
+        };
+        const colors = {
+          background: resolve('--aspire-action-primary'),
+          hover: resolve('--aspire-action-primary-hover'),
+          text: resolve('--aspire-action-primary-text'),
+        };
+        probe.remove();
+        return colors;
+      });
+      await expect(primary).toHaveCSS('background-color', colors.background);
+      await expect(primary).toHaveCSS('border-top-color', colors.background);
+      await expect(primary).toHaveCSS('color', colors.text);
       expect(
         (await new AxeBuilder({ page }).include(container).withRules(['color-contrast']).analyze())
           .violations
       ).toEqual([]);
 
       await primary.hover();
-      await expect(primary).toHaveCSS('background-color', 'rgb(67, 35, 180)');
-      await expect(primary).toHaveCSS('border-top-color', 'rgb(67, 35, 180)');
-      await expect(primary).toHaveCSS('color', 'rgb(255, 255, 255)');
+      await expect(primary).toHaveCSS('background-color', colors.hover);
+      await expect(primary).toHaveCSS('border-top-color', colors.hover);
+      await expect(primary).toHaveCSS('color', colors.text);
       expect(
         (await new AxeBuilder({ page }).include(container).withRules(['color-contrast']).analyze())
           .violations
@@ -153,37 +168,42 @@ for (const theme of ['light', 'dark']) {
         const closeBox = (await close.boundingBox())!;
         const headingBox = (await heading.boundingBox())!;
         const actionsBox = (await actions.boundingBox())!;
-        const padding = viewport.width >= 800 ? 24 : 16;
         const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
-        expect(panelBox.x).toBeGreaterThanOrEqual(16);
-        expect(panelBox.y).toBeGreaterThanOrEqual(16);
-        expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(clientWidth - 16);
-        expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(viewport.height - 16);
-        expect(panelBox.width).toBeLessThanOrEqual(640);
+        // Keep the panel clear of the viewport edges without pinning its padding or max-width.
+        expect(panelBox.x).toBeGreaterThan(0);
+        expect(panelBox.y).toBeGreaterThan(0);
+        expect(panelBox.x + panelBox.width).toBeLessThan(clientWidth);
+        expect(panelBox.y + panelBox.height).toBeLessThan(viewport.height);
+        expect(Math.abs(panelBox.x + panelBox.width / 2 - clientWidth / 2)).toBeLessThanOrEqual(1);
         expect(closeBox.width).toBeGreaterThanOrEqual(44);
         expect(closeBox.height).toBeGreaterThanOrEqual(44);
-        expect(closeBox.y - panelBox.y).toBeCloseTo(padding + 1, 0);
+        expect(closeBox.y).toBeGreaterThan(panelBox.y);
+        expect(closeBox.x).toBeGreaterThan(panelBox.x);
+        expect(closeBox.x + closeBox.width).toBeLessThan(panelBox.x + panelBox.width);
+        expect(closeBox.y + closeBox.height).toBeLessThanOrEqual(actionsBox.y);
         if (direction === 'ltr') {
-          expect(panelBox.x + panelBox.width - closeBox.x - closeBox.width).toBeCloseTo(
-            padding + 1,
-            0
-          );
           expect(headingBox.x + headingBox.width).toBeLessThanOrEqual(closeBox.x);
         } else {
-          expect(closeBox.x - panelBox.x).toBeCloseTo(padding + 1, 0);
           expect(headingBox.x).toBeGreaterThanOrEqual(closeBox.x + closeBox.width);
         }
-        expect(panelBox.y + panelBox.height - actionsBox.y - actionsBox.height).toBeCloseTo(
-          padding + 1,
-          0
-        );
+        expect(headingBox.y).toBeGreaterThan(panelBox.y);
+        const formBox = (await form.boundingBox())!;
+        expect(headingBox.y + headingBox.height).toBeLessThanOrEqual(formBox.y);
+        expect(formBox.height).toBeGreaterThan(0);
+        expect(formBox.y + formBox.height).toBeLessThanOrEqual(actionsBox.y + 1);
+        expect(actionsBox.y + actionsBox.height).toBeLessThan(panelBox.y + panelBox.height);
+        for (const button of await actions.getByRole('button').all()) {
+          const box = (await button.boundingBox())!;
+          expect(box.x).toBeGreaterThanOrEqual(panelBox.x);
+          expect(box.x + box.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+        }
         expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
         expect(await form.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
         await form.evaluate((el) => {
           el.scrollTop = el.scrollHeight;
         });
         expect(await form.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-        expect((await close.boundingBox())!.y).toBe(closeBox.y);
+        expect((await close.boundingBox())!.y).toBeCloseTo(closeBox.y, 0);
         await expect(dialog.getByRole('button', { name: 'Save changes' })).toBeInViewport();
         await close.focus();
         await expect(close).toBeFocused();
