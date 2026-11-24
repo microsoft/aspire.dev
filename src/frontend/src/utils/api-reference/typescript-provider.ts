@@ -28,6 +28,7 @@ interface TsRouteCandidate {
   targetTypeId?: string;
   expandedTargetTypes: string[];
   parentTypeFullName?: string;
+  parentBaseTypeFullNames: string[];
   path: string;
   priority: number;
   parameters?: ApiReferenceTsCallable['parameters'];
@@ -103,6 +104,7 @@ function buildTsRouteIndex(modules: readonly ApiReferenceTsDocument[]): TsRouteI
         qualifiedName: fn.qualifiedName,
         targetTypeId: fn.targetTypeId,
         expandedTargetTypes: fn.expandedTargetTypes ?? [],
+        parentBaseTypeFullNames: [],
         path: `${modulePath}/${getTsItemSlug(fn, topLevelItems)}/`,
         priority: 0,
         parameters: fn.parameters,
@@ -136,6 +138,7 @@ function buildTsRouteIndex(modules: readonly ApiReferenceTsDocument[]): TsRouteI
           targetTypeId: capability.targetTypeId,
           expandedTargetTypes: capability.expandedTargetTypes ?? [],
           parentTypeFullName: handle.fullName,
+          parentBaseTypeFullNames: handle.baseTypeHierarchy ?? [],
           path,
           priority,
           parameters: capability.parameters,
@@ -169,6 +172,15 @@ function candidateMatchesMapping(route: TsRouteCandidate, mapping: ExportMapping
   const lastDot = qualifiedName?.lastIndexOf('.') ?? -1;
   return (
     lastDot > 0 && expectedSimpleNames.includes(simpleTypeName(qualifiedName!.slice(0, lastDot)))
+  );
+}
+
+// ATS projects members of non-exported base types onto each exported derived
+// handle, so a base-type member has no capability of its own.
+function candidateInheritsMapping(route: TsRouteCandidate, mapping: ExportMapping): boolean {
+  const normalizedExpectedTypes = mapping.declaringTypeNames.map(normalizeTypeName);
+  return route.parentBaseTypeFullNames.some((baseType) =>
+    normalizedExpectedTypes.includes(normalizeTypeName(baseType))
   );
 }
 
@@ -226,6 +238,15 @@ function findTsCandidates(
       };
     }
     return { matches: preferredTsCandidates(named), suggestions: named };
+  }
+
+  // Only when the declaring type has no capability of its own, so existing
+  // base-type references don't become ambiguous with derived projections.
+  const inherited = (tsIndex.byName.get(mapping.methodName.toLowerCase()) ?? []).filter((route) =>
+    candidateInheritsMapping(route, mapping)
+  );
+  if (inherited.length > 0) {
+    return { matches: preferredTsCandidates(inherited), suggestions: inherited };
   }
 
   return { matches: [], suggestions: named };

@@ -1360,6 +1360,12 @@ describe('API reference authoring validator', () => {
       '/reference/api/typescript/aspire.hosting/distributedapplicationexecutioncontext/#ispublishmode'
     );
 
+    const knownTypeScriptExportGaps = new Set([
+      // Experimental export.
+      'Aspire.Hosting.RadiusExtensions.WithContainerImage',
+      // Declared [AspireExport] upstream, but absent from the generated ATS capabilities.
+      'Aspire.Hosting.Azure.AzureApiManagementResource.Identity',
+    ]);
     const declaredExportFailures: string[] = [];
     const checkedExports = new Set<string>();
     for (const pkg of packageDocuments) {
@@ -1378,8 +1384,9 @@ describe('API reference authoring validator', () => {
           if (!hasMemberExport) continue;
 
           const fqn = `${typeName}.${member.name}`;
-          // Experimental export that the TypeScript generator currently omits.
-          if (fqn === 'Aspire.Hosting.RadiusExtensions.WithContainerImage') continue;
+          // Exports the TypeScript generator currently omits. Keep these here, not in
+          // api-generation-failures.json, which the integration data updater rewrites.
+          if (knownTypeScriptExportGaps.has(fqn)) continue;
           const key = `${pkg.package.name}\0${fqn}`;
           if (checkedExports.has(key)) continue;
           checkedExports.add(key);

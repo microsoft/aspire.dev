@@ -757,18 +757,16 @@ Write-Host "All changes are within the allowed data paths." -ForegroundColor Gre
 # ── File-count summary (for the PR body) ────────────────────────────────────
 function Get-AreaCounts {
     param([Parameter(Mandatory)][string]$Prefix)
-    $names = @(Invoke-Git @('diff', '--name-status', 'HEAD', '--', $Prefix) |
+    # Generated files are untracked until the workflow stages them, so `git diff`
+    # alone misses every added file. Version bumps count as an add and a removal.
+    $names = @(Invoke-Git @('status', '--porcelain', '--untracked-files=all', '--', $Prefix) |
         Where-Object { $_ -and $_.Trim().Length -gt 0 })
     $added = 0; $modified = 0; $removed = 0
     foreach ($n in $names) {
-        $code = ($n.Trim())[0]
-        switch ($code) {
-            'A' { $added++ }
-            'M' { $modified++ }
-            'D' { $removed++ }
-            'R' { $modified++ }
-            default { }
-        }
+        $code = $n.Substring(0, 2)
+        if ($code -eq '??' -or $code.Contains('A')) { $added++ }
+        elseif ($code.Contains('D')) { $removed++ }
+        elseif ($code -match '[MR]') { $modified++ }
     }
     return [PSCustomObject]@{ Added = $added; Modified = $modified; Removed = $removed }
 }
@@ -779,6 +777,57 @@ $goModulesCounts = Get-AreaCounts -Prefix 'src/frontend/src/data/go-modules/'
 $twoslashChanged = @(Invoke-Git @('diff', '--name-only', 'HEAD', '--', 'src/frontend/src/data/twoslash/aspire.d.ts') |
     Where-Object { $_ -and $_.Trim().Length -gt 0 }).Count -gt 0
 
+# ── Phase 6: CI unit tests ──────────────────────────────────────────────────
+# The semantic gate above only checks generated API data. CI also runs data-
+# dependent unit tests (API reference resolution, synced sample content), so run
+# them here: a failure still refreshes the PR, but without auto-merge.
+Write-Section 'Phase 6 — bun run test:unit'
+# Tests run after the scope check, and the workflow stages the allowed paths
+# afterwards, so any test that rewrites generated data would leak into the PR.
+function Get-DataSnapshot {
+    $paths = @(Invoke-Git (@('status', '--porcelain', '--untracked-files=all', '--') + $AllowedPaths) |
+        Where-Object { $_ -and $_.Trim().Length -gt 0 } |
+        ForEach-Object { (($_.Substring(3)) -split ' -> ')[-1].Trim('"') })
+    @($paths | Sort-Object | ForEach-Object {
+        $full = Join-Path $RepoRoot $_
+        $hash = if (Test-Path -LiteralPath $full -PathType Leaf) { (Get-FileHash -LiteralPath $full).Hash } else { 'missing' }
+        "$_ $hash"
+    }) -join "`n"
+}
+$dataSnapshot = Get-DataSnapshot
+Push-Location $FrontendDir
+try {
+    $unitTestLog = & bun run test:unit 2>&1 | Tee-Object -Variable unitTestTeed | Out-String
+    $unitTestExit = $LASTEXITCODE
+}
+finally {
+    Pop-Location
+}
+if ((Get-DataSnapshot) -ne $dataSnapshot) {
+    Write-Error "bun run test:unit modified generated data under the allowed paths. Aborting; no PR will be opened."
+    exit 1
+}
+$unitTestFailures = @($unitTestLog -split "`r?`n" |
+    ForEach-Object { $_ -replace '\x1b\[[0-9;]*m', '' } |
+    Where-Object { $_ -match '^\s*FAIL\s+(?<Test>\S.*?)\s*$' } |
+    ForEach-Object { $Matches.Test } |
+    Select-Object -Unique)
+$unitTestsPassed = $unitTestExit -eq 0
+if (-not $unitTestsPassed) {
+    if ($unitTestFailures.Count -eq 0) {
+        $unitTestFailures = @("bun run test:unit exited with code $unitTestExit")
+    }
+    $unitTestWarning = "Unit tests failed against the updated data; the PR will not auto-merge."
+    Write-Warning $unitTestWarning
+    foreach ($failure in $unitTestFailures) { Write-Warning "  $failure" }
+    if ($IsCI) {
+        Write-Host "::warning title=Unit tests failed::$unitTestWarning"
+    }
+}
+else {
+    Write-Host "Unit tests passed." -ForegroundColor Green
+}
+
 # ── PR title + body ─────────────────────────────────────────────────────────
 $dateShort = [DateTime]::UtcNow.ToString('M/d/yy', [System.Globalization.CultureInfo]::InvariantCulture)
 $prTitle = "chore: Update integration data and GitHub stats ($dateShort)"
@@ -788,7 +837,16 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("Generated deterministically by ``src/frontend/scripts/update-integration-data.ps1`` (no agent inference).")
 [void]$sb.AppendLine("")
-[void]$sb.AppendLine("This PR is approved and squash-merged automatically once ``ci-gate`` passes, as configured in ``.github/policies/auto-merge.yml``. Remove the ``:octocat: auto-merge`` label to hold it for manual review.")
+if ($unitTestsPassed) {
+    [void]$sb.AppendLine("This PR is approved and squash-merged automatically once ``ci-gate`` passes, as configured in ``.github/policies/auto-merge.yml``. Remove the ``:octocat: auto-merge`` label to hold it for manual review.")
+}
+else {
+    [void]$sb.AppendLine("### :x: Unit tests failed")
+    [void]$sb.AppendLine("")
+    [void]$sb.AppendLine("``bun run test:unit`` failed against this data, so this PR is **not** labeled for auto-merge. Fix the failures on ``main``; the next updater run refreshes this PR and restores the ``:octocat: auto-merge`` label once the tests pass, unless a maintainer removed it to hold the PR.")
+    [void]$sb.AppendLine("")
+    foreach ($failure in $unitTestFailures) { [void]$sb.AppendLine("- ``$failure``") }
+}
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("### What's updated")
 [void]$sb.AppendLine("- ``src/frontend/src/data/aspire-integrations.json`` — latest package information")
@@ -914,6 +972,8 @@ Set-Output 'pr_title' $prTitle
 Set-Output 'pr_body_file' $prBodyFile
 Set-Output 'icon_warnings' $iconWarnings
 Set-Output 'api_failures' ($apiFailureDetails -join "`n")
+Set-Output 'unit_tests' $(if ($unitTestsPassed) { 'passed' } else { 'failed' })
+Set-Output 'auto_merge' ($unitTestsPassed.ToString().ToLowerInvariant())
 
 Write-Host "PR title : $prTitle"
 Write-Host "PR body  : $prBodyFile"
