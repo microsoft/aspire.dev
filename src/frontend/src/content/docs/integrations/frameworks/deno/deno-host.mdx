@@ -1,17 +1,15 @@
 ---
 title: Set up Deno apps in the AppHost
-description: Configure Deno script and task resources, permissions, endpoints, health checks, package installation, and publishing behavior in Aspire.
+description: Configure Deno app resources, permissions, runtime flags, endpoints, health checks, and publishing behavior with Aspire.Hosting.JavaScript.
 ---
 
-import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import denoIcon from '@assets/icons/deno-icon.png';
 import denoLightIcon from '@assets/icons/deno-light-icon.png';
 import ApiReference from '@components/ApiReference.astro';
-
-<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
 <ThemeImage
   light={denoLightIcon}
@@ -23,32 +21,35 @@ import ApiReference from '@components/ApiReference.astro';
   classOverride="float-inline-left icon"
 />
 
-This reference covers the Deno AppHost API from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). For an introduction, see [Get started with the Deno integration](/integrations/frameworks/deno/deno-get-started/).
+This reference covers the Deno AppHost API in the [`Aspire.Hosting.JavaScript`](/integrations/frameworks/javascript/) package. For an introduction, see [Get started with the Deno integration](/integrations/frameworks/deno/deno-get-started/).
+
+<Aside type="caution">
+  The Deno APIs are experimental and report the `ASPIREDENO001` diagnostic. In C#, suppress it with `#pragma warning disable ASPIREDENO001` or the `NoWarn` MSBuild property.
+</Aside>
 
 ## Installation
 
 Install the hosting package in your AppHost:
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Deno" />
+<InstallPackage packageName="Aspire.Hosting.JavaScript" />
 
-The Deno executable must be available on `PATH` when Aspire runs the resource.
+Deno must be available on `PATH` when Aspire runs the resource locally.
 
-## Add a Deno script
+## Add a Deno app
 
-<ApiReference name="Aspire.Hosting.DenoAppHostingExtensions.AddDenoApp" /> creates an executable resource that runs `deno run`, followed by permission flags, the script path, and application arguments.
+<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddDenoApp" /> adds a `DenoAppResource` that runs a script from an app directory. In run mode, Aspire executes `deno run -A <script>`.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.JavaScript;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddDenoApp(
-    name: "deno-api",
-    scriptPath: "main.ts",
-    workingDirectory: "../deno-api",
-    permissionFlags: ["--allow-env", "--allow-net"],
-    args: ["--verbose"]);
+#pragma warning disable ASPIREDENO001
+var api = builder.AddDenoApp("deno-api", "../deno-api", "main.ts");
+#pragma warning restore ASPIREDENO001
 
 builder.Build().Run();
 ```
@@ -61,13 +62,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder.addDenoApp(
-  'deno-api',
-  'main.ts',
-  '../deno-api',
-  ['--allow-env', '--allow-net'],
-  ['--verbose']
-);
+const api = await builder.addDenoApp('deno-api', '../deno-api', 'main.ts');
 
 await builder.build().run();
 ```
@@ -75,25 +70,32 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`name` identifies the dashboard resource. `scriptPath` is passed to `deno run`. `workingDirectory` is resolved from the AppHost directory; when omitted, it defaults to `../<name>`. `permissionFlags` and `args` are optional arrays. Use Deno permission flags appropriate to the application, such as `--allow-net` for network access and `--allow-env` when it reads environment variables.
+`name` identifies the dashboard resource. `appDirectory` is resolved from the AppHost directory and becomes the working directory. `scriptPath` is the entrypoint, relative to the app directory.
 
-Script resources set `DENO_ENV` to `development` in the development environment and `production` otherwise. They also configure the OTLP exporter.
+Deno's built-in OpenTelemetry support is enabled through the `OTEL_DENO` environment variable, so traces, metrics, and logs flow to the Aspire dashboard without an application-level SDK.
 
-## Add a Deno task
+## Choose how the app runs
 
-<ApiReference name="Aspire.Hosting.DenoAppHostingExtensions.AddDenoTask" /> runs `deno task <taskName>`, using the task configuration in the resource's working directory.
+By default the resource runs the script. Use these methods to switch modes:
+
+| API | Deno command |
+| --- | --- |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoRun" /> | `deno run <script>` (default) |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoTask" /> | `deno task <taskName>` |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoServe" /> | `deno serve <script>` |
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.JavaScript;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var web = builder.AddDenoTask(
-    name: "web",
-    workingDirectory: "../web",
-    taskName: "dev",
-    args: ["--host", "0.0.0.0"]);
+#pragma warning disable ASPIREDENO001
+var web = builder.AddDenoApp("web", "../web", "main.ts")
+    .WithDenoTask("dev");
+#pragma warning restore ASPIREDENO001
 
 builder.Build().Run();
 ```
@@ -106,10 +108,9 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const web = await builder.addDenoTask('web', '../web', 'dev', [
-  '--host',
-  '0.0.0.0',
-]);
+const web = await builder
+  .addDenoApp('web', '../web', 'main.ts')
+  .withDenoTask('dev');
 
 await builder.build().run();
 ```
@@ -117,20 +118,131 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-`taskName` defaults to `start`; the working-directory default is also `../<name>`. Task resources run the `deno` command with `task`, the task name, and the supplied arguments.
+Task mode runs the task defined in the app's `deno.json` or `deno.jsonc`; permissions are defined by the task itself and Aspire doesn't emit permission flags for it. Serve mode adds an `http` endpoint if one doesn't exist, sets `PORT`, and passes `--host` and `--port` to `deno serve`. Use <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoWatch" /> to add `--watch`, or pass `hmr: true` for `--watch-hmr`.
+
+## Control permissions
+
+In run mode, Aspire passes `-A` (allow all) to Deno unless you configure a granular allow with `WithDenoAllow` (or call `WithDenoAllowAll(false)`). Deny flags alone don't change the default. Generated containers use the more restrictive `--allow-net --allow-env` default. Use the permission methods to grant or deny specific capabilities:
+
+- <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoAllow" /> emits `--allow-<kind>`, optionally scoped to values.
+- <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoDeny" /> emits `--deny-<kind>`, optionally scoped to values.
+- <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoAllowAll" /> emits `--allow-all`.
+
+The `kind` argument is a `DenoPermissionKind` value such as `Net`, `Read`, or `Write`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.JavaScript;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDENO001
+var api = builder.AddDenoApp("deno-api", "../deno-api", "main.ts")
+    .WithDenoAllow(DenoPermissionKind.Net, "api.example.com")
+    .WithDenoAllow(DenoPermissionKind.Env)
+    .WithDenoDeny(DenoPermissionKind.Write);
+#pragma warning restore ASPIREDENO001
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import {
+  createBuilder,
+  DenoPermissionKind,
+} from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addDenoApp('deno-api', '../deno-api', 'main.ts');
+
+await api.withDenoAllow(DenoPermissionKind.Net, ['api.example.com']);
+await api.withDenoAllow(DenoPermissionKind.Env, []);
+await api.withDenoDeny(DenoPermissionKind.Write, []);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure Deno flags
+
+Dedicated methods cover common Deno flags:
+
+| API | Effect |
+| --- | --- |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoConfig" /> | `--config <file>` |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoImportMap" /> | `--import-map <file>` |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoLock" /> | `--lock <file>` |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoNoLock" /> | `--no-lock` |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoNodeModulesDir" /> | `--node-modules-dir`, optionally with a `DenoNodeModulesDirMode` |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoUnstable" /> | `--unstable-<feature>` flags |
+| <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoInspect" /> | `--inspect`, `--inspect-brk`, or `--inspect-wait`, optionally at a `host:port` |
+
+For any other flag, use <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoRuntimeArgs" /> to add arguments before the entrypoint, and <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoScriptArgs" /> to pass arguments to the script after the entrypoint.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.JavaScript;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDENO001
+var api = builder.AddDenoApp("deno-api", "../deno-api", "main.ts")
+    .WithDenoConfig("deno.json")
+    .WithDenoUnstable("kv")
+    .WithDenoRuntimeArgs("--quiet")
+    .WithDenoScriptArgs("--verbose");
+#pragma warning restore ASPIREDENO001
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const api = await builder.addDenoApp('deno-api', '../deno-api', 'main.ts');
+
+await api.withDenoConfig('deno.json');
+await api.withDenoUnstable(['kv']);
+await api.withDenoRuntimeArgs(['--quiet']);
+await api.withDenoScriptArgs(['--verbose']);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Install Deno packages before startup
 
-<ApiReference name="Aspire.Hosting.DenoAppHostingExtensions.WithDenoPackageInstallation" /> adds a `deno install` setup resource named `<resource-name>-deno-install`. The application waits for that setup resource to complete.
+<ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDeno" /> configures a JavaScript resource to use Deno as its package manager. `AddDenoApp` calls it automatically when the app directory contains a `package.json`, `deno.json`, or `deno.jsonc` file. Unlike npm, Deno doesn't need a separate install step: `deno run` fetches and caches dependencies on first use. Pass `install: true` to create an installer resource that runs `deno install` before the app starts, and `installArgs` to customize that command.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.JavaScript;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddDenoApp("deno-api", "main.ts")
-    .WithDenoPackageInstallation();
+#pragma warning disable ASPIREDENO001
+var api = builder.AddDenoApp("deno-api", "../deno-api", "main.ts")
+    .WithDeno(install: true);
+#pragma warning restore ASPIREDENO001
 
 builder.Build().Run();
 ```
@@ -143,9 +255,9 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 
 const builder = await createBuilder();
 
-const api = await builder
-  .addDenoApp('deno-api', 'main.ts')
-  .withDenoPackageInstallation();
+const api = await builder.addDenoApp('deno-api', '../deno-api', 'main.ts');
+
+await api.withDeno(true);
 
 await builder.build().run();
 ```
@@ -153,25 +265,24 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-In C#, an overload also accepts a callback that configures the installer resource. It is marked `[AspireExportIgnore]` because `Action<IResourceBuilder<DenoInstallerResource>>` is not ATS-compatible; TypeScript uses the exported overload without `configureInstaller`.
-
 ## Configure endpoints, environment, and health checks
 
-Deno resources are executable resources with endpoint, environment, argument, wait, and service-discovery support. Use the standard AppHost APIs to pass a listening port, configure additional environment variables, and define a probe:
+`DenoAppResource` supports endpoints, environment variables, references, and service discovery. Use the standard AppHost APIs to expose a port and define a health probe:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.JavaScript;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddDenoApp(
-    "deno-api",
-    "main.ts",
-    permissionFlags: ["--allow-env", "--allow-net"])
+#pragma warning disable ASPIREDENO001
+var api = builder.AddDenoApp("deno-api", "../deno-api", "main.ts")
     .WithHttpEndpoint(port: 8000, env: "PORT")
     .WithEnvironment("LOG_LEVEL", "debug")
     .WithHttpHealthCheck("/health");
+#pragma warning restore ASPIREDENO001
 
 builder.Build().Run();
 ```
@@ -185,7 +296,7 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const api = await builder
-  .addDenoApp('deno-api', 'main.ts', undefined, ['--allow-env', '--allow-net'])
+  .addDenoApp('deno-api', '../deno-api', 'main.ts')
   .withHttpEndpoint({ port: 8000, env: 'PORT' })
   .withEnvironment('LOG_LEVEL', 'debug')
   .withHttpHealthCheck({ path: '/health' });
@@ -196,15 +307,11 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The application must read the `PORT` variable and listen on that port. It must also have the Deno permissions required to read its environment and serve network traffic. <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> makes Aspire poll the specified HTTP path. Add <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithEndpoint" /> when you need an additional endpoint definition, as in the Toolkit Deno samples.
-
-## Resource actions and references
-
-The dashboard exposes the normal executable-resource lifecycle controls for Deno resources. Other AppHost resources can use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> and dependency APIs with a Deno resource because it supports service discovery. Add explicit endpoints before consumers need an address.
+The application must read the `PORT` variable and listen on that port. It also needs the Deno permissions to read its environment and serve network traffic. <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithHttpHealthCheck" /> makes Aspire poll the specified HTTP path. Other resources can use <ApiReference name="Aspire.Hosting.ResourceBuilderExtensions.WithReference" /> to discover a Deno app.
 
 ## Publishing behavior
 
-`WithDenoPackageInstallation` only creates its installer resource in run mode. The installer is excluded from the application manifest and is not created during publishing. The integration does not implement a Deno-specific container build or publish artifact; provide deployment packaging appropriate for your Deno application.
+When you publish, Aspire generates a Dockerfile for the Deno app. `WithDeno` configures the `denoland/deno` build image when no image is specified, so Deno is available during the container build. The generated container runs with the restrictive `--allow-net --allow-env` permissions; use the permission methods or a custom Dockerfile if the app needs more. The `manual` node modules mode isn't supported by the generated Dockerfile, so use `auto` or provide your own Dockerfile.
 
 <LearnMore>
   For deployment guidance, see the [Aspire deployment overview](/deployment/).
@@ -213,5 +320,6 @@ The dashboard exposes the normal executable-resource lifecycle controls for Deno
 ## See also
 
 - [Deno documentation](https://docs.deno.com/)
-- [📦 CommunityToolkit.Aspire.Hosting.Deno](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Deno)
+- [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript)
 - [Get started with the Deno integration](/integrations/frameworks/deno/deno-get-started/)
+- [JavaScript integration](/integrations/frameworks/javascript/)

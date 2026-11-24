@@ -5,7 +5,7 @@ description: Run Deno applications with Aspire, model them as AppHost resources,
 ---
 
 import {
-  Badge,
+  Aside,
   LinkButton,
   TabItem,
   Tabs,
@@ -14,8 +14,6 @@ import ApiReference from '@components/ApiReference.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import denoIcon from '@assets/icons/deno-icon.png';
 import denoLightIcon from '@assets/icons/deno-light-icon.png';
-
-<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
 <ThemeImage
   light={denoLightIcon}
@@ -27,13 +25,17 @@ import denoLightIcon from '@assets/icons/deno-light-icon.png';
   classOverride="float-inline-left icon"
 />
 
-The [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) Deno hosting integration adds Deno scripts and tasks to your [AppHost](/get-started/app-host/). Aspire starts the Deno process locally, shows it in the dashboard, and lets you connect it to the rest of your distributed application.
+The Deno support in `Aspire.Hosting.JavaScript` adds Deno apps to your [AppHost](/get-started/app-host/). Aspire starts the Deno process locally, shows it in the dashboard, and lets you connect it to the rest of your distributed application.
+
+<Aside type="caution">
+  The Deno APIs are experimental and report the `ASPIREDENO001` diagnostic.
+</Aside>
 
 ## How the integration works
 
-The integration is a hosting integration: install it in the AppHost, then model each application with an <ApiReference name="Aspire.Hosting.DenoAppHostingExtensions.AddDenoApp" /> resource or an <ApiReference name="Aspire.Hosting.DenoAppHostingExtensions.AddDenoTask" /> resource. The resource runs the local `deno` command. You configure its working directory, permissions, arguments, endpoints, environment variables, and health checks in the AppHost.
+The integration is a hosting integration: install `Aspire.Hosting.JavaScript` in the AppHost, then model each application with an <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.AddDenoApp" /> resource. The resource runs the local `deno` command. You configure its permissions, runtime flags, arguments, endpoints, environment variables, and health checks in the AppHost.
 
-`AddDenoApp` runs a script with `deno run`; `AddDenoTask` runs a task from `deno.json` or `deno.jsonc` with `deno task`. Both resource types participate in service discovery and can be referenced by other resources.
+By default the resource runs a script with `deno run`. Call <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoTask" /> to run a task from `deno.json` or `deno.jsonc` with `deno task`, or <ApiReference name="Aspire.Hosting.JavaScriptHostingExtensions.WithDenoServe" /> to use `deno serve`. Deno resources participate in service discovery and can be referenced by other resources.
 
 ## Prerequisites
 
@@ -43,20 +45,22 @@ The integration is a hosting integration: install it in the AppHost, then model 
 
 ## Add a Deno resource
 
-Add `CommunityToolkit.Aspire.Hosting.Deno` to your AppHost. Then add a Deno task or script resource:
+Add the `Aspire.Hosting.JavaScript` package to your AppHost. Then add a Deno app resource:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.JavaScript;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var app = builder.AddDenoTask(
-    name: "web",
-    workingDirectory: "../web",
-    taskName: "dev")
+#pragma warning disable ASPIREDENO001
+var app = builder.AddDenoApp("web", "../web", "main.ts")
+    .WithDenoTask("dev")
     .WithHttpEndpoint(env: "PORT")
     .WithHttpHealthCheck("/");
+#pragma warning restore ASPIREDENO001
 
 builder.Build().Run();
 ```
@@ -70,7 +74,8 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const app = await builder
-  .addDenoTask('web', '../web', 'dev')
+  .addDenoApp('web', '../web', 'main.ts')
+  .withDenoTask('dev')
   .withHttpEndpoint({ env: 'PORT' })
   .withHttpHealthCheck({ path: '/' });
 
