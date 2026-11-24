@@ -1173,6 +1173,10 @@ export const docsTopics = {
           label: 'Configuration sources',
           slug: 'extensibility/config-sources',
         },
+        {
+          label: 'Create and customize templates',
+          slug: 'extensibility/templates',
+        },
       ],
     },
     {
