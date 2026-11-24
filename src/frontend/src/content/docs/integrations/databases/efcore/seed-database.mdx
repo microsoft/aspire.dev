@@ -3,7 +3,7 @@ title: Seed data in a database using Aspire
 description: Learn how to seed database data in Aspire projects using SQL scripts or Entity Framework Core during app startup.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dotnetIcon from '@assets/icons/dotnet.svg';
 import ApiReference from '@components/ApiReference.astro';
@@ -18,6 +18,8 @@ import ApiReference from '@components/ApiReference.astro';
 />
 
 In this article, you learn how to configure Aspire projects to seed data in a database during app startup. Aspire enables you to seed data using database scripts or Entity Framework Core (EF Core) for common platforms such as SQL Server, PostgreSQL, and MySQL.
+
+For PostgreSQL examples, and for other ways to seed a database such as custom dashboard commands, migrations, and Drizzle for JavaScript apps, see [Seed a database with sample data](/fundamentals/database-patterns/?orm=efcore#seed-a-database-with-sample-data).
 
 ## When to seed data
 
@@ -163,51 +165,9 @@ The preceding code:
 </TabItem>
 <TabItem label="PostgreSQL">
 
-With Aspire, you can use the `WithCreationScript()` method in the PostgreSQL integration but, because there is no `USE DATABASE` in PostgreSQL, it only supports operations against the default database. For example, you can issue `CREATE DATABASE` statements to create other databases, but you can't populate them with tables and data. Instead, you must use a bind mount and deploy the setup SQL script to it, so that the data is seeded when the container initializes the database.
+PostgreSQL has no `USE` statement, so a script passed to `WithCreationScript()` runs against the default database. It can create other databases, but it can't add tables and data to them. Instead, copy your seed scripts into the container with <ApiReference name="Aspire.Hosting.PostgresBuilderExtensions.WithInitFiles" />, so that PostgreSQL runs them when it initializes the database.
 
-The following code is an example PostgreSQL script that creates and populates a to do list database:
-
-```sql title="PostgreSQL — init.sql"
--- Postgres init script
-
--- Create the Todos table
-CREATE TABLE IF NOT EXISTS Todos
-(
-    Id SERIAL PRIMARY KEY,
-    Title text UNIQUE NOT NULL,
-    IsComplete boolean NOT NULL DEFAULT false
-);
-
--- Insert some sample data into the Todos table
-INSERT INTO Todos (Title, IsComplete)
-VALUES
-    ('Give the dog a bath', false),
-    ('Wash the dishes', false),
-    ('Do the groceries', false)
-ON CONFLICT DO NOTHING;
-```
-
-In the _AppHost.cs_ file, create the database and mount the folder that contains the SQL script as a bind mount:
-
-```csharp title="AppHost.cs"
-// PostgreSQL container is configured with an auto-generated password by default
-// and supports setting the default database name via an environment variable & running *.sql/*.sh scripts in a bind mount.
-var todosDbName = "Todos";
-
-var postgres = builder.AddPostgres("postgres")
-    // Set the name of the default database to auto-create on container startup.
-    .WithEnvironment("POSTGRES_DB", todosDbName)
-    // Mount the SQL scripts directory into the container so that the init scripts run.
-    .WithBindMount("../DatabaseContainers.ApiService/data/postgres", "/docker-entrypoint-initdb.d")
-    // Configure the container to store data in a volume so that it persists across instances.
-    .WithDataVolume()
-    .WithPgWeb()
-    // Keep the container running between app host sessions.
-    .WithLifetime(ContainerLifetime.Persistent);
-
-// Add the default database to the application model so that it can be referenced by other resources.
-var todosDb = postgres.AddDatabase(todosDbName);
-```
+For an example script and AppHost code, see [Seed a database in a dashboard REPL terminal](/fundamentals/database-patterns/?orm=efcore#seed-a-database-in-a-dashboard-repl-terminal).
 
 </TabItem>
 <TabItem label="Pomelo MySQL">
@@ -341,59 +301,7 @@ if (app.Environment.IsDevelopment())
 </TabItem>
 <TabItem label="PostgreSQL">
 
-```csharp title="Program.cs"
-builder.AddNpgsqlDbContext<TicketContext>("TicketsDB",
-    configureDbContextOptions: options =>
-{
-    if (builder.Environment.IsDevelopment())
-    {
-        options.UseSeeding((context, _) =>
-        {
-            var testTicket = context.Set<SupportTicket>()
-                .FirstOrDefault(t => t.Title == "Test Ticket 1");
-            if (testTicket is null)
-            {
-                context.Set<SupportTicket>().Add(new SupportTicket
-                {
-                    Title = "Test Ticket 1",
-                    Description = "This is a test ticket"
-                });
-                context.SaveChanges();
-            }
-
-        });
-    
-        options.UseAsyncSeeding(async (context, _, cancellationToken) =>
-        {
-            var testTicket = await context.Set<SupportTicket>()
-                .FirstOrDefaultAsync(t => t.Title == "Test Ticket 1", cancellationToken);
-            if (testTicket is null)
-            {
-                context.Set<SupportTicket>().Add(new SupportTicket
-                {
-                    Title = "Test Ticket 1",
-                    Description = "This is a test ticket"
-                });
-                await context.SaveChangesAsync(cancellationToken);
-            }
-        });
-    }
-});
-
-var app = builder.Build();
-
-app.MapDefaultEndpoints();
-
-if (app.Environment.IsDevelopment())
-{
-    // Ensure database is created and seeded
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
-        await context.Database.EnsureCreatedAsync();
-    }
-}
-```
+For a PostgreSQL example, see [Seed a database on startup or using a custom command](/fundamentals/database-patterns/?orm=efcore#seed-a-database-on-startup-or-using-a-custom-command).
 
 </TabItem>
 <TabItem label="Pomelo MySQL">
@@ -468,124 +376,15 @@ The `UseSeeding` and `UseAsyncSeeding` methods provide several advantages over m
 
 ### Seed data manually
 
-You can also seed data in Aspire projects using EF Core by explicitly running migrations during startup. EF Core handles underlying database connections and schema creation for you, which eliminates the need to use volumes or run SQL scripts during container startup.
+You can also seed data with your own code, outside the `UseSeeding` and `UseAsyncSeeding` options. For example, you can add rows from an endpoint that you call with a custom dashboard command, so that you seed only when you choose. For an example, see [Seed a database on startup or using a custom command](/fundamentals/database-patterns/?orm=efcore#seed-a-database-on-startup-or-using-a-custom-command).
 
 :::caution
-These types of configurations should only be done during development, so make sure to add a conditional that checks your current environment context.
+Run manual seed code only during development. Check the environment before you run it.
 :::
-
-Add the following code to the `Program.cs` file of your **API Service** project.
-
-<Tabs syncKey="efcore-db-provider">
-<TabItem label="SQL Server">
-
-```csharp title="Program.cs"
-// Register DbContext class
-builder.AddSqlServerDbContext<TicketContext>("sqldata");
-
-var app = builder.Build();
-
-app.MapDefaultEndpoints();
-
-if (app.Environment.IsDevelopment())
-{
-    // Retrieve an instance of the DbContext class and manually run migrations during startup
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
-        context.Database.Migrate();
-
-        // Manually seed data
-        if (!context.Tickets.Any())
-        {
-            context.Tickets.AddRange(
-                new Ticket
-                {
-                    Title = "Example Ticket", 
-                    Description = "This is a sample ticket for testing"
-                }
-            );
-            context.SaveChanges();
-        }
-    }
-}
-```
-
-</TabItem>
-<TabItem label="PostgreSQL">
-
-```csharp title="Program.cs"
-// Register DbContext class
-builder.AddNpgsqlDbContext<TicketContext>("sqldata");
-
-var app = builder.Build();
-
-app.MapDefaultEndpoints();
-
-if (app.Environment.IsDevelopment())
-{
-    // Retrieve an instance of the DbContext class and manually run migrations during startup
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
-        context.Database.Migrate();
-
-        // Manually seed data
-        if (!context.Tickets.Any())
-        {
-            context.Tickets.AddRange(
-                new Ticket
-                {
-                    Title = "Example Ticket", 
-                    Description = "This is a sample ticket for testing"
-                }
-            );
-            context.SaveChanges();
-        }
-    }
-}
-```
-
-</TabItem>
-<TabItem label="Pomelo MySQL">
-
-```csharp title="Program.cs"
-// Register DbContext class
-builder.AddMySqlDataSource<TicketContext>("sqldata");
-
-var app = builder.Build();
-
-app.MapDefaultEndpoints();
-
-if (app.Environment.IsDevelopment())
-{
-    // Retrieve an instance of the DbContext class and manually run migrations during startup
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
-        context.Database.Migrate();
-
-        // Manually seed data
-        if (!context.Tickets.Any())
-        {
-            context.Tickets.AddRange(
-                new Ticket
-                {
-                    Title = "Example Ticket", 
-                    Description = "This is a sample ticket for testing"
-                }
-            );
-            context.SaveChanges();
-        }
-    }
-}
-```
-
-</TabItem>
-</Tabs>
 
 ## See also
 
+- [Aspire database patterns](/fundamentals/database-patterns/?orm=efcore)
 - [Apply EF Core migrations in Aspire](/integrations/databases/efcore/migrations/)
 - [Aspire orchestration overview](/get-started/app-host/)
 - [EF Core seeding documentation](https://learn.microsoft.com/ef/core/modeling/data-seeding)
