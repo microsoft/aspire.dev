@@ -191,7 +191,7 @@ for (const theme of ['light', 'dark'] as const) {
     await picker.getByRole('button', { name: 'Close watch options' }).click();
     await expect(picker).toBeHidden();
     await expect(trigger).toBeFocused();
-    const search = page.getByRole('button', { name: 'Search', exact: true });
+    const search = page.locator('site-search').getByRole('button', { name: /^Search\b/ });
     await search.focus();
     await page.keyboard.press('Escape');
     await expect(search).toBeFocused();

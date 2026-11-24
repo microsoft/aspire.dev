@@ -10,6 +10,7 @@ test('C# method name and overload deep links scroll to and highlight the request
   const member = page.locator('#withhostport');
   await expect(member).toHaveCount(1);
   await expect(member).toBeInViewport();
+  await expect.poll(() => member.evaluate((element) => element.getAnimations().length)).toBe(0);
   const highlightedBackground = await member.evaluate(
     (element) => getComputedStyle(element).backgroundColor
   );
@@ -25,6 +26,7 @@ test('C# method name and overload deep links scroll to and highlight the request
 
   const exactMember = exactAnchor.locator('..');
   await expect(exactMember).toBeInViewport();
+  await expect.poll(() => exactMember.evaluate((element) => element.getAnimations().length)).toBe(0);
   await expect
     .poll(() => exactMember.evaluate((element) => getComputedStyle(element).backgroundColor))
     .toBe(highlightedBackground);
