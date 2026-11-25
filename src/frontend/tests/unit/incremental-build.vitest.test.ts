@@ -95,11 +95,11 @@ async function writeProjectFile(project: string, file: string, content: string):
   await writeFile(join(project, file), content);
 }
 
-async function createProject(): Promise<string> {
+async function createProject(files: Record<string, string> = FILES): Promise<string> {
   const project = await mkdtemp(join(tmpdir(), 'aspire-incremental-build-'));
   directories.push(project);
   await symlink(join(frontendRoot, 'node_modules'), join(project, 'node_modules'), 'junction');
-  for (const [file, content] of Object.entries(FILES)) {
+  for (const [file, content] of Object.entries(files)) {
     await writeProjectFile(project, file, content);
   }
   await mkdir(join(project, 'src/utils'), { recursive: true });
@@ -113,11 +113,22 @@ function writeDocument(project: string, name: string, summary: string): Promise<
   return writeProjectFile(project, `data/${name}.json`, JSON.stringify({ package: { name }, summary }));
 }
 
-async function build(project: string, buildId: string, commit = 'commit-a'): Promise<void> {
+async function build(
+  project: string,
+  buildId: string,
+  commit = 'commit-a',
+  extraEnv: Record<string, string> = {}
+): Promise<void> {
   const { NODE_ENV: _nodeEnv, MODE: _mode, VITEST: _vitest, ...env } = process.env;
   await run('bun', ['--bun', 'node_modules/astro/bin/astro.mjs', 'build'], {
     cwd: project,
-    env: { ...env, ASTRO_TELEMETRY_DISABLED: '1', FIXTURE_BUILD_ID: buildId, PUBLIC_GIT_COMMIT_ID: commit },
+    env: {
+      ...env,
+      ...extraEnv,
+      ASTRO_TELEMETRY_DISABLED: '1',
+      FIXTURE_BUILD_ID: buildId,
+      PUBLIC_GIT_COMMIT_ID: commit,
+    },
     maxBuffer: 16 * 1024 * 1024,
   });
 }
@@ -206,4 +217,62 @@ test('incremental builds reuse unchanged pages, invalidate changed inputs and pr
   const cached = await listFiles(join(project, '.astro-cache'));
   expect(cached.filter((file) => file.includes('alpha')).length).toBeGreaterThan(0);
   expect(cached.filter((file) => file.includes('beta'))).toEqual([]);
+}, 300_000);
+
+// UnoCSS fills its `page-ssr` stylesheet after Vite transforms modules, so the route's
+// dependency hash only sees a placeholder. Production's icon safelist comes from network
+// data at build time; when it changed between builds of one commit, restored API pages
+// kept linking a stylesheet the new build no longer emitted.
+const STYLESHEET_FILES: Record<string, string> = {
+  'package.json': FILES['package.json'],
+  'astro.config.mjs': `
+    import { defineConfig } from 'astro/config';
+    import UnoCSS from 'unocss/astro';
+    export default defineConfig({
+      cacheDir: './.astro-cache',
+      integrations: [UnoCSS({ injectReset: false })],
+      build: { inlineStylesheets: 'never' },
+      experimental: { parallelPrerender: { workers: 2 }, incrementalBuild: true },
+    });`,
+  'uno.config.mjs': `
+    import { defineConfig } from 'unocss';
+    export default defineConfig({
+      rules: [[/^fixture-([a-z]+)$/, ([, color]) => ({ color })]],
+      safelist: (process.env.FIXTURE_SAFELIST ?? '').split(',').filter(Boolean),
+    });`,
+  'src/pages/index.astro': `<p>home|{process.env.FIXTURE_BUILD_ID}</p>`,
+  'src/pages/reference/[package].astro': `---
+    export function getStaticPaths() {
+      return [{ cacheKey: 'alpha', params: { package: 'alpha' } }];
+    }
+    ---
+    <p>alpha|{process.env.FIXTURE_BUILD_ID}</p>`,
+};
+
+function stylesheets(output: Record<string, string>, file: string): string[] {
+  return [...(output[file] ?? '').matchAll(/href="\/(_astro\/[^"]+\.css)"/g)]
+    .map((match) => match[1])
+    .sort();
+}
+
+test('incremental builds re-render cached pages whose emitted stylesheets changed', async () => {
+  const project = await createProject(STYLESHEET_FILES);
+
+  await build(project, 'cold', 'commit-a', { FIXTURE_SAFELIST: 'fixture-red' });
+  const cold = await readOutput(project);
+  expect(stylesheets(cold, 'reference/alpha/index.html')).toHaveLength(1);
+
+  await build(project, 'safelist', 'commit-a', { FIXTURE_SAFELIST: 'fixture-red,fixture-blue' });
+  const safelist = await readOutput(project);
+  const home = stylesheets(safelist, 'index.html');
+  expect(home).toHaveLength(1);
+  expect(home).not.toEqual(stylesheets(cold, 'index.html'));
+  expect(stylesheets(safelist, 'reference/alpha/index.html')).toEqual(home);
+  expect(Object.keys(safelist)).toContain(home[0]);
+  expect(rendered(safelist, 'reference/alpha/index.html')).toBe('alpha|safelist');
+
+  // Unchanged stylesheets still let the page be reused.
+  await build(project, 'warm', 'commit-a', { FIXTURE_SAFELIST: 'fixture-red,fixture-blue' });
+  const warm = await readOutput(project);
+  expect(rendered(warm, 'reference/alpha/index.html')).toBe('alpha|safelist');
 }, 300_000);

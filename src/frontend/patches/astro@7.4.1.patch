@@ -1,5 +1,55 @@
+diff --git a/dist/core/build/generate.js b/dist/core/build/generate.js
+index 5c6179d54bb73e7ecc95ed1e6d4c026df9e23c9a..77817fd87dcefb67c35c5927b4dc8705b2e6163a 100644
+--- a/dist/core/build/generate.js
++++ b/dist/core/build/generate.js
+@@ -1,3 +1,4 @@
++import crypto from "node:crypto";
+ import nodeFs from "node:fs";
+ import os from "node:os";
+ import { fileURLToPath } from "node:url";
+@@ -24,6 +25,7 @@ import { IncrementalBuildCache } from "./incremental.js";
+ import { computeConfigHash } from "./config-hash/index.js";
+ import { computeLockfileHash } from "./lockfile/index.js";
+ import { hasPrerenderedPages } from "./internal.js";
++import { getPageData } from "./runtime.js";
+ import { buildPhase } from "./timings/index.js";
+ import { getTimeStat, shouldAppendForwardSlash } from "./util.js";
+ export async function generatePages(options, internals, prerenderOutputDir, builder) {
+@@ -478,6 +480,23 @@ export async function renderPath({ prerenderer, pathname, route, options, routeT
+ 		metadata
+ 	};
+ }
++const routeDependencyHashes = new WeakMap();
++/**
++* The route's module-graph hash plus the stylesheets its HTML links. CSS generated after
++* transform (UnoCSS fills a placeholder) is invisible to the module graph, so without the
++* emitted sheets a restored page can link a stylesheet this build no longer writes.
++*/
++function getRouteDependencyHash(internals, route) {
++	let hash = routeDependencyHashes.get(route);
++	if (hash !== undefined) return hash;
++	hash = internals.pageDependencyHashes?.get(route.component) ?? "";
++	const sheets = getPageData(internals, route.route, route.component)?.styles.map(({ sheet }) => sheet.type === "external" ? `external:${sheet.src}` : `inline:${sheet.content}`).sort();
++	if (sheets?.length) {
++		hash = crypto.createHash("sha256").update(hash).update("\n").update(sheets.join("\n")).digest("hex");
++	}
++	routeDependencyHashes.set(route, hash);
++	return hash;
++}
+ /**
+ * Generate a single path using the prerenderer interface.
+ * Orchestrates rendering via `renderPath()` and writes the result to the filesystem.
+@@ -498,7 +517,7 @@ async function generatePathWithPrerenderer(prerenderer, pathname, route, options
+ 	// Relative path from the resolved client output directory for cache storage
+ 	const relativeOutFile = outFile.href.slice(options.outputDirectories.client.href.length);
+ 	// Look up the dependency hash for this route
+-	const dependencyHash = internals.pageDependencyHashes?.get(route.component) ?? "";
++	const dependencyHash = getRouteDependencyHash(internals, route);
+ 	const hasServerIsland = internals.serverIslandPageComponents?.has(route.component) ?? false;
+ 	// Incremental build: check if we can skip this path
+ 	if (cacheKey !== undefined && cache?.canSkip(route.component, pathname, dependencyHash, cacheKey, hasServerIsland)) {
 diff --git a/dist/core/build/prerender-worker.js b/dist/core/build/prerender-worker.js
-index 90889cc530bac8d7498858ab78c45a40460984a8..932447d4f6cd8e989ed0ee8cbd34df8947be6d44 100644
+index 90889cc530bac8d7498858ab78c45a40460984a8..c2c23022787ab4e3192ef192bf557cd5a23dd0a7 100644
 --- a/dist/core/build/prerender-worker.js
 +++ b/dist/core/build/prerender-worker.js
 @@ -110,6 +110,11 @@ async function start() {
