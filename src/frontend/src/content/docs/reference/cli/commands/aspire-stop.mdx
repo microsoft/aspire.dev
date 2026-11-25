@@ -33,6 +33,26 @@ The command requests a graceful shutdown of the selected AppHost process (and it
 
 When stopping an AppHost that was started with [`aspire run --detach`](/reference/cli/commands/aspire-run/#options), the `aspire stop` command waits for the AppHost process to terminate before removing its backchannel socket file. Removing the socket prevents subsequent CLI commands, such as `aspire add` or `aspire describe`, from attempting to connect to the stopped process.
 
+### Wait for resources to be torn down
+
+By default, `aspire stop` returns as soon as the AppHost process exits, while resources such as containers might still be removed in the background. After the AppHost exits, the command prints a message that resources might still be stopping. Starting the AppHost again immediately can adopt a still-running container that has a fixed name (for example, one configured with `WithContainerName`), which is then removed by the earlier teardown.
+
+Use `--wait` to return only after the AppHost's resources (containers, executables, and networks) are torn down:
+
+```bash title="Aspire CLI"
+aspire stop --wait
+```
+
+The command waits up to 120 seconds by default. Use `--timeout` to change the limit. The AppHost is stopped in every case, even when the teardown can't be confirmed:
+
+| Outcome | Exit code |
+| --- | --- |
+| Wait timed out | `17` |
+| AppHost is too old to support waiting | `9` |
+| Teardown couldn't be confirmed | `2` |
+
+`--wait` works with `--apphost`, `--all`, and `--force`. With `--force`, persistent resource cleanup still runs when teardown isn't confirmed.
+
 ### Clean up persistent resources
 
 Use `--force` to stop the selected AppHost and then remove the persistent resources associated with it:
@@ -88,6 +108,14 @@ The following options are available:
 
   Perform the normal attempt to stop all instances of a specific AppHost, then attempt to clean up persistent resources associated with that AppHost, preserving persistent volumes by default. You can combine this option with `--apphost` to specify an AppHost to stop, but not with `--all`.
 
+- **`--wait`**
+
+  Wait until the AppHost's resources, such as containers, are torn down before returning.
+
+- **`--timeout <timeout>`**
+
+  The maximum time in seconds to wait for resources to be torn down. Valid values are 1 to 4294967. The default is 120. Requires `--wait`.
+
 - **`--volumes`**
 
   Also remove persistent volumes created by Aspire during persistent resource cleanup. Requires `--force`.
@@ -122,6 +150,12 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire stop --all
+  ```
+
+- Stop the AppHost and wait for its resources to be torn down, for up to 60 seconds:
+
+  ```bash title="Aspire CLI"
+  aspire stop --wait --timeout 60
   ```
 
 - Stop the AppHost and clean up its persistent resources, preserving volumes:
