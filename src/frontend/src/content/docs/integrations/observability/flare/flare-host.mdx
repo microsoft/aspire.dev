@@ -1,0 +1,373 @@
+---
+title: 'Flare integration: hosting'
+description: Use the Community Toolkit hosting integration to run Flare's ingest service, query API, alert worker, and dashboard in an Aspire AppHost and route resource telemetry to it.
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+This page describes the AppHost APIs for adding Flare and sending telemetry to it. For an introduction to this integration, see [Flare integration](/integrations/observability/flare/flare-get-started/).
+
+## Installation
+
+Install the [📦 CommunityToolkit.Aspire.Hosting.Flare](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Flare) package in the AppHost project:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Flare" />
+
+The package depends on the [ClickHouse](/integrations/databases/clickhouse/clickhouse-host/) and [Redis](/integrations/caching/redis/redis-host/) hosting integrations, so you don't need to install them separately.
+
+## Add a Flare resource
+
+Call `AddFlare` with a resource name, a ClickHouse server resource, and a Redis resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const clickhouse = await builder.addClickHouse('clickhouse');
+const redis = await builder.addRedis('redis');
+
+const flare = await builder.addFlare('flare', clickhouse, redis);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+var redis = builder.AddRedis("redis");
+
+var flare = builder.AddFlare("flare", clickhouse, redis);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+`AddFlare` adds these resources:
+
+| Resource             | Image                                  | Description                                                                        |
+| -------------------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `flare`              | `docker.io/apardev/flare-ingest`       | The OTLP ingest service. This is the resource `AddFlare` returns.                  |
+| `flare-api`          | `docker.io/apardev/flare-api`          | The query API the dashboard calls.                                                 |
+| `flare-alert-worker` | `docker.io/apardev/flare-alert-worker` | Evaluates alert rules and sends notifications.                                     |
+| `flare-dashboard`    | `docker.io/apardev/flare-dashboard`    | The Flare web UI. Pass `dashboardPort` to `AddFlare` to give it a fixed host port. |
+| `flare-clickhousedb` | None                                   | A database named `clickhousedb` added to the ClickHouse server you passed in.      |
+
+All four images share the tag `0.6`. The child resources are grouped under `flare` in the Aspire dashboard. The Flare images create and migrate their ClickHouse schema on startup, so the integration runs no SQL of its own.
+
+The ingest service's OTLP endpoints use fixed host ports so that OTLP clients outside the AppHost can use the conventional port numbers:
+
+| Resource property  | Endpoint name | Host and container port | Description         |
+| ------------------ | ------------- | ----------------------- | ------------------- |
+| `OtlpGrpcEndpoint` | `grpc`        | `4317`                  | OTLP/gRPC endpoint. |
+| `OtlpHttpEndpoint` | `http`        | `4318`                  | OTLP/HTTP endpoint. |
+
+These endpoints aren't proxied by Aspire. If another process already holds `4317` or `4318`, such as a standalone Flare stack or an OpenTelemetry Collector, the ingest container fails to start. Call `WithIngestPorts` to use other host ports:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+const flare = await builder.addFlare('flare', clickhouse, redis);
+await flare.withIngestPorts({ grpcPort: 14317, httpPort: 14318 });
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var flare = builder.AddFlare("flare", clickhouse, redis)
+    .WithIngestPorts(grpcPort: 14317, httpPort: 14318);
+```
+
+</TabItem>
+</Tabs>
+
+## Send telemetry to Flare
+
+Call `WithOtlpExporter` (`withFlareOtlpExporter` in TypeScript) on each resource whose telemetry should go to Flare:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder, OtlpProtocol } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const clickhouse = await builder.addClickHouse('clickhouse');
+const redis = await builder.addRedis('redis');
+const flare = await builder.addFlare('flare', clickhouse, redis);
+
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
+await api.withFlareOtlpExporter(flare);
+await api.waitFor(flare);
+
+const worker = await builder.addDotnetProject(
+  'worker',
+  '../Worker/Worker.csproj'
+);
+await worker.withFlareOtlpExporter(flare, {
+  protocol: OtlpProtocol.HttpProtobuf,
+});
+await worker.waitFor(flare);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+var redis = builder.AddRedis("redis");
+var flare = builder.AddFlare("flare", clickhouse, redis);
+
+builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithOtlpExporter(flare)
+    .WaitFor(flare);
+
+builder.AddDotnetProject("worker", "../Worker/Worker.csproj")
+    .WithOtlpExporter(flare, OtlpProtocol.HttpProtobuf)
+    .WaitFor(flare);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The exporter call sets two environment variables on the resource:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: the ingest service's gRPC endpoint, or its HTTP endpoint for the HTTP protocols.
+- `OTEL_EXPORTER_OTLP_PROTOCOL`: `grpc` for `OtlpProtocol.Grpc` (the default), `http/protobuf` for `OtlpProtocol.HttpProtobuf`, or `http/json` for `OtlpProtocol.HttpJson`.
+
+Any OpenTelemetry SDK that reads the standard environment variables picks these up, including .NET projects that use the Aspire service defaults.
+
+<Aside type="caution">
+  The resource's telemetry goes to Flare instead of the Aspire dashboard, so its
+  logs, traces, and metrics no longer appear in the dashboard's telemetry views.
+  The dashboard still shows the resource, its console output, and its state.
+</Aside>
+
+The exporter call also removes the Aspire dashboard's OTLP API key (`x-otlp-api-key`) from `OTEL_EXPORTER_OTLP_HEADERS`, so that key isn't sent to Flare. Other headers in that variable are kept.
+
+## Persist Flare's identity database
+
+ClickHouse and Redis keep their data in the volumes you configure on those resources. Flare also keeps an identity database with dashboard users, sessions, and ingest API keys. Call `WithDataVolume` on the Flare resource to store it in a named volume shared by the ingest service and the query API:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const clickhouse = await builder.addClickHouse('clickhouse');
+
+const redis = await builder.addRedis('redis');
+await redis.withDataVolume();
+
+const flare = await builder.addFlare('flare', clickhouse, redis);
+await flare.withDataVolume();
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse")
+    .WithDataVolume();
+var redis = builder.AddRedis("redis")
+    .WithDataVolume();
+
+var flare = builder.AddFlare("flare", clickhouse, redis)
+    .WithDataVolume();
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+The volume is mounted at `/data/identity` in both containers. Pass a name to `WithDataVolume` to choose the volume name; otherwise one is generated from the application and resource names. Without the volume, the ingest service and the query API each keep a private identity database that is lost when their containers are recreated.
+
+## Require an ingest API key
+
+Call `WithApiKey` with a parameter resource to make the ingest service reject OTLP requests that don't carry the key:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const clickhouse = await builder.addClickHouse('clickhouse');
+const redis = await builder.addRedis('redis');
+const ingestKey = await builder.addParameter('flare-ingest-key', {
+  secret: true,
+});
+
+const flare = await builder.addFlare('flare', clickhouse, redis);
+await flare.withApiKey(ingestKey);
+
+const api = await builder.addDotnetProject('api', '../Api/Api.csproj');
+await api.withFlareOtlpExporter(flare);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+var redis = builder.AddRedis("redis");
+var ingestKey = builder.AddParameter("flare-ingest-key", secret: true);
+
+var flare = builder.AddFlare("flare", clickhouse, redis)
+    .WithApiKey(ingestKey);
+
+builder.AddDotnetProject("api", "../Api/Api.csproj")
+    .WithOtlpExporter(flare);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+OTLP clients send the key as `Authorization: Bearer <key>`. Resources wired with the exporter call get an `Authorization=Bearer <key>` entry in `OTEL_EXPORTER_OTLP_HEADERS` automatically. Clients outside the AppHost set the header themselves, for example with `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <key>`.
+
+## Publish and deploy
+
+Flare deploys with the rest of your AppHost. Add a deployment environment, such as Docker Compose or Kubernetes, then run `aspire publish` or `aspire deploy`. For more information, see [Deploy your app](/deployment/).
+
+By default, the dashboard calls the query API at its local address, and the query API accepts browser requests only from the dashboard's local address. When the dashboard is reached through other hostnames, call `WithPublicUrls` with the URLs a browser uses:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.mts"
+import { createBuilder } from './.aspire/modules/aspire.mjs';
+
+const builder = await createBuilder();
+
+const clickhouse = await builder.addClickHouse('clickhouse');
+const redis = await builder.addRedis('redis');
+const apiUrl = await builder.addParameter('flare-public-api-url');
+const dashboardUrl = await builder.addParameter('flare-public-dashboard-url');
+
+const flare = await builder.addFlare('flare', clickhouse, redis);
+await flare.withPublicUrls({ apiUrl, dashboardUrl });
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+var redis = builder.AddRedis("redis");
+var apiUrl = builder.AddParameter("flare-public-api-url");
+var dashboardUrl = builder.AddParameter("flare-public-dashboard-url");
+
+var flare = builder.AddFlare("flare", clickhouse, redis)
+    .WithPublicUrls(apiUrl, dashboardUrl);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+</Tabs>
+
+- `apiUrl` is the query API URL that the dashboard's browser code calls.
+- `dashboardUrl` is the dashboard URL. The query API uses it as its allowed CORS origin, and alert notifications use it for links back to the dashboard.
+
+<Aside type="caution">
+  The query API uses `dashboardUrl` verbatim as a CORS origin. Pass an origin
+  only, such as `https://flare.example.com`, with no path and no trailing slash.
+</Aside>
+
+Call `WithFlareImageTag` to run a different Flare release. It sets the tag of all four images, because Flare releases them together.
+
+## Connection properties
+
+`WithReference(flare)` is also supported. It injects the OTLP/gRPC URL as a connection string named after the resource, and these connection properties:
+
+| Property name | Description                                             |
+| ------------- | ------------------------------------------------------- |
+| `Host`        | The host of the OTLP/gRPC endpoint.                     |
+| `Port`        | The port of the OTLP/gRPC endpoint.                     |
+| `Uri`         | The OTLP/gRPC URL, for example `http://localhost:4317`. |
+
+The properties are exposed as environment variables named `[RESOURCE]_[PROPERTY]`, for example `FLARE_URI`. Use them when an app configures its OTLP exporter in code rather than through the standard `OTEL_EXPORTER_OTLP_*` variables.
+
+## Hosting integration health checks
+
+Each Flare container has an HTTP health check:
+
+- The ingest service checks `/health` on its OTLP/HTTP endpoint.
+- The query API and the alert worker check `/health`.
+- The dashboard checks `/`.
+
+`WaitFor(flare)` waits for the ingest service to be healthy. The Flare containers wait for the ClickHouse database and Redis, and the dashboard waits for the query API.
+
+## Exported AppHost API
+
+The package exports these APIs:
+
+| API                                                 | Description                                                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `AddFlare(name, clickhouse, redis, dashboardPort?)` | Adds the Flare ingest service, query API, alert worker, and dashboard.                           |
+| `WithOtlpExporter(flare, protocol?)`                | Points a resource's OTLP exporter at Flare. TypeScript AppHosts call it `withFlareOtlpExporter`. |
+| `WithDataVolume(name?)`                             | Persists Flare's identity database in a named volume.                                            |
+| `WithIngestPorts(grpcPort?, httpPort?)`             | Changes the host ports of the OTLP endpoints.                                                    |
+| `WithApiKey(apiKey)`                                | Requires an ingest API key, sent as `Authorization: Bearer <key>`.                               |
+| `WithPublicUrls(apiUrl?, dashboardUrl?)`            | Sets the query API and dashboard URLs a browser uses.                                            |
+| `WithFlareImageTag(tag)`                            | Changes the image tag of all four Flare containers.                                              |
+| `OtlpGrpcEndpoint`                                  | Gets the ingest service's OTLP/gRPC endpoint reference.                                          |
+| `OtlpHttpEndpoint`                                  | Gets the ingest service's OTLP/HTTP endpoint reference.                                          |
+
+## See also
+
+- [Flare integration](/integrations/observability/flare/flare-get-started/)
+- [Flare documentation](https://github.com/aminparsa18/Flare.Net/tree/main/docs)
+- [ClickHouse hosting integration](/integrations/databases/clickhouse/clickhouse-host/)
+- [Redis hosting integration](/integrations/caching/redis/redis-host/)
