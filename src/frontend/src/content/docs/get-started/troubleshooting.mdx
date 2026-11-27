@@ -278,6 +278,18 @@ Persisted Aspire CLI logs are stored in the Aspire home directory's `logs` folde
   <Code slot="windows" lang="powershell" code="$HOME\.aspire\logs\" />
 </OsAwareTabs>
 
+### CLI temporary files
+
+The Aspire CLI writes its temporary files to a private area in the Aspire home directory instead of the shared system temp directory. Each CLI process allocates a session folder at `<ASPIRE_HOME>/tmp/<random>/`, where `<ASPIRE_HOME>` defaults to `~/.aspire`.
+
+- On macOS and Linux, directories are created with `0700` permissions and files with `0600` permissions.
+- On Windows, directories are created with an owner-only ACL that doesn't inherit permissions.
+- The `tmp` folder and everything below it are validated. If the CLI finds links or permissions broader than owner-only, it reports an error with guidance instead of silently repairing them.
+- If no usable Aspire home directory exists, the CLI reports an error and doesn't fall back to the system temp directory.
+- Set the `ASPIRE_PRESERVE_TEMP_FILES` environment variable to a truthy value to write a `.preserve` marker in the session folder so that future cleanup honors it.
+
+Session folders aren't automatically deleted yet, so you can remove old folders under `<ASPIRE_HOME>/tmp/` manually when no CLI process is running.
+
 ## Building from source
 
 ### "Failed to copy CLI files" error on macOS or Linux
