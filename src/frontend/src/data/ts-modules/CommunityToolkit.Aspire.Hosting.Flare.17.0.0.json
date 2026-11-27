@@ -1,0 +1,460 @@
+{
+  "package": {
+    "name": "CommunityToolkit.Aspire.Hosting.Flare",
+    "version": "17.0.0",
+    "language": "typescript",
+    "sourceRepository": "https://github.com/CommunityToolkit/Aspire",
+    "sourceCommit": "2f40b6ddfb664ca38623b830964efa6a4abaaa45"
+  },
+  "functions": [
+    {
+      "name": "addFlare",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/addFlare",
+      "qualifiedName": "addFlare",
+      "description": "Adds a Flare observability stack to the application model: an OTLP ingest service (the returned resource), the query API, the alert worker and the dashboard. Containers are used for local development. The default images are , , and , all with the tag .",
+      "remarks": "The Flare images create and migrate their own ClickHouse schema on startup.\nAdd Flare to the application model and send a project's telemetry to it.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar clickhouse = builder.AddClickHouse(\"clickhouse\");\nvar redis = builder.AddRedis(\"redis\");\nvar flare = builder.AddFlare(\"flare\", clickhouse, redis);\nbuilder.AddProject<Projects.Api>(\"api\")\n.WithOtlpExporter(flare)\n.WaitFor(flare);\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "addFlare(name: string, clickhouse: ClickHouseServerResource, redis: RedisResource, dashboardPort?: number): FlareResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
+        },
+        {
+          "name": "clickhouse",
+          "type": "ClickHouseServerResource",
+          "description": "The ClickHouse server Flare stores its telemetry in. Flare adds its own database to it."
+        },
+        {
+          "name": "redis",
+          "type": "RedisResource",
+          "description": "The Redis instance Flare uses to buffer telemetry before it is written to ClickHouse."
+        },
+        {
+          "name": "dashboardPort",
+          "type": "number",
+          "isOptional": true,
+          "isNullable": true,
+          "description": "The host port for the Flare dashboard."
+        }
+      ],
+      "returnType": "FlareResource",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.IDistributedApplicationBuilder",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.IDistributedApplicationBuilder"
+      ]
+    },
+    {
+      "name": "connectionStringExpression",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/FlareResource.connectionStringExpression",
+      "qualifiedName": "FlareResource.connectionStringExpression",
+      "description": "Gets the connection string expression for the ingest service: the OTLP/gRPC URL, for example `http://localhost:4317`.",
+      "kind": "PropertyGetter",
+      "signature": "connectionStringExpression(): ReferenceExpression",
+      "parameters": [],
+      "returnType": "ReferenceExpression",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    },
+    {
+      "name": "otlpGrpcEndpoint",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/FlareResource.otlpGrpcEndpoint",
+      "qualifiedName": "FlareResource.otlpGrpcEndpoint",
+      "description": "Gets the OTLP/gRPC endpoint of the ingest service (port 4317 by default).",
+      "kind": "PropertyGetter",
+      "signature": "otlpGrpcEndpoint(): EndpointReference",
+      "parameters": [],
+      "returnType": "EndpointReference",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    },
+    {
+      "name": "otlpHttpEndpoint",
+      "capabilityId": "Aspire.Hosting.ApplicationModel/FlareResource.otlpHttpEndpoint",
+      "qualifiedName": "FlareResource.otlpHttpEndpoint",
+      "description": "Gets the OTLP/HTTP endpoint of the ingest service (port 4318 by default).",
+      "kind": "PropertyGetter",
+      "signature": "otlpHttpEndpoint(): EndpointReference",
+      "parameters": [],
+      "returnType": "EndpointReference",
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    },
+    {
+      "name": "withApiKey",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withApiKey",
+      "qualifiedName": "withApiKey",
+      "description": "Requires an API key on the ingest service. OTLP clients must send it as `Authorization: Bearer <key>`, for example through `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <key>`. Resources wired with `WithOtlpExporter``1` send it automatically.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withApiKey(apiKey: ParameterResource): FlareResource",
+      "parameters": [
+        {
+          "name": "apiKey",
+          "type": "ParameterResource",
+          "description": "The parameter holding the API key."
+        }
+      ],
+      "returnType": "FlareResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    },
+    {
+      "name": "withDataVolume",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withDataVolume",
+      "qualifiedName": "withDataVolume",
+      "description": "Persists Flare's identity database in a shared volume",
+      "remarks": "ClickHouse and Redis keep their own data volumes; configure them on those resources.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withDataVolume(name?: string): FlareResource",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to a name derived from the application and resource name."
+        }
+      ],
+      "returnType": "FlareResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    },
+    {
+      "name": "withFlareImageTag",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withFlareImageTag",
+      "qualifiedName": "withFlareImageTag",
+      "description": "Sets the image tag of all four Flare containers (ingest, API, alert worker and dashboard).",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withFlareImageTag(tag: string): FlareResource",
+      "parameters": [
+        {
+          "name": "tag",
+          "type": "string",
+          "description": "The image tag, for example `0.6`."
+        }
+      ],
+      "returnType": "FlareResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    },
+    {
+      "name": "withFlareOtlpExporter",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withFlareOtlpExporter",
+      "qualifiedName": "withFlareOtlpExporter",
+      "description": "Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): IResourceWithEnvironment",
+      "parameters": [
+        {
+          "name": "flare",
+          "type": "FlareResource",
+          "description": "The Flare resource builder."
+        },
+        {
+          "name": "protocol",
+          "type": "OtlpProtocol",
+          "isOptional": true,
+          "defaultValue": "Grpc",
+          "description": "The OTLP protocol to export with. `Grpc` uses the ingest service's gRPC endpoint; `HttpProtobuf` and `HttpJson` use its HTTP endpoint."
+        }
+      ],
+      "returnType": "IResourceWithEnvironment",
+      "returnsBuilder": true,
+      "targetTypeId": "Aspire.Hosting/Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.ContainerResource",
+        "Aspire.Hosting.ApplicationModel.ExecutableResource",
+        "Aspire.Hosting.ApplicationModel.ProjectResource",
+        "Aspire.Hosting.ApplicationModel.DotnetToolResource",
+        "Aspire.Hosting.ApplicationModel.CSharpAppResource",
+        "Aspire.Hosting.ApplicationModel.FlareResource",
+        "Aspire.Hosting.ApplicationModel.ClickHouseServerResource",
+        "Aspire.Hosting.ApplicationModel.RedisResource",
+        "Aspire.Hosting.Redis.RedisCommanderResource",
+        "Aspire.Hosting.Redis.RedisInsightResource"
+      ]
+    },
+    {
+      "name": "withIngestPorts",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withIngestPorts",
+      "qualifiedName": "withIngestPorts",
+      "description": "Sets the host ports of the ingest service's OTLP endpoints. By default they are the conventional 4317 (gRPC) and 4318 (HTTP).",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withIngestPorts(grpcPort?: number, httpPort?: number): FlareResource",
+      "parameters": [
+        {
+          "name": "grpcPort",
+          "type": "number",
+          "isOptional": true,
+          "isNullable": true,
+          "description": "The host port for OTLP/gRPC, or `null` to leave it unchanged."
+        },
+        {
+          "name": "httpPort",
+          "type": "number",
+          "isOptional": true,
+          "isNullable": true,
+          "description": "The host port for OTLP/HTTP, or `null` to leave it unchanged."
+        }
+      ],
+      "returnType": "FlareResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    },
+    {
+      "name": "withPublicUrls",
+      "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withPublicUrls",
+      "qualifiedName": "withPublicUrls",
+      "description": "Sets the URLs a browser uses to reach the query API and the dashboard. By default these are the loopback addresses of the local containers, which only works when the browser runs on the same machine. Set them when the stack is published and reached through other hostnames.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
+      "kind": "Method",
+      "signature": "withPublicUrls(apiUrl?: ParameterResource, dashboardUrl?: ParameterResource): FlareResource",
+      "parameters": [
+        {
+          "name": "apiUrl",
+          "type": "ParameterResource",
+          "isOptional": true,
+          "description": "The parameter holding the public URL of the query API, or `null` to leave it unchanged."
+        },
+        {
+          "name": "dashboardUrl",
+          "type": "ParameterResource",
+          "isOptional": true,
+          "description": "The parameter holding the public URL of the dashboard, or `null` to leave it unchanged. The query API uses this value verbatim as its allowed CORS origin, so it must be an origin only: `scheme://host[:port]`, with no path and no trailing slash (for example `https://flare.example.com`)."
+        }
+      ],
+      "returnType": "FlareResource",
+      "returnsBuilder": true,
+      "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.ApplicationModel.FlareResource"
+      ]
+    }
+  ],
+  "handleTypes": [
+    {
+      "name": "FlareResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.FlareResource",
+      "kind": "handle",
+      "exposeProperties": true,
+      "description": "A resource that represents a Flare observability stack. The resource itself is the OTLP ingest container; the query API, alert worker and dashboard are added as child resources.",
+      "implementedInterfaces": [
+        "Aspire.Hosting.ApplicationModel.IComputeResource",
+        "Aspire.Hosting.ApplicationModel.IExpressionValue",
+        "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithArgs",
+        "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment",
+        "Aspire.Hosting.ApplicationModel.IResourceWithProbes",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.ApplicationModel.IValueProvider",
+        "Aspire.Hosting.ApplicationModel.IValueWithReferences"
+      ],
+      "baseTypeHierarchy": [
+        "Aspire.Hosting.ApplicationModel.ContainerResource",
+        "Aspire.Hosting.ApplicationModel.Resource"
+      ],
+      "capabilities": [
+        {
+          "name": "connectionStringExpression",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/FlareResource.connectionStringExpression",
+          "qualifiedName": "FlareResource.connectionStringExpression",
+          "description": "Gets the connection string expression for the ingest service: the OTLP/gRPC URL, for example `http://localhost:4317`.",
+          "kind": "PropertyGetter",
+          "signature": "connectionStringExpression(): ReferenceExpression",
+          "parameters": [],
+          "returnType": "ReferenceExpression",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        },
+        {
+          "name": "otlpGrpcEndpoint",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/FlareResource.otlpGrpcEndpoint",
+          "qualifiedName": "FlareResource.otlpGrpcEndpoint",
+          "description": "Gets the OTLP/gRPC endpoint of the ingest service (port 4317 by default).",
+          "kind": "PropertyGetter",
+          "signature": "otlpGrpcEndpoint(): EndpointReference",
+          "parameters": [],
+          "returnType": "EndpointReference",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        },
+        {
+          "name": "otlpHttpEndpoint",
+          "capabilityId": "Aspire.Hosting.ApplicationModel/FlareResource.otlpHttpEndpoint",
+          "qualifiedName": "FlareResource.otlpHttpEndpoint",
+          "description": "Gets the OTLP/HTTP endpoint of the ingest service (port 4318 by default).",
+          "kind": "PropertyGetter",
+          "signature": "otlpHttpEndpoint(): EndpointReference",
+          "parameters": [],
+          "returnType": "EndpointReference",
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        },
+        {
+          "name": "withApiKey",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withApiKey",
+          "qualifiedName": "withApiKey",
+          "description": "Requires an API key on the ingest service. OTLP clients must send it as `Authorization: Bearer <key>`, for example through `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <key>`. Resources wired with `WithOtlpExporter``1` send it automatically.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withApiKey(apiKey: ParameterResource): FlareResource",
+          "parameters": [
+            {
+              "name": "apiKey",
+              "type": "ParameterResource",
+              "description": "The parameter holding the API key."
+            }
+          ],
+          "returnType": "FlareResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        },
+        {
+          "name": "withDataVolume",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withDataVolume",
+          "qualifiedName": "withDataVolume",
+          "description": "Persists Flare's identity database in a shared volume",
+          "remarks": "ClickHouse and Redis keep their own data volumes; configure them on those resources.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withDataVolume(name?: string): FlareResource",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to a name derived from the application and resource name."
+            }
+          ],
+          "returnType": "FlareResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        },
+        {
+          "name": "withFlareImageTag",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withFlareImageTag",
+          "qualifiedName": "withFlareImageTag",
+          "description": "Sets the image tag of all four Flare containers (ingest, API, alert worker and dashboard).",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withFlareImageTag(tag: string): FlareResource",
+          "parameters": [
+            {
+              "name": "tag",
+              "type": "string",
+              "description": "The image tag, for example `0.6`."
+            }
+          ],
+          "returnType": "FlareResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        },
+        {
+          "name": "withIngestPorts",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withIngestPorts",
+          "qualifiedName": "withIngestPorts",
+          "description": "Sets the host ports of the ingest service's OTLP endpoints. By default they are the conventional 4317 (gRPC) and 4318 (HTTP).",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withIngestPorts(grpcPort?: number, httpPort?: number): FlareResource",
+          "parameters": [
+            {
+              "name": "grpcPort",
+              "type": "number",
+              "isOptional": true,
+              "isNullable": true,
+              "description": "The host port for OTLP/gRPC, or `null` to leave it unchanged."
+            },
+            {
+              "name": "httpPort",
+              "type": "number",
+              "isOptional": true,
+              "isNullable": true,
+              "description": "The host port for OTLP/HTTP, or `null` to leave it unchanged."
+            }
+          ],
+          "returnType": "FlareResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        },
+        {
+          "name": "withPublicUrls",
+          "capabilityId": "CommunityToolkit.Aspire.Hosting.Flare/withPublicUrls",
+          "qualifiedName": "withPublicUrls",
+          "description": "Sets the URLs a browser uses to reach the query API and the dashboard. By default these are the loopback addresses of the local containers, which only works when the browser runs on the same machine. Set them when the stack is published and reached through other hostnames.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
+          "kind": "Method",
+          "signature": "withPublicUrls(apiUrl?: ParameterResource, dashboardUrl?: ParameterResource): FlareResource",
+          "parameters": [
+            {
+              "name": "apiUrl",
+              "type": "ParameterResource",
+              "isOptional": true,
+              "description": "The parameter holding the public URL of the query API, or `null` to leave it unchanged."
+            },
+            {
+              "name": "dashboardUrl",
+              "type": "ParameterResource",
+              "isOptional": true,
+              "description": "The parameter holding the public URL of the dashboard, or `null` to leave it unchanged. The query API uses this value verbatim as its allowed CORS origin, so it must be an origin only: `scheme://host[:port]`, with no path and no trailing slash (for example `https://flare.example.com`)."
+            }
+          ],
+          "returnType": "FlareResource",
+          "returnsBuilder": true,
+          "targetTypeId": "CommunityToolkit.Aspire.Hosting.Flare/Aspire.Hosting.ApplicationModel.FlareResource",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.ApplicationModel.FlareResource"
+          ]
+        }
+      ]
+    }
+  ],
+  "dtoTypes": [],
+  "enumTypes": []
+}

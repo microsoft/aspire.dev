@@ -12920,6 +12920,28 @@ export declare const YarpSslProtocol: {
 };
 
 /**
+ * Enum Aspire.Hosting.ApplicationModel.A2AInvocationMode
+ */
+
+export type A2AInvocationMode = "NonStreaming" | "Streaming";
+export declare const A2AInvocationMode: {
+  readonly NonStreaming: "NonStreaming";
+  readonly Streaming: "Streaming";
+};
+
+/**
+ * Enum Aspire.Hosting.ApplicationModel.AgentProtocol
+ */
+
+export type AgentProtocol = "A2A" | "Responses" | "AgUi" | "Acp";
+export declare const AgentProtocol: {
+  readonly A2A: "A2A";
+  readonly Responses: "Responses";
+  readonly AgUi: "AgUi";
+  readonly Acp: "Acp";
+};
+
+/**
  * Enum Aspire.Hosting.GoFeatureFlagLogLevel
  */
 
@@ -199698,6 +199720,16 @@ export interface ActiveMQServerResourceBase extends ContainerResource, IComputeR
    */
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the ActiveMQ resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Configures the host port that the ActiveMQ web console is exposed on instead of using randomly assigned port.
+   */
+
+  withWebHostPort(port: number | null): this;
 }
 
 /**
@@ -199737,6 +199769,11 @@ export interface DataApiBuilderContainerResource extends ContainerResource, ICom
    */
 
   uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the host port that the Data API Builder resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -199848,6 +199885,58 @@ export interface BitwardenSecretResource extends ParameterResource, IExpressionV
    */
 
   asSecretId(): IExpressionValue;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.ChromaResource
+ */
+
+export interface ChromaResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the ChromaDB
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the host endpoint reference for this resource.
+   */
+
+  host: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the port endpoint reference for this resource.
+   */
+
+  port: PropertyAccessor<EndpointReferenceExpression>;
+  /**
+   * Gets the primary endpoint for the ChromaDB. This endpoint is used for all API calls over HTTP.
+   */
+
+  primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the connection URI expression for the ChromaDB server.
+   */
+
+  uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Adds a bind mount for the data folder to a ChromaDB container resource.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the data folder to a ChromaDB container resource.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the data folder to a ChromaDB container resource.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Configures the host port that the ChromaDB resource is exposed on instead of using a randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -199978,6 +200067,78 @@ export interface FlagdResource extends ContainerResource, IComputeResource, IExp
    */
 
   withBindFileSync(fileSource: string, filename?: string): this;
+  /**
+   * Configures the host port that the flagd resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Configures the host port that the flagd OFREP endpoint is exposed on instead of using randomly assigned port.
+   */
+
+  withOfrepHostPort(port: number | null): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.FlareResource
+ */
+
+export interface FlareResource extends ContainerResource, IComputeResource, IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithArgs, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IValueProvider, IValueWithReferences {
+  /**
+   * Gets the connection string expression for the ingest service: the OTLP/gRPC URL, for example `http://localhost:4317`.
+   */
+
+  connectionStringExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Gets the OTLP/gRPC endpoint of the ingest service (port 4317 by default).
+   */
+
+  otlpGrpcEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the OTLP/HTTP endpoint of the ingest service (port 4318 by default).
+   */
+
+  otlpHttpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Requires an API key on the ingest service. OTLP clients must send it as `Authorization: Bearer <key>`, for example through `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <key>`. Resources wired with `WithOtlpExporter``1` send it automatically.
+   */
+
+  withApiKey(apiKey: string | ParameterResource): this;
+  /**
+   * Persists Flare's identity database in a shared volume
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Persists Flare's identity database in a shared volume
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Sets the image tag of all four Flare containers (ingest, API, alert worker and dashboard).
+   */
+
+  withFlareImageTag(tag: string): this;
+  /**
+   * Sets the host ports of the ingest service's OTLP endpoints. By default they are the conventional 4317 (gRPC) and 4318 (HTTP).
+   */
+
+  withIngestPorts(options?: { grpcPort?: number; httpPort?: number }): this;
+  /**
+   * Sets the host ports of the ingest service's OTLP endpoints. By default they are the conventional 4317 (gRPC) and 4318 (HTTP).
+   */
+
+  withIngestPorts(grpcPort?: number, httpPort?: number): this;
+  /**
+   * Sets the URLs a browser uses to reach the query API and the dashboard. By default these are the loopback addresses of the local containers, which only works when the browser runs on the same machine. Set them when the stack is published and reached through other hostnames.
+   */
+
+  withPublicUrls(options?: { apiUrl?: string | ParameterResource; dashboardUrl?: string | ParameterResource }): this;
+  /**
+   * Sets the URLs a browser uses to reach the query API and the dashboard. By default these are the loopback addresses of the local containers, which only works when the browser runs on the same machine. Set them when the stack is published and reached through other hostnames.
+   */
+
+  withPublicUrls(apiUrl?: string | ParameterResource, dashboardUrl?: string | ParameterResource): this;
 }
 
 /**
@@ -200055,6 +200216,11 @@ export interface FlociAwsContainerResource extends ContainerResource, IComputeRe
    */
 
   withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Configures the host port that the Floci AWS resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -200138,6 +200304,11 @@ export interface FlociAzureContainerResource extends ContainerResource, ICompute
 
   withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
   /**
+   * Configures the host port that the Floci Azure resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
    * Adds a Service Bus child resource to the Floci Azure emulator
    */
 
@@ -200190,7 +200361,7 @@ export interface FlociAzureCosmosResource extends IExpressionValue, IManifestExp
  * Handle Aspire.Hosting.ApplicationModel.FlociAzureServiceBusResource
  */
 
-export interface FlociAzureServiceBusResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithEndpoints, IResourceWithParent, IValueProvider, IValueWithReferences {
+export interface FlociAzureServiceBusResource extends IExpressionValue, IManifestExpressionProvider, IResource, IResourceWithConnectionString, IResourceWithEndpoints, IValueProvider, IValueWithReferences {
   /**
    * Gets the Service Bus plain AMQP endpoint.
    */
@@ -200310,6 +200481,11 @@ export interface FlociGcpContainerResource extends ContainerResource, IComputeRe
    */
 
   withFlociUI(configureContainer?: (obj: FlociUIContainerResource) => Promise<void>, containerName?: string): this;
+  /**
+   * Configures the host port that the Floci GCP resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -200398,6 +200574,11 @@ export interface GoFeatureFlagResource extends ContainerResource, IComputeResour
    */
 
   withGoffBindMount(source: string): this;
+  /**
+   * Configures the host port that the GO Feature Flag resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 
   withLogLevel(logLevel: GoFeatureFlagLogLevel): this;
 }
@@ -200491,6 +200672,50 @@ export interface TurborepoResource extends IResource {
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.VitePlusAppResource
+ */
+
+export interface VitePlusAppResource extends ExecutableResource, JavaScriptAppResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithContainerFiles, IResourceWithServiceDiscovery {
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.VitePlusResource
+ */
+
+export interface VitePlusResource extends IResource {
+
+  addApp(name: string, options?: { directory?: string }): VitePlusAppResource;
+
+  addApp(name: string, directory?: string): VitePlusAppResource;
+
+  withBun(options?: { install?: boolean }): this;
+
+  withBun(install?: boolean): this;
+
+  withNpm(options?: { install?: boolean }): this;
+
+  withNpm(install?: boolean): this;
+  /**
+   * Configures the Vite+ workspace to use the specified JavaScript package manager when starting apps.
+   */
+
+  withPackageManagerLaunch(options?: { packageManager?: string }): this;
+  /**
+   * Configures the Vite+ workspace to use the specified JavaScript package manager when starting apps.
+   */
+
+  withPackageManagerLaunch(packageManager?: string): this;
+
+  withPnpm(options?: { install?: boolean }): this;
+
+  withPnpm(install?: boolean): this;
+
+  withYarn(options?: { install?: boolean }): this;
+
+  withYarn(install?: boolean): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.HelmReleaseResource
  */
 
@@ -200514,7 +200739,7 @@ export interface HelmReleaseResource extends ContainerResource, IComputeResource
    * Adds a Helm `--set key=value` override to the release.
    */
 
-  withHelmValue(key: string, value: string): this;
+  withHelmValue(key: string, value: string | ReferenceExpression | EndpointReference | ParameterResource): this;
   /**
    * Supplies a YAML values file to the Helm release (`--values`).
    */
@@ -200573,6 +200798,11 @@ export interface K3sClusterResource extends ContainerResource, IComputeResource,
 
   withAgentCount(count: number): this;
   /**
+   * Adds a file to the cluster's `coredns-custom` ConfigMap, which k3s's CoreDNS imports.
+   */
+
+  withCoreDnsCustomization(fileName: string, content: string): this;
+  /**
    * Mounts a named Docker volume at the k3s data directory so cluster state persists across AppHost restarts.
    */
 
@@ -200588,6 +200818,11 @@ export interface K3sClusterResource extends ContainerResource, IComputeResource,
 
   withDisabledComponent(component: string): this;
   /**
+   * Enables a built-in k3s component that this integration, or an earlier `WithDisabledComponent` call, disabled.
+   */
+
+  withEnabledComponent(component: string): this;
+  /**
    * Appends a raw argument to the `k3s server` command line.
    */
 
@@ -200602,6 +200837,26 @@ export interface K3sClusterResource extends ContainerResource, IComputeResource,
    */
 
   withHelmImage(tag?: string, image?: string, registry?: string): this;
+  /**
+   * Makes a container resource resolvable from every pod in the cluster.
+   */
+
+  withHostAlias(resource: ContainerResource, options?: { hostName?: string }): this;
+  /**
+   * Makes a container resource resolvable from every pod in the cluster.
+   */
+
+  withHostAlias(resource: ContainerResource, hostName?: string): this;
+  /**
+   * Configures the host port that the k3s cluster resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Serves the AppHost's developer certificate — the one the machine trusts — from the cluster's bundled Traefik ingress controller, and makes it available to the cluster's workloads.
+   */
+
+  withIngressDeveloperCertificate(): this;
   /**
    * Sets the k3s image version used by the cluster server and all its agent nodes.
    */
@@ -200726,6 +200981,11 @@ export interface KindClusterResource extends IKindResource, IResource, IResource
 
 export interface KindDeployedResource extends IResource, IResourceWithParent, IResourceWithWaitSupport {
   /**
+   * Configures how the post-apply check waits for CRDs to reach the `Established` condition before the resource becomes running.
+   */
+
+  withCrdWait(configure: (obj: CrdWaitOptions) => Promise<void>): this;
+  /**
    * Sets the Kubernetes namespace for the deployment.
    */
 
@@ -200750,16 +201010,6 @@ export interface KindHelmChartResource extends KindDeployedResource, IResource, 
 
   withChartVersion(version: string): this;
   /**
-   * Retries Helm installs that race newly-created CRDs which have not reached the `Established` condition yet.
-   */
-
-  withCrdWaitRetry(options?: { maxAttempts?: number; backoff?: timespan; crdWaitTimeout?: timespan }): this;
-  /**
-   * Retries Helm installs that race newly-created CRDs which have not reached the `Established` condition yet.
-   */
-
-  withCrdWaitRetry(maxAttempts?: number, backoff?: timespan, crdWaitTimeout?: timespan): this;
-  /**
    * Sets a Helm value while preserving it as a string (maps to `helm install --set-string key=value`).
    */
 
@@ -200781,6 +201031,33 @@ export interface KindHelmChartResource extends KindDeployedResource, IResource, 
  */
 
 export interface CrdWaitBehavior extends IComparable, IConvertible, IFormattable, ISpanFormattable {
+}
+
+/**
+ * Handle Aspire.Hosting.CrdWaitOptions
+ */
+
+export interface CrdWaitOptions {
+  /**
+   * Gets or sets how CRD wait failures are handled.
+   */
+
+  failureBehavior: PropertyAccessor<CrdWaitBehavior>;
+  /**
+   * Gets or sets how CRD wait failures are handled.
+   */
+
+  setFailureBehavior(value: CrdWaitBehavior): CrdWaitOptions;
+  /**
+   * Gets or sets the maximum time to wait for discovered CRDs to reach the `Established` condition.
+   */
+
+  setTimeout(value: timespan): CrdWaitOptions;
+  /**
+   * Gets or sets the maximum time to wait for discovered CRDs to reach the `Established` condition.
+   */
+
+  timeout: PropertyAccessor<timespan>;
 }
 
 /**
@@ -200828,6 +201105,11 @@ export interface KurrentDBResource extends ContainerResource, IComputeResource, 
    */
 
   withDataVolume(name?: string): this;
+  /**
+   * Configures the host port that the KurrentDB resource is exposed on instead of using a randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -200861,6 +201143,11 @@ export interface LavinMQContainerResource extends ContainerResource, IComputeRes
 
   uriExpression: PropertyAccessor<ReferenceExpression>;
   /**
+   * Configures the host port that the LavinMQ AMQP endpoint is exposed on instead of using a randomly assigned port.
+   */
+
+  withAmqpHostPort(port: number | null): this;
+  /**
    * Configures a bind mount for the LavinMQ container resource to allow data persistence. The method mounts a specified source path on the host to the container's data directory.
    */
 
@@ -200880,6 +201167,11 @@ export interface LavinMQContainerResource extends ContainerResource, IComputeRes
    */
 
   withDataVolume(name: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the LavinMQ management endpoint is exposed on instead of using a randomly assigned port.
+   */
+
+  withManagementHostPort(port: number | null): this;
 }
 
 /**
@@ -200928,7 +201220,7 @@ export interface ListmonkResource extends ContainerResource, IComputeResource, I
 
   withAdminUser(username: string): this;
   /**
-   * Configures the listmonk web server address.
+   * Configures the listmonk web server bind host, overriding the default which is derived from the resource's endpoint.
    */
 
   withAppAddress(address: string): this;
@@ -200962,6 +201254,11 @@ export interface ListmonkResource extends ContainerResource, IComputeResource, I
    */
 
   withGroupId(groupId: number): this;
+  /**
+   * Configures the host port that the listmonk resource is exposed on instead of using a randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
   /**
    * References a `PostgresDatabaseResource` as the PostgreSQL database for the listmonk resource.
    */
@@ -201030,6 +201327,11 @@ export interface LogtoResource extends ContainerResource, IComputeResource, IExp
 
   withAdminEndpoint(url: string): this;
   /**
+   * Configures the host port that the Logto admin endpoint is exposed on instead of using a randomly assigned port.
+   */
+
+  withAdminHostPort(port: number | null): this;
+  /**
    * Configures the Logto resource to connect to the specified PostgreSQL database.
    */
 
@@ -201070,6 +201372,11 @@ export interface LogtoResource extends ContainerResource, IComputeResource, IExp
 
   withDisableAdminConsole(disable: boolean): this;
   /**
+   * Configures the host port that the Logto resource is exposed on instead of using a randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
    * Configures the Logto resource to use the specified Node.js environment value by setting the corresponding environment variable.
    */
 
@@ -201104,6 +201411,53 @@ export interface LogtoResource extends ContainerResource, IComputeResource, IExp
    */
 
   withTrustProxyHeader(trustProxyHeader: boolean): this;
+}
+
+/**
+ * Handle Aspire.Hosting.ApplicationModel.LokiResource
+ */
+
+export interface LokiResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Gets the gRPC endpoint.
+   */
+
+  grpcEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the HTTP endpoint used to send and query logs.
+   */
+
+  httpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Copies a Loki configuration file to `/etc/loki/local-config.yaml` for local runs and publishing.
+   */
+
+  withConfigFile(source: string): this;
+  /**
+   * Adds a writable bind mount for the default Loki configuration's data directory, `/loki`.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the default Loki configuration's data directory, `/loki`.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the default Loki configuration's data directory, `/loki`.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Configures the gRPC endpoint's host port.
+   */
+
+  withGrpcHostPort(port: number | null): this;
+  /**
+   * Configures the HTTP endpoint's host port.
+   */
+
+  withHttpHostPort(port: number | null): this;
 }
 
 /**
@@ -201156,6 +201510,16 @@ export interface MailPitContainerResource extends ContainerResource, IComputeRes
    */
 
   withDataVolume(name: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the MailPit HTTP endpoint is exposed on instead of using a randomly assigned port.
+   */
+
+  withHttpHostPort(port: number | null): this;
+  /**
+   * Configures the host port that the MailPit SMTP endpoint is exposed on instead of using a randomly assigned port.
+   */
+
+  withSmtpHostPort(port: number | null): this;
 }
 
 /**
@@ -201168,6 +201532,11 @@ export interface McpInspectorResource extends ExecutableResource, JavaScriptAppR
    */
 
   withBun(): this;
+  /**
+   * Configures the host port that the MCP Inspector client endpoint is exposed on instead of using a randomly assigned port.
+   */
+
+  withClientHostPort(port: number | null): this;
   /**
    * Configures the MCP Inspector resource to use a specified MCP server resource that uses SSE as the transport type.
    */
@@ -201183,6 +201552,11 @@ export interface McpInspectorResource extends ExecutableResource, JavaScriptAppR
    */
 
   withPnpm(): this;
+  /**
+   * Configures the host port that the MCP Inspector server endpoint is exposed on instead of using a randomly assigned port.
+   */
+
+  withServerHostPort(port: number | null): this;
   /**
    * Configures the MCP Inspector to use yarn as the package manager.
    */
@@ -201240,6 +201614,11 @@ export interface MeilisearchResource extends ContainerResource, IComputeResource
    */
 
   withDataVolume(name?: string): this;
+  /**
+   * Configures the host port that the Meilisearch resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -201292,6 +201671,11 @@ export interface MosquittoServerResource extends ContainerResource, IComputeReso
    */
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the Mosquitto resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -201309,6 +201693,11 @@ export interface NgrokResource extends ContainerResource, IComputeResource, IRes
    */
 
   withAuthTokenValue(ngrokAuthToken: string): this;
+  /**
+   * Configures the host port that the ngrok resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
   /**
    * Configures a resource with endpoints as a ngrok tunnel endpoint.
    */
@@ -201388,6 +201777,11 @@ export interface OllamaExecutableResource extends ExecutableResource, IComputeRe
    */
 
   uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the host port that the Ollama local resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -201467,6 +201861,11 @@ export interface OllamaResource extends ContainerResource, IComputeResource, IEx
    */
 
   withGPUSupport(vendor?: OllamaGpuVendor): this;
+  /**
+   * Configures the host port that the Ollama resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -201662,6 +202061,16 @@ export interface PapercutSmtpContainerResource extends ContainerResource, ICompu
    */
 
   uriExpression: PropertyAccessor<ReferenceExpression>;
+  /**
+   * Configures the host port that the Papercut SMTP HTTP endpoint is exposed on instead of using randomly assigned port.
+   */
+
+  withHttpHostPort(port: number | null): this;
+  /**
+   * Configures the host port that the Papercut SMTP SMTP endpoint is exposed on instead of using randomly assigned port.
+   */
+
+  withSmtpHostPort(port: number | null): this;
 }
 
 /**
@@ -201720,7 +202129,7 @@ export interface PerlAppResource extends ExecutableResource, IComputeResource, I
 
   withPerlbrewEnvironment(version: string, perlbrewRoot?: string): this;
   /**
-   * Configures certificate trust for the Perl application by setting SSL/TLS environment variables that common Perl HTTP libraries respect. Sets `SSL_CERT_FILE` (IO::Socket::SSL / LWP), `PERL_LWP_SSL_CA_FILE` (LWP::UserAgent), and `MOJO_CA_FILE` (Mojolicious) to the certificate bundle path provided by Aspire.
+   * Retained for compatibility. Certificate trust is configured by default for Perl resources.
    */
 
   withPerlCertificateTrust(): this;
@@ -201807,6 +202216,11 @@ export interface PostaResource extends ContainerResource, IComputeResource, IExp
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
   /**
+   * Configures the host port that the Posta resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
    * Configures the PostgreSQL database used by Posta.
    */
 
@@ -201821,6 +202235,16 @@ export interface PostaResource extends ContainerResource, IComputeResource, IExp
    */
 
   withRedisReference(redis: RedisResource, redisPassword?: string | ParameterResource): this;
+  /**
+   * Configures the host port that the Posta SMTP endpoint is exposed on instead of using randomly assigned port.
+   */
+
+  withSmtpHostPort(port: number | null): this;
+  /**
+   * Configures the host port that the Posta SMTP relay endpoint is exposed on instead of using randomly assigned port.
+   */
+
+  withSmtpRelayHostPort(port: number | null): this;
 }
 
 /**
@@ -201937,6 +202361,11 @@ export interface RavenDBServerResource extends ContainerResource, IComputeResour
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
   /**
+   * Configures the host port that the RavenDB resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
    * Adds a bind mount for the logs folder to a RavenDB container resource.
    */
 
@@ -201956,6 +202385,11 @@ export interface RavenDBServerResource extends ContainerResource, IComputeResour
    */
 
   withLogVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the RavenDB TCP endpoint is exposed on instead of using randomly assigned port.
+   */
+
+  withTcpHostPort(port: number | null): this;
 }
 
 /**
@@ -202082,6 +202516,11 @@ export interface RustFsResource extends ContainerResource, IComputeResource, IEx
 
   addBuckets(bucketNames: string[]): RustFsResource;
   /**
+   * Configures the host port that the RustFs console endpoint is exposed on instead of using randomly assigned port.
+   */
+
+  withConsoleHostPort(port: number | null): this;
+  /**
    * Adds a bind mount for the data folder to a RustFs container resource.
    */
 
@@ -202096,6 +202535,11 @@ export interface RustFsResource extends ContainerResource, IComputeResource, IEx
    */
 
   withDataVolume(name?: string): this;
+  /**
+   * Configures the host port that the RustFs resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
   /**
    * Sets the AWS signing region used when creating buckets via the S3 API. Defaults to `us-east-1` if not specified.
    */
@@ -202201,6 +202645,11 @@ export interface SftpContainerResource extends ContainerResource, IComputeResour
 
   withHostKeyFile(keyFile: string, keyType: KeyType): this;
   /**
+   * Configures the host port that the SFTP resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
    * Adds a bind mount for the public key file of the specified user to an SFTP container resource.
    */
 
@@ -202284,6 +202733,11 @@ export interface SolrResource extends ContainerResource, IComputeResource, IExpr
    */
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the Solr resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -202481,6 +202935,11 @@ export interface StableDiffusionCppResource extends ContainerResource, IComputeR
 
   withGPUSupport(): this;
   /**
+   * Configures the host port that the stable-diffusion.cpp resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
    * Supplies a Hugging Face access token for gated or private repositories.
    */
 
@@ -202674,6 +203133,11 @@ export interface SurrealDbServerResource extends ContainerResource, IComputeReso
 
   withDataVolume(name?: string): this;
   /**
+   * Configures the host port that the SurrealDB resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
    * Copies init files into a SurrealDB container resource.
    */
 
@@ -202692,6 +203156,73 @@ export interface SurrealDbServerResource extends ContainerResource, IComputeReso
 }
 
 /**
+ * Handle Aspire.Hosting.ApplicationModel.TempoResource
+ */
+
+export interface TempoResource extends ContainerResource, IComputeResource, IResource, IResourceWithArgs, IResourceWithEndpoints, IResourceWithEnvironment, IResourceWithProbes, IResourceWithWaitSupport, IResourceWithServiceDiscovery {
+  /**
+   * Gets the internal Tempo gRPC endpoint, not the OTLP ingestion endpoint.
+   */
+
+  grpcEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the HTTP endpoint used to query traces and check readiness.
+   */
+
+  httpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the OTLP gRPC endpoint used to ingest traces.
+   */
+
+  otlpGrpcEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Gets the OTLP HTTP endpoint used to ingest traces.
+   */
+
+  otlpHttpEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Copies a Tempo configuration file to `/etc/tempo/tempo.yaml` for local runs and publishing.
+   */
+
+  withConfigFile(source: string): this;
+  /**
+   * Adds a writable bind mount for the default Tempo configuration's data directory, `/var/tempo`.
+   */
+
+  withDataBindMount(source: string): this;
+  /**
+   * Adds a named volume for the default Tempo configuration's data directory, `/var/tempo`.
+   */
+
+  withDataVolume(options?: { name?: string }): this;
+  /**
+   * Adds a named volume for the default Tempo configuration's data directory, `/var/tempo`.
+   */
+
+  withDataVolume(name?: string): this;
+  /**
+   * Configures the internal gRPC endpoint's host port.
+   */
+
+  withGrpcHostPort(port: number | null): this;
+  /**
+   * Configures the HTTP query endpoint's host port.
+   */
+
+  withHttpHostPort(port: number | null): this;
+  /**
+   * Configures the OTLP gRPC ingestion endpoint's host port.
+   */
+
+  withOtlpGrpcHostPort(port: number | null): this;
+  /**
+   * Configures the OTLP HTTP ingestion endpoint's host port.
+   */
+
+  withOtlpHttpHostPort(port: number | null): this;
+}
+
+/**
  * Handle Aspire.Hosting.ApplicationModel.UmamiResource
  */
 
@@ -202706,6 +203237,11 @@ export interface UmamiResource extends ContainerResource, IComputeResource, IRes
    */
 
   secretParameter: PropertyAccessor<ParameterResource>;
+  /**
+   * Configures the host port that the Umami resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
   /**
    * Configures PostgreSQL as the storage backend for Umami
    */
@@ -202738,6 +203274,11 @@ export interface ZitadelResource extends ContainerResource, IComputeResource, IR
    */
 
   withExternalDomain(externalDomain: string): this;
+  /**
+   * Configures the host port that the Zitadel resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
 }
 
 /**
@@ -202750,6 +203291,11 @@ export interface K6Resource extends ContainerResource, IComputeResource, IResour
    */
 
   primaryEndpoint: PropertyAccessor<EndpointReference>;
+  /**
+   * Configures the host port that the Grafana k6 resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
   /**
    * Set K6 environment variables from the existing OTEL environment set for this resource. See https://grafana.com/docs/k6/latest/results-output/real-time/opentelemetry/#configuration.
    */
@@ -203381,6 +203927,16 @@ export interface IDistributedApplicationBuilder {
 
   addBitwardenSecretManager(name: string, projectNameOrId: string | ParameterResource, organizationId: string | ParameterResource, accessToken: string | ParameterResource): BitwardenSecretManagerResource;
   /**
+   * Adds a ChromaDB container resource to the application model. The default image is "chromadb/chroma" and the tag is "1.5.9".
+   */
+
+  addChroma(name: string, options?: { port?: number }): ChromaResource;
+  /**
+   * Adds a ChromaDB container resource to the application model. The default image is "chromadb/chroma" and the tag is "1.5.9".
+   */
+
+  addChroma(name: string, port?: number): ChromaResource;
+  /**
    * Adds a DbGate container resource to the application.
    */
 
@@ -203440,6 +203996,16 @@ export interface IDistributedApplicationBuilder {
    */
 
   addFlagd(name: string, port?: number, ofrepPort?: number): FlagdResource;
+  /**
+   * Adds a Flare observability stack to the application model: an OTLP ingest service (the returned resource), the query API, the alert worker and the dashboard. Containers are used for local development. The default images are , , and , all with the tag .
+   */
+
+  addFlare(name: string, clickhouse: ClickHouseServerResource, redis: RedisResource, options?: { dashboardPort?: number }): FlareResource;
+  /**
+   * Adds a Flare observability stack to the application model: an OTLP ingest service (the returned resource), the query API, the alert worker and the dashboard. Containers are used for local development. The default images are , , and , all with the tag .
+   */
+
+  addFlare(name: string, clickhouse: ClickHouseServerResource, redis: RedisResource, dashboardPort?: number): FlareResource;
   /**
    * Adds a Floci AWS emulator container resource
    */
@@ -203503,6 +204069,16 @@ export interface IDistributedApplicationBuilder {
 
   addTurborepoApp(name: string, workingDirectory?: string): TurborepoResource;
   /**
+   * Adds a Vite+ monorepo workspace to the distributed application builder.
+   */
+
+  addVitePlusApp(name: string, options?: { workingDirectory?: string }): VitePlusResource;
+  /**
+   * Adds a Vite+ monorepo workspace to the distributed application builder.
+   */
+
+  addVitePlusApp(name: string, workingDirectory?: string): VitePlusResource;
+  /**
    * Adds a k3s Kubernetes cluster to the distributed application.
    */
 
@@ -203557,6 +204133,11 @@ export interface IDistributedApplicationBuilder {
    */
 
   addLogto(name: string, postgres: PostgresServerResource, databaseName?: string, port?: number, adminPort?: number): LogtoResource;
+  /**
+   * Adds a Grafana Loki container to the application model.
+   */
+
+  addLoki(name: string): LokiResource;
   /**
    * Adds a MailPit container resource
    */
@@ -203727,10 +204308,25 @@ export interface IDistributedApplicationBuilder {
 
   addSolr(name: string, port?: number, coreName?: string): SolrResource;
   /**
+   * Adds a SQL Server Database Project resource from a NuGet package.
+   */
+
+  addSqlPackage(name: string, packageId: string, version: string): SqlProjectResource;
+  /**
    * Adds a SQL Server Database Project resource to the application.
    */
 
   addSqlProject(name: string): SqlProjectResource;
+  /**
+   * Adds a SQL Server Database Project resource from a project file path.
+   */
+
+  addSqlProjectFromPath(name: string, projectPath: string, options?: { configuration?: string }): SqlProjectResource;
+  /**
+   * Adds a SQL Server Database Project resource from a project file path.
+   */
+
+  addSqlProjectFromPath(name: string, projectPath: string, configuration?: string): SqlProjectResource;
   /**
    * Adds an Sqlite resource to the application builder.
    */
@@ -203776,6 +204372,11 @@ export interface IDistributedApplicationBuilder {
    */
 
   addSurrealServer(name: string, userName?: string | ParameterResource, password?: string | ParameterResource, port?: number, path?: string): SurrealDbServerResource;
+  /**
+   * Adds a Grafana Tempo container with OTLP receivers and local trace storage to the application model.
+   */
+
+  addTempo(name: string): TempoResource;
   /**
    * Adds a Umami resource to the application model. A container is used for local development. The default image is and the tag is .
    */
@@ -204227,6 +204828,16 @@ export interface ActiveMQArtemisServerResource {
    */
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the ActiveMQ resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Configures the host port that the ActiveMQ web console is exposed on instead of using randomly assigned port.
+   */
+
+  withWebHostPort(port: number | null): this;
 }
 
 // augments handle type ActiveMQServerResource with extension methods
@@ -204306,6 +204917,16 @@ export interface ActiveMQServerResource {
    */
 
   withDataVolume(name?: string, isReadOnly?: boolean): this;
+  /**
+   * Configures the host port that the ActiveMQ resource is exposed on instead of using randomly assigned port.
+   */
+
+  withHostPort(port: number | null): this;
+  /**
+   * Configures the host port that the ActiveMQ web console is exposed on instead of using randomly assigned port.
+   */
+
+  withWebHostPort(port: number | null): this;
 }
 
 // augments handle type APIGatewayEmulatorResource with extension methods
@@ -225087,6 +225708,20 @@ export interface CertManagerResource {
   withNodePool(nodePool: KubernetesNodePoolResource): this;
 }
 
+// augments handle type ClickHouseServerResource with extension methods
+export interface ClickHouseServerResource {
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
+}
+
 // augments handle type CodeInterpreterToolResource with extension methods
 export interface CodeInterpreterToolResource {
   /**
@@ -226505,6 +227140,31 @@ export interface ContainerResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Configures the resource as an agent that supports the specified protocol.
+   */
+
+  asAgent(protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using the specified dashboard invocation mode.
+   */
+
+  asAgentWithInvocationMode(protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an agent that supports the specified protocol using a custom protocol path.
+   */
+
+  asAgentWithPath(agentCustomPath: string, protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using a custom protocol path and dashboard invocation mode.
+   */
+
+  asAgentWithPathAndInvocationMode(agentCustomPath: string, protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Adds commands for invoking tools on the resource's configured MCP server.
+   */
+
+  withMcpToolCommands(): this;
+  /**
    * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
    */
 
@@ -226539,6 +227199,16 @@ export interface ContainerResource {
    */
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
   /**
    * Adds a reference to a Floci AWS emulator resource
    */
@@ -227512,6 +228182,31 @@ export interface CSharpAppResource {
 
   withContainerImage(image: string): this;
   /**
+   * Configures the resource as an agent that supports the specified protocol.
+   */
+
+  asAgent(protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using the specified dashboard invocation mode.
+   */
+
+  asAgentWithInvocationMode(protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an agent that supports the specified protocol using a custom protocol path.
+   */
+
+  asAgentWithPath(agentCustomPath: string, protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using a custom protocol path and dashboard invocation mode.
+   */
+
+  asAgentWithPathAndInvocationMode(agentCustomPath: string, protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Adds commands for invoking tools on the resource's configured MCP server.
+   */
+
+  withMcpToolCommands(): this;
+  /**
    * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
    */
 
@@ -227546,6 +228241,16 @@ export interface CSharpAppResource {
    */
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
   /**
    * Adds a reference to a Floci AWS emulator resource
    */
@@ -228640,6 +229345,31 @@ export interface DotnetToolResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Configures the resource as an agent that supports the specified protocol.
+   */
+
+  asAgent(protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using the specified dashboard invocation mode.
+   */
+
+  asAgentWithInvocationMode(protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an agent that supports the specified protocol using a custom protocol path.
+   */
+
+  asAgentWithPath(agentCustomPath: string, protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using a custom protocol path and dashboard invocation mode.
+   */
+
+  asAgentWithPathAndInvocationMode(agentCustomPath: string, protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Adds commands for invoking tools on the resource's configured MCP server.
+   */
+
+  withMcpToolCommands(): this;
+  /**
    * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
    */
 
@@ -228674,6 +229404,16 @@ export interface DotnetToolResource {
    */
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
   /**
    * Adds a reference to a Floci AWS emulator resource
    */
@@ -229463,6 +230203,31 @@ export interface ExecutableResource {
 
   withOrleansReference(orleansService: OrleansService): this;
   /**
+   * Configures the resource as an agent that supports the specified protocol.
+   */
+
+  asAgent(protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using the specified dashboard invocation mode.
+   */
+
+  asAgentWithInvocationMode(protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an agent that supports the specified protocol using a custom protocol path.
+   */
+
+  asAgentWithPath(agentCustomPath: string, protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using a custom protocol path and dashboard invocation mode.
+   */
+
+  asAgentWithPathAndInvocationMode(agentCustomPath: string, protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Adds commands for invoking tools on the resource's configured MCP server.
+   */
+
+  withMcpToolCommands(): this;
+  /**
    * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
    */
 
@@ -229497,6 +230262,16 @@ export interface ExecutableResource {
    */
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
   /**
    * Adds a reference to a Floci AWS emulator resource
    */
@@ -230598,6 +231373,20 @@ export interface FirewallPolicyNatRuleCollectionInfoProxy {
   setPriority(value: BicepValueProxy | number): FirewallPolicyRuleCollectionInfoProxy;
 }
 
+// augments handle type FlareResource with extension methods
+export interface FlareResource {
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
+}
+
 // augments handle type FlociAwsContainerResource with extension methods
 export interface FlociAwsContainerResource {
   /**
@@ -231128,6 +231917,31 @@ export interface IResourceWithEndpoints {
    */
 
   asHostedAgentWithProtocol(project: AzureCognitiveServicesProjectResource, protocol: HostedAgentProtocol, protocolVersion: string, options?: HostedAgentOptions): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an agent that supports the specified protocol.
+   */
+
+  asAgent(protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using the specified dashboard invocation mode.
+   */
+
+  asAgentWithInvocationMode(protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an agent that supports the specified protocol using a custom protocol path.
+   */
+
+  asAgentWithPath(agentCustomPath: string, protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using a custom protocol path and dashboard invocation mode.
+   */
+
+  asAgentWithPathAndInvocationMode(agentCustomPath: string, protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Adds commands for invoking tools on the resource's configured MCP server.
+   */
+
+  withMcpToolCommands(): this;
 }
 
 // augments handle type IResourceWithEnvironment with extension methods
@@ -231191,6 +232005,16 @@ export interface IResourceWithEnvironment {
    */
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
   /**
    * Adds a reference to a Floci AWS emulator resource
    */
@@ -231446,7 +232270,12 @@ export interface K8sManifestResource {
 
   withClusterReadyTimeout(timeout: timespan): this;
   /**
-   * Sets whether CRD wait failures fail the manifest resource or are logged as best-effort warnings.
+   * Configures how the post-apply check waits for CRDs to reach the `Established` condition before the resource becomes running.
+   */
+
+  withCrdWait(configure: (obj: CrdWaitOptions) => Promise<void>): this;
+  /**
+   * Sets whether CRD wait failures prevent the manifest from running.
    */
 
   withCrdWaitBehavior(behavior: CrdWaitBehavior): this;
@@ -231560,6 +232389,11 @@ export interface KindEnvironmentResource {
 
 // augments handle type KindHelmChartResource with extension methods
 export interface KindHelmChartResource {
+  /**
+   * Configures how the post-apply check waits for CRDs to reach the `Established` condition before the resource becomes running.
+   */
+
+  withCrdWait(configure: (obj: CrdWaitOptions) => Promise<void>): this;
   /**
    * Sets the Kubernetes namespace for the deployment.
    */
@@ -235191,6 +236025,31 @@ export interface ProjectResource {
 
   withContainerImage(image: string): this;
   /**
+   * Configures the resource as an agent that supports the specified protocol.
+   */
+
+  asAgent(protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using the specified dashboard invocation mode.
+   */
+
+  asAgentWithInvocationMode(protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an agent that supports the specified protocol using a custom protocol path.
+   */
+
+  asAgentWithPath(agentCustomPath: string, protocol: AgentProtocol, agentName?: string): IResourceWithEndpoints;
+  /**
+   * Configures the resource as an A2A agent using a custom protocol path and dashboard invocation mode.
+   */
+
+  asAgentWithPathAndInvocationMode(agentCustomPath: string, protocol: AgentProtocol, invocationMode: A2AInvocationMode): IResourceWithEndpoints;
+  /**
+   * Adds commands for invoking tools on the resource's configured MCP server.
+   */
+
+  withMcpToolCommands(): this;
+  /**
    * Overrides the Bitwarden access token injected into the connection for `source`. By default the management token is used. Supply a least-privilege read-only token here.
    */
 
@@ -235225,6 +236084,16 @@ export interface ProjectResource {
    */
 
   withBitwardenSecretManagerReference(source: BitwardenSecretManagerResource, connectionName?: string): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
   /**
    * Adds a reference to a Floci AWS emulator resource
    */
@@ -235352,6 +236221,16 @@ export interface RedisCommanderResource {
   withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
 
   withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
 }
 
 // augments handle type RedisInsightResource with extension methods
@@ -235360,6 +236239,16 @@ export interface RedisInsightResource {
   withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
 
   withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
 }
 
 // augments handle type RedisResource with extension methods
@@ -235368,6 +236257,16 @@ export interface RedisResource {
   withAWSSDKConfigReference(awsSdkConfig: IAWSSDKConfig): this;
 
   withDynamoDBLocalReference(dynamoDBLocalResourceBuilder: DynamoDBLocalResource): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, options?: { protocol?: OtlpProtocol }): this;
+  /**
+   * Points a resource's OpenTelemetry exporter at a Flare ingest service by setting `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`.
+   */
+
+  withFlareOtlpExporter(flare: FlareResource, protocol?: OtlpProtocol): this;
   /**
    * Adds an administration and development platform for Redis to the application model using DbGate.
    */
@@ -236378,6 +237277,20 @@ export interface ViteAppResource {
    */
 
   withYarn(install?: boolean, installArgs?: string[]): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(options?: { endpointName?: string }): this;
+  /**
+   * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
+   */
+
+  withMappedEndpointPort(endpointName?: string): this;
+}
+
+// augments handle type VitePlusAppResource with extension methods
+export interface VitePlusAppResource {
   /**
    * Maps the endpoint port for the JavaScript app resource to the appropriate command line argument
    */
