@@ -31,7 +31,7 @@ import flareIcon from '@assets/icons/flare-icon.png';
 
 The Aspire dashboard shows telemetry for the current run. Use Flare when you need more than that:
 
-- Telemetry is stored in ClickHouse, so it persists across AppHost runs.
+- Telemetry is stored in ClickHouse. With a [data volume](/integrations/databases/clickhouse/clickhouse-host/) on the ClickHouse resource, it persists across AppHost runs.
 - Alert rules evaluate log, metric, and exception queries and send notifications.
 - The same backend is part of your app model, so `aspire publish` and `aspire deploy` carry it to Docker Compose or Kubernetes.
 
@@ -87,7 +87,10 @@ import { createBuilder } from './.aspire/modules/aspire.mjs';
 const builder = await createBuilder();
 
 const clickhouse = await builder.addClickHouse('clickhouse');
+await clickhouse.withDataVolume();
+
 const redis = await builder.addRedis('redis');
+await redis.withDataVolume();
 
 const flare = await builder.addFlare('flare', clickhouse, redis);
 await flare.withDataVolume();
@@ -106,8 +109,10 @@ await builder.build().run();
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var clickhouse = builder.AddClickHouse("clickhouse");
-var redis = builder.AddRedis("redis");
+var clickhouse = builder.AddClickHouse("clickhouse")
+    .WithDataVolume();
+var redis = builder.AddRedis("redis")
+    .WithDataVolume();
 
 var flare = builder.AddFlare("flare", clickhouse, redis)
     .WithDataVolume();
