@@ -875,3 +875,34 @@ Parameters are required by default, and in Aspire 17.0 an explicit empty string 
 <LearnMore>
   See [Optional parameters](/fundamentals/external-parameters/#optional-parameters) for required and optional parameter behavior.
 </LearnMore>
+
+### `AddAzureFunctionTool` takes an options object
+
+The preview `AddAzureFunctionTool` overloads that took positional arguments were replaced by a single `AddAzureFunctionTool(name, AzureFunctionToolOptions)` overload. The options type groups the function definition and the input and output queue bindings. Set `ParametersJson` to the JSON schema text; callers that passed a `BinaryData` value must now pass its JSON text.
+
+```csharp title="AppHost.cs"
+var functionTool = project.AddAzureFunctionTool("weather-tool", new AzureFunctionToolOptions
+{
+    FunctionName = "get_weather",
+    Description = "Gets the weather for a city.",
+    ParametersJson = """{"type":"object","properties":{"city":{"type":"string"}}}""",
+    InputQueueEndpoint = "https://storage.queue.core.windows.net",
+    InputQueueName = "weather-input",
+    OutputQueueEndpoint = "https://storage.queue.core.windows.net",
+    OutputQueueName = "weather-output"
+});
+```
+
+In TypeScript AppHosts, pass the same settings as an object:
+
+```typescript title="apphost.mts"
+const functionTool = await project.addAzureFunctionTool('weather-tool', {
+  functionName: 'get_weather',
+  description: 'Gets the weather for a city.',
+  parametersJson: JSON.stringify({ type: 'object', properties: { city: { type: 'string' } } }),
+  inputQueueEndpoint: 'https://storage.queue.core.windows.net',
+  inputQueueName: 'weather-input',
+  outputQueueEndpoint: 'https://storage.queue.core.windows.net',
+  outputQueueName: 'weather-output'
+});
+```
