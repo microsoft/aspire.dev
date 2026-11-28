@@ -362,6 +362,30 @@ Resources created with `AddDotnetProject` are automatically configured for the .
 
 Use <ApiReference name="Aspire.Hosting.ApplicationModel.ResourceExtensions.WithContainerBuildOptions" /> / `withContainerBuildOptions` to configure supported image settings. See [Container registries](/app-host/container-registry/) for image naming, tags, and registries.
 
+### Publish to a container archive
+
+Set `Destination = ContainerImageDestination.Archive` in `WithContainerBuildOptions` to write the image to an archive instead of a registry or the local runtime. The archive has the same shape whether or not you use `PublishWithContainerFiles`:
+
+```csharp
+var server = builder.AddProject<Projects.Server>("server")
+    .WithContainerBuildOptions(options =>
+    {
+        options.Destination = ContainerImageDestination.Archive;
+        options.ImageFormat = ContainerImageFormat.Oci;
+        options.OutputPath = Path.Combine(builder.AppHostDirectory, "images");
+    });
+
+server.PublishWithContainerFiles(webfrontend, "wwwroot");
+```
+
+- **File or directory:** An `OutputPath` with an extension is a file. A path without an extension, ending in a directory separator, or naming an existing directory is a directory. Aspire writes `<image-name>.tar` into it, and flattens registry-qualified names into a single file name (for example, `team/program` becomes `team-program.tar`).
+- **Uncompressed:** The archive is always an uncompressed tar. If you set an explicit `.gz` or `.tgz` file name, Aspire uses it as-is and logs a warning that the archive isn't compressed.
+- **OCI on Docker:** `ContainerImageFormat.Oci` is supported with Docker Engine 25 or later when you use `PublishWithContainerFiles`. Aspire verifies that the saved archive contains an OCI layout (`oci-layout` and `index.json`).
+
+:::caution[Breaking change]
+When `OutputPath` is a directory, the archive file name changed. Without `PublishWithContainerFiles`, the .NET SDK previously wrote `<image-name>.tar.gz` (an uncompressed tar despite the name). With `PublishWithContainerFiles`, Aspire previously wrote `<image-name>-<tag>.tar`. Both now write `<image-name>.tar`. Update any CI steps, scripts, or manifests that read the old name, or set `OutputPath` to an explicit file name.
+:::
+
 Constructing a `DotnetProjectResource` directly doesn't configure metadata, coordinated builds, or publishing. Prefer the builder API.
 
 For other publishing models:
