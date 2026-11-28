@@ -2033,6 +2033,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'Flare',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/observability/flare/flare-get-started',
+            },
+            {
+              label: 'Set up Flare in the AppHost',
+              slug: 'integrations/observability/flare/flare-host',
+            },
+          ],
+        },
+        {
           label: 'OpenTelemetry Collector',
           collapsed: true,
           items: [
